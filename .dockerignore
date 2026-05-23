@@ -1,0 +1,11 @@
+.git
+.gocache
+.gomodcache
+node_modules
+dist
+*.log
+backups/
+tmp/
+email_config.local.json
+resend_config.local.json
+email_cron.local.json

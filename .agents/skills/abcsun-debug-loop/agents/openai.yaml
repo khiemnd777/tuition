@@ -1,0 +1,4 @@
+interface:
+  display_name: "ABC SUN Debug Loop"
+  short_description: "Disciplined reproduction-first debugging"
+  default_prompt: "Use $abcsun-debug-loop to diagnose a failing ABC SUN VietQR, email, cron, or UI flow."

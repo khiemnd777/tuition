@@ -1,0 +1,4 @@
+interface:
+  display_name: "ABC SUN VietQR Payments"
+  short_description: "VietQR payment row and CSV expertise"
+  default_prompt: "Use $abcsun-vietqr-payments to modify VietQR payment rows, CSV import, or payload generation."
