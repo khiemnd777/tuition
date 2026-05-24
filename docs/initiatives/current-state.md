@@ -4,13 +4,13 @@ Last updated: 2026-05-23
 
 ## Current Status
 
-Production roadmap implementation has student, parent, and class master data complete.
+Production roadmap implementation has student, parent, class master data, and fee schedule setup complete.
 
-Current phase: `initiative_2_complete`
+Current phase: `initiative_3_complete`
 
 Current initiative: none
 
-Next recommended initiative: `Initiative 3: Fee Types And Fee Schedules`
+Next recommended initiative: `Initiative 4: Invoice And PDF Receipt`
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md`
 
@@ -54,12 +54,21 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md`
   - Added API endpoints for master-data options, student listing by school year/class/grade/search, and CSV import.
   - Added the `Học sinh` UI tab with filters, import preview/apply controls, student table, and conflict report.
   - Added `samples/master_data.csv`, tests, README docs, and glossary terms.
+- Initiative 3: Fee Types And Fee Schedules is complete:
+  - Added production schema for `fee_types`, `fee_schedules`, `fee_schedule_items`, and `student_fee_adjustments`.
+  - Seeded default fee types for tuition, lunch, shuttle, uniform, insurance, materials, previous fees, and custom fees with Vietnamese and English labels.
+  - Added API endpoints for fee schedule options, list, preview, and save.
+  - Added deterministic preview totals for class/grade/school-year scopes and student adjustments.
+  - Added adjustment support for discount, surcharge, waiver, and carry-over with required reasons.
+  - Added the `Bảng phí` UI workflow for period fee setup, preview before invoice generation, and saved schedule list.
+  - Preserved the legacy payment-row fee template and the `PaymentItems` total-overrides-amount invariant.
+  - Added tests, README docs, and glossary terms.
 
 ## Not Started
 
 - No payment provider integration has been implemented.
-- Web Admin production screens beyond the student master-data tab have not been implemented.
-- Fee schedules, invoices, reconciliation, notification campaigns, reports, and operations modules have not started.
+- Web Admin production screens beyond the student master-data and fee schedule tabs have not been implemented.
+- Invoices, PDF receipts, reconciliation, notification campaigns, reports, and operations modules have not started.
 
 ## Agent Protocol
 
@@ -93,7 +102,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Start Initiative 3 from docs/initiatives/production-module-roadmap.md. Build production fee types and fee schedules for class/period/month tuition setup. Preserve current VietQR/email behavior and update docs/initiatives/current-state.md when finished.
+Start Initiative 4 from docs/initiatives/production-module-roadmap.md. Build invoice generation and PDF receipt output as the production source of payment requests. Preserve current VietQR/email behavior and update docs/initiatives/current-state.md when finished.
 ```
 
 ## Known Safety Constraints

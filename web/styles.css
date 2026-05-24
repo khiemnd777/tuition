@@ -35,7 +35,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -108,7 +109,8 @@ button.danger:hover {
 button:focus-visible,
 .file-button:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -326,8 +328,14 @@ select:focus-visible {
   min-height: 32px;
 }
 
-.fee-template-wrap {
+.fee-template-wrap,
+.fee-workspace {
   margin: 18px 24px;
+}
+
+.fee-workspace {
+  display: grid;
+  gap: 18px;
 }
 
 .master-wrap {
@@ -472,6 +480,197 @@ select:focus-visible {
   background: var(--surface-muted);
 }
 
+.fee-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.fee-schedule-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fee-schedule-grid input,
+.fee-schedule-grid select,
+.fee-config-table input,
+#feeAdjustmentsCsv {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.fee-schedule-name,
+.fee-schedule-notes {
+  grid-column: span 2;
+}
+
+.fee-schedule-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 14px;
+  padding: 0 16px 16px;
+  background: var(--surface-muted);
+}
+
+.fee-schedule-section {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.fee-section-head {
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fee-section-head span {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.fee-config-table-wrap,
+.fee-preview-table-wrap {
+  max-height: 360px;
+}
+
+.fee-config-table,
+.fee-preview-table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+
+.fee-config-table .fee-type-col {
+  width: 150px;
+}
+
+.fee-config-table .fee-label-col {
+  width: 220px;
+}
+
+.fee-config-table .fee-amount-col {
+  width: 150px;
+}
+
+#feeAdjustmentsCsv {
+  display: block;
+  min-height: 322px;
+  border: 0;
+  border-radius: 0 0 8px 8px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.fee-schedule-summary {
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.fee-schedule-summary.error {
+  background: #fff8f8;
+  color: var(--red);
+}
+
+.fee-issue-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fee-preview-table {
+  min-width: 860px;
+}
+
+.fee-preview-code {
+  width: 130px;
+}
+
+.fee-preview-student {
+  width: 220px;
+}
+
+.fee-preview-class {
+  width: 110px;
+}
+
+.fee-preview-money {
+  width: 150px;
+}
+
+.fee-negative {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.fee-schedule-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface-muted);
+}
+
+.fee-schedule-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.fee-schedule-list-item > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.fee-schedule-list-item strong {
+  color: var(--ink);
+}
+
+.fee-schedule-list-item span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.fee-list-empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .table-wrap {
   overflow: auto;
   max-height: calc(100vh - 286px);
@@ -590,7 +789,11 @@ td select:hover,
 .cron-grid input:hover,
 .cron-grid select:hover,
 .master-toolbar input:hover,
-.master-toolbar select:hover {
+.master-toolbar select:hover,
+.fee-schedule-grid input:hover,
+.fee-schedule-grid select:hover,
+.fee-config-table input:hover,
+#feeAdjustmentsCsv:hover {
   border-color: var(--line-strong);
 }
 
@@ -602,7 +805,11 @@ td select:focus,
 .cron-grid input:focus,
 .cron-grid select:focus,
 .master-toolbar input:focus,
-.master-toolbar select:focus {
+.master-toolbar select:focus,
+.fee-schedule-grid input:focus,
+.fee-schedule-grid select:focus,
+.fee-config-table input:focus,
+#feeAdjustmentsCsv:focus {
   border-color: var(--focus);
 }
 
@@ -991,8 +1198,24 @@ td select:focus,
     grid-template-columns: 1fr;
   }
 
+  .fee-schedule-grid,
+  .fee-schedule-body {
+    grid-template-columns: 1fr;
+  }
+
+  .fee-schedule-name,
+  .fee-schedule-notes {
+    grid-column: auto;
+  }
+
+  .fee-schedule-list-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .email-wrap,
-  .fee-template-wrap {
+  .fee-template-wrap,
+  .fee-workspace {
     margin-left: 14px;
     margin-right: 14px;
   }

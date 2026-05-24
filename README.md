@@ -104,7 +104,7 @@ go run . migrate up
 
 `ABC_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `ABC_DATABASE_URL_LOCAL`, `ABC_DATABASE_URL_STAGING`, `ABC_DATABASE_URL_PRODUCTION`; sau đó fallback sang `ABC_DATABASE_URL` và `DATABASE_URL`.
 
-Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn.
+Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice.
 
 Quy ước production hiện tại:
 
@@ -139,7 +139,7 @@ Nếu dùng các khoản phí động, có thể gửi `paymentItems` qua JSON h
 tuition_april,shuttle_april,tuition_may,health_insurance,uniform_fee,international_material,previous_fees
 ```
 
-Trong UI, workflow được tách thành các tab: `Học sinh`, `Thanh toán`, `Khoản phí`, và `Email & Cron`. Tab `Template khoản phí` là mẫu dùng cho record thanh toán mới; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh` dùng cho master data production và cần PostgreSQL đã cấu hình.
+Trong UI, workflow được tách thành các tab: `Học sinh`, `Thanh toán`, `Bảng phí`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh` và phần bảng phí theo kỳ dùng PostgreSQL đã cấu hình.
 
 ## CSV master data
 
@@ -160,6 +160,27 @@ Quy tắc import:
 - `parent_email` được chuẩn hóa lowercase. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
 - Import preview sẽ báo conflict nếu CSV hoặc database hiện có mâu thuẫn; apply import không tự overwrite dữ liệu khác biệt.
 
+## Bảng phí theo kỳ
+
+Bảng phí theo kỳ dùng master data production để thiết lập các khoản phải thu mặc định theo năm học, khối hoặc lớp trước khi sinh invoice. Fee type mặc định gồm `tuition`, `lunch`, `shuttle`, `uniform`, `insurance`, `materials`, `previous_fees`, và `custom`; mỗi loại có nhãn tiếng Việt và tiếng Anh.
+
+Mỗi bảng phí có `periodCode`, `month` tùy chọn, trạng thái `draft` hoặc `active`, các khoản phí mặc định, và điều chỉnh theo học sinh. Điều chỉnh hỗ trợ:
+
+- `discount`: giảm trừ một số tiền.
+- `surcharge`: phụ thu.
+- `waiver`: miễn giảm; nếu `amount=0` và có `fee_type_code`, app miễn toàn bộ khoản phí mặc định đó.
+- `carry_over`: chuyển phí kỳ trước sang kỳ hiện tại.
+
+Ô điều chỉnh trong UI nhận CSV ngắn:
+
+```csv
+student_code,adjustment_type,fee_type_code,amount,reason
+S001,discount,tuition,500000,Ưu đãi anh chị em
+S002,waiver,shuttle,0,Không sử dụng xe
+```
+
+Preview bảng phí trả tổng mặc định, tổng điều chỉnh và tổng phải thu cho từng học sinh. Khi có điều chỉnh, payment items dùng cho QR/payment data được gom thành `Tổng phí sau điều chỉnh` để giữ invariant tổng `PaymentItems` quyết định `Amount`.
+
 ## API
 
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
@@ -170,6 +191,10 @@ Quy tắc import:
 - `GET /api/v1/master-data/students`: danh sách học sinh production, hỗ trợ `schoolYearId`, `schoolYear`, `classId`, `grade`, `q`.
 - `POST /api/v1/master-data/import/csv?apply=false`: preview import CSV master data và trả conflict report.
 - `POST /api/v1/master-data/import/csv?apply=true`: áp dụng import master data nếu không có conflict.
+- `GET /api/v1/fee-schedules/options`: danh sách năm học/lớp và fee type cho bảng phí theo kỳ.
+- `GET /api/v1/fee-schedules`: danh sách bảng phí đã lưu, hỗ trợ `schoolYearId`, `classId`, `grade`, `status`.
+- `POST /api/v1/fee-schedules/preview`: preview bảng phí theo kỳ trước khi sinh invoice.
+- `POST /api/v1/fee-schedules/save`: lưu bảng phí theo kỳ và trả preview mới.
 - `POST /api/v1/vietqr/batch`: sinh QR theo danh sách rows.
 - `GET/POST /api/v1/email/config`: đọc/lưu cấu hình email local.
 - `POST /api/v1/email/preview`: render HTML email theo dòng đầu tiên.

@@ -59,6 +59,27 @@ const masterStudentCountEl = document.querySelector("#masterStudentCount");
 const masterConflictPanelEl = document.querySelector("#masterConflictPanel");
 const masterConflictCountEl = document.querySelector("#masterConflictCount");
 const masterConflictListEl = document.querySelector("#masterConflictList");
+const feeScheduleLoadStatusEl = document.querySelector("#feeScheduleLoadStatus");
+const refreshFeeSchedulesBtn = document.querySelector("#refreshFeeSchedules");
+const previewFeeScheduleBtn = document.querySelector("#previewFeeSchedule");
+const saveFeeScheduleBtn = document.querySelector("#saveFeeSchedule");
+const feeScheduleYearEl = document.querySelector("#feeScheduleYear");
+const feeScheduleGradeEl = document.querySelector("#feeScheduleGrade");
+const feeScheduleClassEl = document.querySelector("#feeScheduleClass");
+const feeSchedulePeriodEl = document.querySelector("#feeSchedulePeriod");
+const feeScheduleMonthEl = document.querySelector("#feeScheduleMonth");
+const feeScheduleStatusEl = document.querySelector("#feeScheduleStatus");
+const feeScheduleNameEl = document.querySelector("#feeScheduleName");
+const feeScheduleNotesEl = document.querySelector("#feeScheduleNotes");
+const feeScheduleItemsEl = document.querySelector("#feeScheduleItems");
+const feeScheduleItemTotalEl = document.querySelector("#feeScheduleItemTotal");
+const feeAdjustmentsCsvEl = document.querySelector("#feeAdjustmentsCsv");
+const feeAdjustmentCountEl = document.querySelector("#feeAdjustmentCount");
+const feeScheduleSummaryEl = document.querySelector("#feeScheduleSummary");
+const feeSchedulePreviewCountEl = document.querySelector("#feeSchedulePreviewCount");
+const feeSchedulePreviewRowsEl = document.querySelector("#feeSchedulePreviewRows");
+const feeSchedulesEl = document.querySelector("#feeSchedules");
+const feeScheduleCountEl = document.querySelector("#feeScheduleCount");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
@@ -69,6 +90,8 @@ let feeColumnCollapsed = false;
 let savedEmailConfig = {};
 let masterDataOptions = { schoolYears: [], classes: [] };
 let masterDataLoaded = false;
+let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
+let feeSchedulesLoaded = false;
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -78,6 +101,17 @@ const defaultPaymentItems = [
   { label: "Đồng phục", labelEn: "Uniform fee", amount: 0 },
   { label: "Sách CTQT", labelEn: "International material", amount: 0 },
   { label: "Các khoản phí tháng trước", labelEn: "Previous month's fees", amount: 0 },
+];
+
+const defaultFeeTypes = [
+  { code: "tuition", labelVi: "Học phí", labelEn: "Tuition", displayOrder: 10 },
+  { code: "lunch", labelVi: "Tiền ăn", labelEn: "Lunch", displayOrder: 20 },
+  { code: "shuttle", labelVi: "Phí xe đưa rước", labelEn: "Shuttle", displayOrder: 30 },
+  { code: "uniform", labelVi: "Đồng phục", labelEn: "Uniform", displayOrder: 40 },
+  { code: "insurance", labelVi: "Bảo hiểm", labelEn: "Insurance", displayOrder: 50 },
+  { code: "materials", labelVi: "Học liệu", labelEn: "Learning materials", displayOrder: 60 },
+  { code: "previous_fees", labelVi: "Phí kỳ trước", labelEn: "Previous fees", displayOrder: 70 },
+  { code: "custom", labelVi: "Khoản phí khác", labelEn: "Custom fee", displayOrder: 100 },
 ];
 
 const sampleRows = [
@@ -122,6 +156,10 @@ async function init() {
   await loadEmailCron();
   renderMasterFilters();
   renderMasterStudents([]);
+  renderFeeScheduleControls();
+  renderFeeScheduleItems(defaultFeeTypes);
+  renderFeeSchedulePreview(null);
+  renderFeeSchedules([]);
   renderFeeTemplate(defaultPaymentItems);
   renderRows(sampleRows);
   await loadMasterData();
@@ -155,6 +193,9 @@ async function activateTab(targetId) {
   });
   if (targetId === "masterDataTab") {
     await loadMasterData();
+  }
+  if (targetId === "feeTemplateTab") {
+    await loadFeeSchedules();
   }
   if (targetId === "emailTab") {
     await previewEmail();
@@ -577,9 +618,325 @@ function renderMasterConflicts(issues) {
     .join("");
 }
 
+async function loadFeeSchedules(force = false) {
+  if (!force && feeSchedulesLoaded) {
+    return;
+  }
+  const loaded = await loadFeeScheduleOptions();
+  if (loaded) {
+    await loadFeeScheduleList();
+  }
+}
+
+async function loadFeeScheduleOptions() {
+  setFeeScheduleStatus("Đang tải", "busy");
+  const res = await fetch("/api/v1/fee-schedules/options");
+  const text = await res.text();
+  if (!res.ok) {
+    feeSchedulesLoaded = false;
+    renderFeeSchedules([]);
+    renderFeeSchedulePreview(null);
+    setFeeScheduleStatus(text || "Chưa cấu hình DB", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  feeScheduleOptions = {
+    feeTypes: data.feeTypes || defaultFeeTypes,
+    schoolYears: data.schoolYears || [],
+    classes: data.classes || [],
+  };
+  feeSchedulesLoaded = true;
+  renderFeeScheduleControls();
+  renderFeeScheduleItems(feeScheduleOptions.feeTypes);
+  setFeeScheduleStatus("Sẵn sàng", "ready");
+  return true;
+}
+
+async function loadFeeScheduleList() {
+  if (!feeSchedulesLoaded) {
+    return;
+  }
+  const params = new URLSearchParams();
+  if (feeScheduleYearEl.value) params.set("schoolYearId", feeScheduleYearEl.value);
+  if (feeScheduleClassEl.value) params.set("classId", feeScheduleClassEl.value);
+  if (!feeScheduleClassEl.value && feeScheduleGradeEl.value) params.set("grade", feeScheduleGradeEl.value);
+
+  const res = await fetch(`/api/v1/fee-schedules?${params.toString()}`);
+  const text = await res.text();
+  if (!res.ok) {
+    renderFeeSchedules([]);
+    setFeeScheduleStatus(text || "Không tải được bảng phí", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  renderFeeSchedules(data.schedules || []);
+  setFeeScheduleStatus("Sẵn sàng", "ready");
+}
+
+function renderFeeScheduleControls() {
+  const selectedYear = feeScheduleYearEl.value;
+  const selectedGrade = feeScheduleGradeEl.value;
+  const selectedClass = feeScheduleClassEl.value;
+
+  feeScheduleYearEl.innerHTML = [
+    `<option value="">Chọn năm học</option>`,
+    ...(feeScheduleOptions.schoolYears || []).map(
+      (item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code)}</option>`,
+    ),
+  ].join("");
+  feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, selectedYear);
+
+  const grades = [...new Set(
+    (feeScheduleOptions.classes || [])
+      .filter((item) => !feeScheduleYearEl.value || item.schoolYearId === feeScheduleYearEl.value)
+      .map((item) => item.grade)
+      .filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
+  feeScheduleGradeEl.innerHTML = [
+    `<option value="">Toàn năm học</option>`,
+    ...grades.map((grade) => `<option value="${escapeAttr(grade)}">Khối ${escapeHtml(grade)}</option>`),
+  ].join("");
+  feeScheduleGradeEl.value = optionValueOrEmpty(feeScheduleGradeEl, selectedGrade);
+
+  renderFeeScheduleClassFilter(selectedClass);
+}
+
+function renderFeeScheduleClassFilter(selectedClass = feeScheduleClassEl.value) {
+  const classes = (feeScheduleOptions.classes || []).filter((item) => {
+    if (feeScheduleYearEl.value && item.schoolYearId !== feeScheduleYearEl.value) return false;
+    if (feeScheduleGradeEl.value && item.grade !== feeScheduleGradeEl.value) return false;
+    return true;
+  });
+  feeScheduleClassEl.innerHTML = [
+    `<option value="">Theo năm/khối</option>`,
+    ...classes.map(
+      (item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.schoolYearCode)} · ${escapeHtml(item.name)}</option>`,
+    ),
+  ].join("");
+  feeScheduleClassEl.value = optionValueOrEmpty(feeScheduleClassEl, selectedClass);
+}
+
+function renderFeeScheduleItems(feeTypes) {
+  const types = feeTypes?.length ? feeTypes : defaultFeeTypes;
+  feeScheduleItemsEl.innerHTML = types
+    .map(
+      (item) => `
+        <tr data-fee-type-id="${escapeAttr(item.id || "")}" data-fee-type-code="${escapeAttr(item.code || "")}" data-display-order="${Number(item.displayOrder || 0)}">
+          <td><span class="tag">${escapeHtml(item.code || "")}</span></td>
+          <td><input data-fee-schedule-field="labelVi" value="${escapeAttr(item.labelVi || "")}" /></td>
+          <td><input data-fee-schedule-field="labelEn" value="${escapeAttr(item.labelEn || "")}" /></td>
+          <td><input data-fee-schedule-field="amount" type="number" min="0" step="1000" value="0" /></td>
+        </tr>
+      `,
+    )
+    .join("");
+  feeScheduleItemsEl.querySelectorAll('[data-fee-schedule-field="amount"]').forEach((input) => {
+    input.addEventListener("input", updateFeeScheduleItemTotal);
+  });
+  updateFeeScheduleItemTotal();
+}
+
+function updateFeeScheduleItemTotal() {
+  const total = collectFeeScheduleItems().reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  feeScheduleItemTotalEl.textContent = formatMoney(total);
+}
+
+function collectFeeScheduleItems() {
+  return [...feeScheduleItemsEl.querySelectorAll("tr")]
+    .map((row) => ({
+      feeTypeId: row.dataset.feeTypeId || "",
+      feeTypeCode: row.dataset.feeTypeCode || "",
+      labelVi: row.querySelector('[data-fee-schedule-field="labelVi"]').value.trim(),
+      labelEn: row.querySelector('[data-fee-schedule-field="labelEn"]').value.trim(),
+      amount: Number(row.querySelector('[data-fee-schedule-field="amount"]').value || 0),
+      displayOrder: Number(row.dataset.displayOrder || 0),
+    }))
+    .filter((item) => item.amount > 0);
+}
+
+function collectFeeScheduleDraft() {
+  const classId = feeScheduleClassEl.value;
+  return {
+    schoolYearId: feeScheduleYearEl.value,
+    classId,
+    grade: classId ? "" : feeScheduleGradeEl.value,
+    periodCode: feeSchedulePeriodEl.value.trim(),
+    month: Number(feeScheduleMonthEl.value || 0),
+    name: feeScheduleNameEl.value.trim(),
+    notes: feeScheduleNotesEl.value.trim(),
+    status: feeScheduleStatusEl.value || "draft",
+    items: collectFeeScheduleItems(),
+    adjustments: parseFeeAdjustmentsCsv(),
+  };
+}
+
+function parseFeeAdjustmentsCsv() {
+  const lines = feeAdjustmentsCsvEl.value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) {
+    return [];
+  }
+
+  let header = ["student_code", "adjustment_type", "fee_type_code", "amount", "reason"];
+  const first = lines[0].split(",").map((part) => headerKeyClient(part));
+  const hasHeader = first.includes("student_code") || first.includes("student_id");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  if (hasHeader) {
+    header = first;
+  }
+
+  const adjustments = dataLines
+    .map((line) => {
+      const parts = line.split(",").map((part) => part.trim());
+      const field = (name, fallbackIndex) => {
+        const index = header.indexOf(name);
+        if (index >= 0) return parts[index] || "";
+        return parts[fallbackIndex] || "";
+      };
+      const reasonIndex = header.indexOf("reason");
+      const reason = reasonIndex >= 0 ? parts.slice(reasonIndex).join(",").trim() : parts.slice(4).join(",").trim();
+      return {
+        studentCode: field("student_code", 0).toUpperCase(),
+        adjustmentType: headerKeyClient(field("adjustment_type", 1)),
+        feeTypeCode: headerKeyClient(field("fee_type_code", 2)),
+        amount: parseMoneyInput(field("amount", 3)),
+        reason,
+      };
+    })
+    .filter((item) => item.studentCode || item.adjustmentType || item.amount || item.reason);
+  feeAdjustmentCountEl.textContent = `${adjustments.length} điều chỉnh`;
+  return adjustments;
+}
+
+async function previewFeeSchedule() {
+  setFeeScheduleStatus("Đang preview", "busy");
+  const res = await fetch("/api/v1/fee-schedules/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectFeeScheduleDraft()),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    renderFeeSchedulePreview({ rows: [], issues: [{ message: text || "Preview failed", type: "preview_failed" }] });
+    setFeeScheduleStatus("Lỗi", "error");
+    return;
+  }
+  renderFeeSchedulePreview(data);
+  setFeeScheduleStatus(data.issues?.length ? "Có lỗi" : "Đã preview", data.issues?.length ? "error" : "ready");
+}
+
+async function saveFeeSchedule() {
+  setFeeScheduleStatus("Đang lưu", "busy");
+  const res = await fetch("/api/v1/fee-schedules/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectFeeScheduleDraft()),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    const issues = data?.issues || [{ type: "save_failed", message: text || "Save failed" }];
+    renderFeeSchedulePreview({ rows: [], issues });
+    setFeeScheduleStatus("Lỗi", "error");
+    return;
+  }
+  renderFeeSchedulePreview(data.preview || null);
+  renderFeeSchedules(data.schedules || []);
+  setFeeScheduleStatus("Đã lưu", "ready");
+}
+
+function renderFeeSchedulePreview(data) {
+  const rows = data?.rows || [];
+  const issues = data?.issues || [];
+  feeSchedulePreviewCountEl.textContent = `${rows.length} học sinh`;
+  if (!data) {
+    feeScheduleSummaryEl.className = "fee-schedule-summary";
+    feeScheduleSummaryEl.textContent = "Chưa có preview";
+    feeSchedulePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có preview</td></tr>`;
+    return;
+  }
+
+  const summary = data.summary || {};
+  feeScheduleSummaryEl.className = `fee-schedule-summary${issues.length ? " error" : ""}`;
+  const summaryText = [
+    `${summary.studentCount || rows.length || 0} học sinh`,
+    `mặc định ${formatMoney(summary.baseAmount || 0)}`,
+    `điều chỉnh ${formatMoney(summary.adjustments || 0)}`,
+    `phải thu ${formatMoney(summary.totalAmount || 0)}`,
+  ].join(" · ");
+  const issueList = issues.length
+    ? `<div class="fee-issue-list">${issues
+        .map((issue) => `<div><strong>${escapeHtml(issue.type || "issue")}</strong> ${escapeHtml(issue.studentCode || "")} ${escapeHtml(issue.message || "")}</div>`)
+        .join("")}</div>`
+    : "";
+  feeScheduleSummaryEl.innerHTML = `<div>${escapeHtml(summaryText)}</div>${issueList}`;
+
+  feeSchedulePreviewRowsEl.innerHTML = rows
+    .map(
+      (row) => `
+        <tr>
+          <td><strong>${escapeHtml(row.studentCode || "")}</strong></td>
+          <td>${escapeHtml(row.studentName || "")}</td>
+          <td>${escapeHtml(row.className || "")}</td>
+          <td>${formatMoney(row.baseAmount || 0)}</td>
+          <td class="${Number(row.adjustmentAmount || 0) < 0 ? "fee-negative" : ""}">${formatMoney(row.adjustmentAmount || 0)}</td>
+          <td class="money">${formatMoney(row.totalAmount || 0)}</td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    feeSchedulePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Không có học sinh trong phạm vi này</td></tr>`;
+  }
+}
+
+function renderFeeSchedules(schedules) {
+  feeScheduleCountEl.textContent = `${schedules.length} bảng phí`;
+  feeSchedulesEl.innerHTML = schedules
+    .map((schedule) => {
+      const scope = schedule.className || (schedule.grade ? `Khối ${schedule.grade}` : "Toàn năm học");
+      const period = [schedule.periodCode, schedule.month ? `T${schedule.month}` : ""].filter(Boolean).join(" · ");
+      return `
+        <div class="fee-schedule-list-item">
+          <div>
+            <strong>${escapeHtml(schedule.name || schedule.periodCode || "Bảng phí")}</strong>
+            <span>${escapeHtml(schedule.schoolYearCode || "")} · ${escapeHtml(scope)} · ${escapeHtml(period)}</span>
+          </div>
+          <div>
+            <span class="tag">${escapeHtml(schedule.status || "draft")}</span>
+            <span class="money">${formatMoney(schedule.itemTotal || 0)}</span>
+            <span>${Number(schedule.adjustmentCount || 0)} điều chỉnh</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+  if (!schedules.length) {
+    feeSchedulesEl.innerHTML = `<div class="empty-cell fee-list-empty">Chưa có bảng phí đã lưu</div>`;
+  }
+}
+
 function setMasterStatus(message, tone = "ready") {
   masterDataStatusEl.textContent = message;
   masterDataStatusEl.dataset.tone = tone;
+}
+
+function setFeeScheduleStatus(message, tone = "ready") {
+  feeScheduleLoadStatusEl.textContent = message;
+  feeScheduleLoadStatusEl.dataset.tone = tone;
 }
 
 function collectEmailConfig() {
@@ -899,6 +1256,23 @@ function formatMoney(amount) {
   }).format(Number(amount || 0));
 }
 
+function parseMoneyInput(value) {
+  const normalized = String(value || "").replace(/[.,\s_]/g, "");
+  const amount = Number(normalized || 0);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function headerKeyClient(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function formatDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -1012,6 +1386,22 @@ masterCsvFileEl.addEventListener("change", () => {
 });
 checkMasterImportBtn.addEventListener("click", () => submitMasterImport(false));
 applyMasterImportBtn.addEventListener("click", () => submitMasterImport(true));
+
+refreshFeeSchedulesBtn.addEventListener("click", () => loadFeeSchedules(true));
+feeScheduleYearEl.addEventListener("change", async () => {
+  renderFeeScheduleControls();
+  await loadFeeScheduleList();
+});
+feeScheduleGradeEl.addEventListener("change", async () => {
+  renderFeeScheduleClassFilter();
+  await loadFeeScheduleList();
+});
+feeScheduleClassEl.addEventListener("change", loadFeeScheduleList);
+feeAdjustmentsCsvEl.addEventListener("input", () => {
+  parseFeeAdjustmentsCsv();
+});
+previewFeeScheduleBtn.addEventListener("click", previewFeeSchedule);
+saveFeeScheduleBtn.addEventListener("click", saveFeeSchedule);
 
 saveEmailConfigBtn.addEventListener("click", saveEmailConfig);
 previewEmailBtn.addEventListener("click", previewEmail);

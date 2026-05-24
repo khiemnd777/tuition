@@ -71,6 +71,42 @@ func TestLoadEmbeddedMigrationsIncludesMasterDataSchema(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesFeeScheduleSchema(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var feeSchedule migration
+	for _, item := range migrations {
+		if item.Version == "0003" {
+			feeSchedule = item
+			break
+		}
+	}
+	if feeSchedule.Name != "fee_types_and_fee_schedules" {
+		t.Fatalf("expected fee schedule migration 0003, got %+v", feeSchedule)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS fee_types",
+		"CREATE TABLE IF NOT EXISTS fee_schedules",
+		"CREATE TABLE IF NOT EXISTS fee_schedule_items",
+		"CREATE TABLE IF NOT EXISTS student_fee_adjustments",
+		"label_vi text NOT NULL",
+		"label_en text NOT NULL",
+		"CONSTRAINT fee_schedules_scope_check",
+		"CONSTRAINT student_fee_adjustments_type_check",
+		"CONSTRAINT student_fee_adjustments_reason_not_blank",
+		"fee_schedules.read",
+		"fee_schedules.write",
+	} {
+		if !strings.Contains(feeSchedule.SQL, want) {
+			t.Fatalf("expected fee schedule migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

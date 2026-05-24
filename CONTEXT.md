@@ -47,6 +47,18 @@ The production class record for a school year and grade. Payment rows may still 
 **Parent contact**:
 A parent or guardian linked to one or more students. Billing-email delivery uses explicit active, primary, and receives-billing flags.
 
+**Fee type**:
+A reusable production fee category such as tuition, lunch, shuttle, uniform, insurance, materials, previous fees, or custom fees. Fee types carry Vietnamese and English labels.
+
+**Bảng phí theo kỳ**:
+The production fee setup for a school year, grade, or class in a specific collection period or month. It is previewed before invoice generation and is not the same as the temporary payment-row fee template.
+
+**Fee schedule item**:
+One default amount inside a bảng phí theo kỳ, tied to a fee type and carrying Vietnamese and English labels.
+
+**Student fee adjustment**:
+A per-student discount, surcharge, waiver, or carry-over applied on top of a bảng phí theo kỳ. Every adjustment needs a reason for auditability.
+
 ## Relationships
 
 - A payment row can have many payment items.
@@ -57,6 +69,8 @@ A parent or guardian linked to one or more students. Billing-email delivery uses
 - A student can have many parent contacts.
 - A parent contact can be linked to many students.
 - A class belongs to one school year and can have many students.
+- A bảng phí theo kỳ has many fee schedule items.
+- A student can have many fee adjustments for a bảng phí theo kỳ.
 
 ## Flagged Ambiguities
 

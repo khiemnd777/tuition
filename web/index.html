@@ -30,7 +30,7 @@
     <nav class="tabs" aria-label="Khu vực làm việc">
       <button class="tab-button active" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
       <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
-      <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Khoản phí</span></button>
+      <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
       <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
     </nav>
 
@@ -108,17 +108,153 @@
     </main>
 
     <section id="feeTemplateTab" class="tab-panel" role="tabpanel" hidden>
-      <div class="fee-template-wrap panel">
-        <div class="panel-head">
-          <div>
-            <p class="section-kicker">Fee template</p>
-            <h2 class="section-title"><span class="mui-icon" aria-hidden="true">price_change</span><span>Template khoản phí</span></h2>
+      <div class="fee-workspace">
+        <section class="panel fee-schedule-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Production fees</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">price_change</span><span>Bảng phí theo kỳ</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshFeeSchedules" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="previewFeeSchedule" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
+              <button id="saveFeeSchedule" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu bảng phí</span></button>
+              <span id="feeScheduleLoadStatus" class="status-pill">Chưa tải</span>
+            </div>
           </div>
-          <button id="applyFeeTemplate" type="button"><span class="mui-icon" aria-hidden="true">done_all</span><span>Áp dụng cho tất cả dòng</span></button>
-        </div>
-        <div class="fee-template-panel">
-          <div id="feeTemplate"></div>
-        </div>
+
+          <div class="fee-schedule-grid">
+            <label>
+              <span>Năm học</span>
+              <select id="feeScheduleYear"></select>
+            </label>
+            <label>
+              <span>Khối</span>
+              <select id="feeScheduleGrade"></select>
+            </label>
+            <label>
+              <span>Lớp</span>
+              <select id="feeScheduleClass"></select>
+            </label>
+            <label>
+              <span>Kỳ thu</span>
+              <input id="feeSchedulePeriod" placeholder="2026-04" />
+            </label>
+            <label>
+              <span>Tháng</span>
+              <input id="feeScheduleMonth" type="number" min="1" max="12" step="1" />
+            </label>
+            <label>
+              <span>Trạng thái</span>
+              <select id="feeScheduleStatus">
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+              </select>
+            </label>
+            <label class="fee-schedule-name">
+              <span>Tên bảng phí</span>
+              <input id="feeScheduleName" placeholder="Học phí tháng 04" />
+            </label>
+            <label class="fee-schedule-notes">
+              <span>Ghi chú</span>
+              <input id="feeScheduleNotes" />
+            </label>
+          </div>
+
+          <div class="fee-schedule-body">
+            <section class="fee-schedule-section">
+              <div class="fee-section-head">
+                <strong>Khoản phí mặc định</strong>
+                <span id="feeScheduleItemTotal">0 đ</span>
+              </div>
+              <div class="table-wrap fee-config-table-wrap">
+                <table class="fee-config-table" aria-label="Khoản phí mặc định">
+                  <colgroup>
+                    <col class="fee-type-col" />
+                    <col class="fee-label-col" />
+                    <col class="fee-label-col" />
+                    <col class="fee-amount-col" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">Loại phí</th>
+                      <th scope="col">Nhãn VI</th>
+                      <th scope="col">Label EN</th>
+                      <th scope="col">Số tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody id="feeScheduleItems"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="fee-schedule-section">
+              <div class="fee-section-head">
+                <strong>Điều chỉnh học sinh</strong>
+                <span id="feeAdjustmentCount">0 điều chỉnh</span>
+              </div>
+              <textarea id="feeAdjustmentsCsv" spellcheck="false" placeholder="student_code,adjustment_type,fee_type_code,amount,reason"></textarea>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel fee-preview-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Preview</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">table_view</span><span>Preview trước invoice</span></h2>
+            </div>
+            <span id="feeSchedulePreviewCount" class="count-badge">0 học sinh</span>
+          </div>
+          <div id="feeScheduleSummary" class="fee-schedule-summary">Chưa có preview</div>
+          <div class="table-wrap fee-preview-table-wrap">
+            <table class="fee-preview-table" aria-label="Preview bảng phí theo kỳ">
+              <colgroup>
+                <col class="fee-preview-code" />
+                <col class="fee-preview-student" />
+                <col class="fee-preview-class" />
+                <col class="fee-preview-money" />
+                <col class="fee-preview-money" />
+                <col class="fee-preview-money" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Mã HS</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Mặc định</th>
+                  <th scope="col">Điều chỉnh</th>
+                  <th scope="col">Phải thu</th>
+                </tr>
+              </thead>
+              <tbody id="feeSchedulePreviewRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel fee-list-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Saved schedules</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">list_alt</span><span>Bảng phí đã lưu</span></h2>
+            </div>
+            <span id="feeScheduleCount" class="count-badge">0 bảng phí</span>
+          </div>
+          <div id="feeSchedules" class="fee-schedule-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Payment row template</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Template thanh toán tạm</span></h2>
+            </div>
+            <button id="applyFeeTemplate" type="button"><span class="mui-icon" aria-hidden="true">done_all</span><span>Áp dụng cho tất cả dòng</span></button>
+          </div>
+          <div class="fee-template-panel">
+            <div id="feeTemplate"></div>
+          </div>
+        </section>
       </div>
     </section>
 
