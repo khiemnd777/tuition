@@ -80,6 +80,23 @@ const feeSchedulePreviewCountEl = document.querySelector("#feeSchedulePreviewCou
 const feeSchedulePreviewRowsEl = document.querySelector("#feeSchedulePreviewRows");
 const feeSchedulesEl = document.querySelector("#feeSchedules");
 const feeScheduleCountEl = document.querySelector("#feeScheduleCount");
+const invoiceStatusEl = document.querySelector("#invoiceStatus");
+const refreshInvoicesBtn = document.querySelector("#refreshInvoices");
+const previewInvoicesBtn = document.querySelector("#previewInvoices");
+const generateInvoicesBtn = document.querySelector("#generateInvoices");
+const invoiceScheduleEl = document.querySelector("#invoiceSchedule");
+const invoiceBankBinEl = document.querySelector("#invoiceBankBin");
+const invoiceBankAccountEl = document.querySelector("#invoiceBankAccount");
+const invoiceIssueDateEl = document.querySelector("#invoiceIssueDate");
+const invoiceDueDateEl = document.querySelector("#invoiceDueDate");
+const invoiceRegenerateEl = document.querySelector("#invoiceRegenerate");
+const invoicePreviewCountEl = document.querySelector("#invoicePreviewCount");
+const invoicePreviewSummaryEl = document.querySelector("#invoicePreviewSummary");
+const invoicePreviewRowsEl = document.querySelector("#invoicePreviewRows");
+const invoiceRowsEl = document.querySelector("#invoiceRows");
+const invoiceCountEl = document.querySelector("#invoiceCount");
+const invoicePaymentStatusEl = document.querySelector("#invoicePaymentStatus");
+const invoicePaymentPreviewEl = document.querySelector("#invoicePaymentPreview");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
@@ -92,6 +109,8 @@ let masterDataOptions = { schoolYears: [], classes: [] };
 let masterDataLoaded = false;
 let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
 let feeSchedulesLoaded = false;
+let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
+let invoicesLoaded = false;
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -160,6 +179,9 @@ async function init() {
   renderFeeScheduleItems(defaultFeeTypes);
   renderFeeSchedulePreview(null);
   renderFeeSchedules([]);
+  renderInvoiceControls();
+  renderInvoicePreview(null);
+  renderInvoices([]);
   renderFeeTemplate(defaultPaymentItems);
   renderRows(sampleRows);
   await loadMasterData();
@@ -196,6 +218,9 @@ async function activateTab(targetId) {
   }
   if (targetId === "feeTemplateTab") {
     await loadFeeSchedules();
+  }
+  if (targetId === "invoiceTab") {
+    await loadInvoices();
   }
   if (targetId === "emailTab") {
     await previewEmail();
@@ -929,6 +954,247 @@ function renderFeeSchedules(schedules) {
   }
 }
 
+async function loadInvoices(force = false) {
+  if (!force && invoicesLoaded) {
+    return;
+  }
+  const loaded = await loadInvoiceOptions();
+  if (loaded) {
+    await loadInvoiceList();
+  }
+}
+
+async function loadInvoiceOptions() {
+  setInvoiceStatus("Đang tải", "busy");
+  const res = await fetch("/api/v1/invoices/options");
+  const text = await res.text();
+  if (!res.ok) {
+    invoicesLoaded = false;
+    invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
+    renderInvoiceControls();
+    renderInvoicePreview(null);
+    renderInvoices([]);
+    setInvoiceStatus(text || "Chưa cấu hình DB", "error");
+    return false;
+  }
+  invoiceOptions = JSON.parse(text);
+  invoicesLoaded = true;
+  renderInvoiceControls();
+  setInvoiceStatus("Sẵn sàng", "ready");
+  return true;
+}
+
+async function loadInvoiceList() {
+  if (!invoicesLoaded) {
+    return;
+  }
+  const res = await fetch("/api/v1/invoices");
+  const text = await res.text();
+  if (!res.ok) {
+    renderInvoices([]);
+    setInvoiceStatus(text || "Không tải được hóa đơn", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  renderInvoices(data.invoices || []);
+  setInvoiceStatus("Sẵn sàng", "ready");
+}
+
+function renderInvoiceControls() {
+  const selectedSchedule = invoiceScheduleEl.value;
+  invoiceScheduleEl.innerHTML = [
+    `<option value="">Chọn bảng phí</option>`,
+    ...(invoiceOptions.schedules || []).map((schedule) => {
+      const scope = schedule.className || (schedule.grade ? `Khối ${schedule.grade}` : "Toàn năm học");
+      const period = [schedule.periodCode, schedule.month ? `T${schedule.month}` : ""].filter(Boolean).join(" · ");
+      const label = `${schedule.schoolYearCode || ""} · ${scope} · ${period || schedule.name || schedule.id}`;
+      return `<option value="${escapeAttr(schedule.id)}">${escapeHtml(label)}</option>`;
+    }),
+  ].join("");
+  invoiceScheduleEl.value = optionValueOrEmpty(invoiceScheduleEl, selectedSchedule);
+
+  const selectedBank = invoiceBankBinEl.value || "970415";
+  invoiceBankBinEl.innerHTML = bankOptions(selectedBank);
+  invoiceBankBinEl.value = optionValueOrEmpty(invoiceBankBinEl, selectedBank);
+  if (!invoiceIssueDateEl.value) {
+    invoiceIssueDateEl.value = new Date().toISOString().slice(0, 10);
+  }
+}
+
+function collectInvoiceRequest() {
+  return {
+    feeScheduleId: invoiceScheduleEl.value,
+    bankBin: invoiceBankBinEl.value,
+    bankAccount: invoiceBankAccountEl.value.trim(),
+    issueDate: invoiceIssueDateEl.value,
+    dueDate: invoiceDueDateEl.value,
+    regenerate: invoiceRegenerateEl.value === "true",
+  };
+}
+
+async function previewInvoices() {
+  setInvoiceStatus("Đang preview", "busy");
+  const res = await fetch("/api/v1/invoices/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectInvoiceRequest()),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    renderInvoicePreview({ rows: [], issues: [{ type: "preview_failed", message: text || "Preview failed" }] });
+    setInvoiceStatus("Lỗi", "error");
+    return;
+  }
+  renderInvoicePreview(data);
+  setInvoiceStatus(data.issues?.length ? "Có lỗi" : "Đã preview", data.issues?.length ? "error" : "ready");
+}
+
+async function generateInvoices() {
+  if (!window.confirm("Sinh hóa đơn sẽ ghi dữ liệu invoice vào database. Tiếp tục?")) {
+    return;
+  }
+  setInvoiceStatus("Đang sinh hóa đơn", "busy");
+  const res = await fetch("/api/v1/invoices/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectInvoiceRequest()),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    renderInvoicePreview(data?.preview || { rows: [], issues: data?.issues || [{ type: "generate_failed", message: text || "Generate failed" }] });
+    setInvoiceStatus("Lỗi", "error");
+    return;
+  }
+  renderInvoicePreview(data.preview || null);
+  renderInvoices(data.invoices || []);
+  setInvoiceStatus("Đã sinh hóa đơn", "ready");
+}
+
+function renderInvoicePreview(data) {
+  const rows = data?.rows || [];
+  const issues = data?.issues || [];
+  invoicePreviewCountEl.textContent = `${rows.length} hóa đơn`;
+  if (!data) {
+    invoicePreviewSummaryEl.className = "invoice-summary";
+    invoicePreviewSummaryEl.textContent = "Chưa có preview";
+    invoicePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có preview</td></tr>`;
+    return;
+  }
+
+  const summary = data.summary || {};
+  invoicePreviewSummaryEl.className = `invoice-summary${issues.length ? " error" : ""}`;
+  const summaryText = [
+    `${summary.studentCount || rows.length || 0} học sinh`,
+    `đã có ${summary.existingCount || 0}`,
+    `mặc định ${formatMoney(summary.baseAmount || 0)}`,
+    `điều chỉnh ${formatMoney(summary.adjustmentAmount || 0)}`,
+    `phải thu ${formatMoney(summary.totalAmount || 0)}`,
+  ].join(" · ");
+  const issueList = issues.length
+    ? `<div class="fee-issue-list">${issues
+        .map((issue) => `<div><strong>${escapeHtml(issue.type || "issue")}</strong> ${escapeHtml(issue.studentCode || "")} ${escapeHtml(issue.message || "")}</div>`)
+        .join("")}</div>`
+    : "";
+  invoicePreviewSummaryEl.innerHTML = `<div>${escapeHtml(summaryText)}</div>${issueList}`;
+
+  invoicePreviewRowsEl.innerHTML = rows
+    .map(
+      (row) => `
+        <tr>
+          <td><strong>${escapeHtml(row.invoiceCode || "")}</strong></td>
+          <td>${escapeHtml(row.studentCode || "")} · ${escapeHtml(row.studentName || "")}</td>
+          <td>${escapeHtml(row.className || "")}</td>
+          <td>${escapeHtml(row.periodCode || "")}</td>
+          <td class="money">${formatMoney(row.totalAmount || 0)}</td>
+          <td><span class="tag">${escapeHtml(row.existing ? "existing" : row.status || "unpaid")}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    invoicePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Không có hóa đơn trong preview</td></tr>`;
+  }
+}
+
+function renderInvoices(invoices) {
+  invoiceCountEl.textContent = `${invoices.length} hóa đơn`;
+  invoiceRowsEl.innerHTML = invoices
+    .map(
+      (invoice) => `
+        <tr>
+          <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong></td>
+          <td>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</td>
+          <td>${escapeHtml(invoice.className || "")}</td>
+          <td>${escapeHtml(invoice.periodCode || "")}</td>
+          <td class="money">${formatMoney(invoice.totalAmount || 0)}</td>
+          <td><span class="tag">${escapeHtml(invoice.status || "unpaid")}</span></td>
+          <td>
+            <div class="invoice-actions">
+              <button type="button" data-invoice-qr="${escapeAttr(invoice.id || "")}">${muiIcon("qr_code")}<span>QR</span></button>
+              <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
+            </div>
+          </td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!invoices.length) {
+    invoiceRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có hóa đơn</td></tr>`;
+  }
+  invoiceRowsEl.querySelectorAll("[data-invoice-qr]").forEach((button) => {
+    button.addEventListener("click", () => loadInvoicePayment(button.dataset.invoiceQr));
+  });
+}
+
+async function loadInvoicePayment(invoiceId) {
+  if (!invoiceId) {
+    return;
+  }
+  invoicePaymentStatusEl.textContent = "Đang tải";
+  invoicePaymentStatusEl.dataset.tone = "busy";
+  const res = await fetch(`/api/v1/invoices/payment?id=${encodeURIComponent(invoiceId)}`);
+  const text = await res.text();
+  let item = null;
+  try {
+    item = JSON.parse(text);
+  } catch {
+    item = null;
+  }
+  if (!res.ok || !item || !item.vietqr) {
+    invoicePaymentStatusEl.textContent = "Lỗi";
+    invoicePaymentStatusEl.dataset.tone = "error";
+    invoicePaymentPreviewEl.className = "preview-empty";
+    invoicePaymentPreviewEl.textContent = item?.errors?.join(", ") || text || "Không tải được QR hóa đơn";
+    return;
+  }
+  invoicePaymentStatusEl.textContent = "Sẵn sàng";
+  invoicePaymentStatusEl.dataset.tone = "ready";
+  invoicePaymentPreviewEl.className = "preview-content";
+  invoicePaymentPreviewEl.innerHTML = `
+    <img src="${item.qrData}" alt="QR hóa đơn" />
+    <div class="preview-meta">
+      <div class="meta-row">${muiIcon("person")}<strong>${escapeHtml(item.studentName || "")}</strong></div>
+      <div class="meta-row">${muiIcon("school")}<span>${escapeHtml(item.className || "")}</span></div>
+      <div class="meta-row">${muiIcon("confirmation_number")}<span>${escapeHtml(item.billNumber || "")}</span></div>
+      <div class="meta-row">${muiIcon("account_balance")}<span>${escapeHtml(item.bankName || item.bankBin)} / ${escapeHtml(item.bankAccount)}</span></div>
+      <div class="meta-row money">${muiIcon("payments")}<span>${formatMoney(item.amount || 0)}</span></div>
+    </div>
+    <textarea class="payload" readonly>${escapeHtml(item.vietqr || "")}</textarea>
+  `;
+}
+
 function setMasterStatus(message, tone = "ready") {
   masterDataStatusEl.textContent = message;
   masterDataStatusEl.dataset.tone = tone;
@@ -938,6 +1204,12 @@ function setFeeScheduleStatus(message, tone = "ready") {
   feeScheduleLoadStatusEl.textContent = message;
   feeScheduleLoadStatusEl.dataset.tone = tone;
 }
+
+function setInvoiceStatus(message, tone = "ready") {
+  invoiceStatusEl.textContent = message;
+  invoiceStatusEl.dataset.tone = tone;
+}
+
 
 function collectEmailConfig() {
   return {
@@ -1402,6 +1674,10 @@ feeAdjustmentsCsvEl.addEventListener("input", () => {
 });
 previewFeeScheduleBtn.addEventListener("click", previewFeeSchedule);
 saveFeeScheduleBtn.addEventListener("click", saveFeeSchedule);
+
+refreshInvoicesBtn.addEventListener("click", () => loadInvoices(true));
+previewInvoicesBtn.addEventListener("click", previewInvoices);
+generateInvoicesBtn.addEventListener("click", generateInvoices);
 
 saveEmailConfigBtn.addEventListener("click", saveEmailConfig);
 previewEmailBtn.addEventListener("click", previewEmail);

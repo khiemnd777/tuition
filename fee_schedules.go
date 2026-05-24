@@ -105,6 +105,7 @@ type feeScheduleStudent struct {
 	ID             string `json:"id"`
 	StudentCode    string `json:"studentCode"`
 	StudentName    string `json:"studentName"`
+	ClassID        string `json:"classId"`
 	ClassName      string `json:"className"`
 	Grade          string `json:"grade"`
 	SchoolYearCode string `json:"schoolYearCode"`
@@ -127,8 +128,10 @@ type feeSchedulePreviewRow struct {
 	StudentID        string                         `json:"studentId"`
 	StudentCode      string                         `json:"studentCode"`
 	StudentName      string                         `json:"studentName"`
+	ClassID          string                         `json:"classId"`
 	ClassName        string                         `json:"className"`
 	Grade            string                         `json:"grade"`
+	SchoolYearCode   string                         `json:"schoolYearCode"`
 	BaseAmount       int                            `json:"baseAmount"`
 	AdjustmentAmount int                            `json:"adjustmentAmount"`
 	TotalAmount      int                            `json:"totalAmount"`
@@ -397,8 +400,10 @@ func buildFeeSchedulePreview(input feeScheduleInput, students []feeScheduleStude
 			StudentID:        student.ID,
 			StudentCode:      student.StudentCode,
 			StudentName:      student.StudentName,
+			ClassID:          student.ClassID,
 			ClassName:        student.ClassName,
 			Grade:            student.Grade,
+			SchoolYearCode:   student.SchoolYearCode,
 			BaseAmount:       baseAmount,
 			AdjustmentAmount: totalAmount - baseAmount,
 			TotalAmount:      totalAmount,
@@ -836,7 +841,7 @@ func loadFeeScheduleStudents(ctx context.Context, exec masterDataExecutor, input
 	}
 
 	query := `
-SELECT s.id::text, s.student_code, s.full_name, c.name, c.grade, sy.code
+SELECT s.id::text, s.student_code, s.full_name, c.id::text, c.name, c.grade, sy.code
 FROM students s
 JOIN classes c ON c.id = s.class_id
 JOIN school_years sy ON sy.id = c.school_year_id
@@ -853,7 +858,7 @@ LIMIT 2000`
 	students := []feeScheduleStudent{}
 	for rows.Next() {
 		var student feeScheduleStudent
-		if err := rows.Scan(&student.ID, &student.StudentCode, &student.StudentName, &student.ClassName, &student.Grade, &student.SchoolYearCode); err != nil {
+		if err := rows.Scan(&student.ID, &student.StudentCode, &student.StudentName, &student.ClassID, &student.ClassName, &student.Grade, &student.SchoolYearCode); err != nil {
 			return nil, err
 		}
 		students = append(students, student)

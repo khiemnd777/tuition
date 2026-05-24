@@ -107,6 +107,41 @@ func TestLoadEmbeddedMigrationsIncludesFeeScheduleSchema(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesInvoiceSchema(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var invoice migration
+	for _, item := range migrations {
+		if item.Version == "0004" {
+			invoice = item
+			break
+		}
+	}
+	if invoice.Name != "invoices_and_receipts" {
+		t.Fatalf("expected invoice migration 0004, got %+v", invoice)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS invoices",
+		"CREATE TABLE IF NOT EXISTS invoice_items",
+		"CREATE TABLE IF NOT EXISTS invoice_adjustments",
+		"CREATE TABLE IF NOT EXISTS invoice_status_history",
+		"CREATE TABLE IF NOT EXISTS receipt_documents",
+		"qr_bill_number text NOT NULL",
+		"CONSTRAINT invoices_status_check",
+		"invoices_schedule_student_active_key",
+		"invoices.read",
+		"invoices.write",
+	} {
+		if !strings.Contains(invoice.SQL, want) {
+			t.Fatalf("expected invoice migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

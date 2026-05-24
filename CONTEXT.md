@@ -59,6 +59,15 @@ One default amount inside a bảng phí theo kỳ, tied to a fee type and carryi
 **Student fee adjustment**:
 A per-student discount, surcharge, waiver, or carry-over applied on top of a bảng phí theo kỳ. Every adjustment needs a reason for auditability.
 
+**Invoice**:
+The production payment request generated from a fee schedule for one student. It snapshots student, class, period, fee items, adjustments, total, bank account, QR bill number, and status.
+
+**Invoice code**:
+The stable production invoice reference. It maps directly to VietQR Bill Number `62-01` so reconciliation can match payments by invoice.
+
+**PDF receipt**:
+A generated PDF document rendered from invoice data. It includes school, student, class, period, invoice items, total, payment status, issue timestamp, and VietQR payment QR.
+
 ## Relationships
 
 - A payment row can have many payment items.
@@ -71,6 +80,9 @@ A per-student discount, surcharge, waiver, or carry-over applied on top of a b�
 - A class belongs to one school year and can have many students.
 - A bảng phí theo kỳ has many fee schedule items.
 - A student can have many fee adjustments for a bảng phí theo kỳ.
+- A bảng phí theo kỳ can generate one active invoice per student.
+- An invoice has many invoice items and optional invoice adjustments.
+- An invoice generates VietQR payment data using invoice code as the bill number.
 
 ## Flagged Ambiguities
 

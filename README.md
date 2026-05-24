@@ -104,7 +104,7 @@ go run . migrate up
 
 `ABC_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `ABC_DATABASE_URL_LOCAL`, `ABC_DATABASE_URL_STAGING`, `ABC_DATABASE_URL_PRODUCTION`; sau đó fallback sang `ABC_DATABASE_URL` và `DATABASE_URL`.
 
-Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice.
+Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production.
 
 Quy ước production hiện tại:
 
@@ -139,7 +139,7 @@ Nếu dùng các khoản phí động, có thể gửi `paymentItems` qua JSON h
 tuition_april,shuttle_april,tuition_may,health_insurance,uniform_fee,international_material,previous_fees
 ```
 
-Trong UI, workflow được tách thành các tab: `Học sinh`, `Thanh toán`, `Bảng phí`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh` và phần bảng phí theo kỳ dùng PostgreSQL đã cấu hình.
+Trong UI, workflow được tách thành các tab: `Học sinh`, `Bảng phí`, `Hóa đơn`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh`, `Bảng phí`, và `Hóa đơn` dùng PostgreSQL đã cấu hình.
 
 ## CSV master data
 
@@ -181,6 +181,21 @@ S002,waiver,shuttle,0,Không sử dụng xe
 
 Preview bảng phí trả tổng mặc định, tổng điều chỉnh và tổng phải thu cho từng học sinh. Khi có điều chỉnh, payment items dùng cho QR/payment data được gom thành `Tổng phí sau điều chỉnh` để giữ invariant tổng `PaymentItems` quyết định `Amount`.
 
+## Hóa đơn và PDF receipt
+
+Tab `Hóa đơn` sinh payment request production từ một bảng phí đã lưu. Mỗi học sinh trong phạm vi bảng phí có một hóa đơn active theo `feeScheduleId`; chạy lại cùng bảng phí sẽ trả hóa đơn hiện có để giữ idempotent. Nếu chọn regenerate, app chỉ cập nhật lại hóa đơn chưa có `paid_amount`.
+
+Hóa đơn snapshot các dữ liệu sau tại thời điểm sinh:
+
+- Mã hóa đơn, học sinh, lớp, năm học, kỳ thu, tháng.
+- Dòng phí và điều chỉnh theo học sinh.
+- Tổng mặc định, tổng điều chỉnh, tổng phải thu.
+- BIN ngân hàng và tài khoản thu.
+- `qrBillNumber`, chính là mã hóa đơn dùng cho VietQR `BillNumber`.
+- `qrNote` dùng cho VietQR Purpose.
+
+PDF receipt được render từ dữ liệu hóa đơn đã lưu, không đọc lại bảng phí. PDF chứa tên trường, học sinh, lớp, kỳ thu, line items, tổng tiền, trạng thái, thời điểm phát hành, thông tin VietQR, và QR thanh toán.
+
 ## API
 
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
@@ -195,6 +210,12 @@ Preview bảng phí trả tổng mặc định, tổng điều chỉnh và tổn
 - `GET /api/v1/fee-schedules`: danh sách bảng phí đã lưu, hỗ trợ `schoolYearId`, `classId`, `grade`, `status`.
 - `POST /api/v1/fee-schedules/preview`: preview bảng phí theo kỳ trước khi sinh invoice.
 - `POST /api/v1/fee-schedules/save`: lưu bảng phí theo kỳ và trả preview mới.
+- `GET /api/v1/invoices/options`: danh sách bảng phí, năm học, lớp cho tab hóa đơn.
+- `GET /api/v1/invoices`: danh sách hóa đơn, hỗ trợ `schoolYearId`, `classId`, `grade`, `periodCode`, `status`.
+- `POST /api/v1/invoices/preview`: preview hóa đơn từ `feeScheduleId` trước khi ghi DB.
+- `POST /api/v1/invoices/generate`: sinh hóa đơn idempotent từ bảng phí đã lưu.
+- `GET /api/v1/invoices/payment?id=...`: trả payment row đã sinh QR cho một hóa đơn.
+- `GET /api/v1/invoices/pdf?id=...`: trả PDF receipt cho một hóa đơn.
 - `POST /api/v1/vietqr/batch`: sinh QR theo danh sách rows.
 - `GET/POST /api/v1/email/config`: đọc/lưu cấu hình email local.
 - `POST /api/v1/email/preview`: render HTML email theo dòng đầu tiên.

@@ -29,8 +29,9 @@
 
     <nav class="tabs" aria-label="Khu vực làm việc">
       <button class="tab-button active" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
-      <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
       <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
+      <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
+      <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
       <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
     </nav>
 
@@ -255,6 +256,134 @@
             <div id="feeTemplate"></div>
           </div>
         </section>
+      </div>
+    </section>
+
+    <section id="invoiceTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="invoice-workspace">
+        <section class="panel invoice-control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Production invoices</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn từ bảng phí</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshInvoices" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="previewInvoices" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
+              <button id="generateInvoices" class="primary" type="button"><span class="mui-icon" aria-hidden="true">post_add</span><span>Sinh hóa đơn</span></button>
+              <span id="invoiceStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="invoice-toolbar">
+            <label class="invoice-schedule-field">
+              <span>Bảng phí nguồn</span>
+              <select id="invoiceSchedule"></select>
+            </label>
+            <label>
+              <span>Ngân hàng</span>
+              <select id="invoiceBankBin"></select>
+            </label>
+            <label>
+              <span>STK thu</span>
+              <input id="invoiceBankAccount" inputmode="numeric" placeholder="Số tài khoản nhận tiền" />
+            </label>
+            <label>
+              <span>Ngày phát hành</span>
+              <input id="invoiceIssueDate" type="date" />
+            </label>
+            <label>
+              <span>Hạn thanh toán</span>
+              <input id="invoiceDueDate" type="date" />
+            </label>
+            <label class="invoice-regenerate-field">
+              <span>Regenerate</span>
+              <select id="invoiceRegenerate">
+                <option value="false">Không</option>
+                <option value="true">Có</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel invoice-preview-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Generation preview</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">fact_check</span><span>Preview hóa đơn</span></h2>
+            </div>
+            <span id="invoicePreviewCount" class="count-badge">0 hóa đơn</span>
+          </div>
+          <div id="invoicePreviewSummary" class="invoice-summary">Chưa có preview</div>
+          <div class="table-wrap invoice-table-wrap">
+            <table class="invoice-table" aria-label="Preview hóa đơn">
+              <colgroup>
+                <col class="invoice-code-col" />
+                <col class="invoice-student-col" />
+                <col class="invoice-class-col" />
+                <col class="invoice-period-col" />
+                <col class="invoice-money-col" />
+                <col class="invoice-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Mã HĐ</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Kỳ</th>
+                  <th scope="col">Tổng tiền</th>
+                  <th scope="col">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="invoicePreviewRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel invoice-list-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Issued invoices</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">receipt</span><span>Danh sách hóa đơn</span></h2>
+            </div>
+            <span id="invoiceCount" class="count-badge">0 hóa đơn</span>
+          </div>
+          <div class="table-wrap invoice-table-wrap">
+            <table class="invoice-table" aria-label="Danh sách hóa đơn đã sinh">
+              <colgroup>
+                <col class="invoice-code-col" />
+                <col class="invoice-student-col" />
+                <col class="invoice-class-col" />
+                <col class="invoice-period-col" />
+                <col class="invoice-money-col" />
+                <col class="invoice-status-col" />
+                <col class="invoice-action-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Mã HĐ</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Kỳ</th>
+                  <th scope="col">Tổng tiền</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col">Tệp</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="panel invoice-payment-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Invoice QR</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">qr_code</span><span>QR hóa đơn</span></h2>
+            </div>
+            <span id="invoicePaymentStatus" class="status-pill">Chưa chọn</span>
+          </div>
+          <div id="invoicePaymentPreview" class="preview-empty">Chưa chọn hóa đơn</div>
+        </aside>
       </div>
     </section>
 

@@ -1,16 +1,16 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, and fee schedule setup complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, and invoice/PDF receipt output complete.
 
-Current phase: `initiative_3_complete`
+Current phase: `initiative_4_complete`
 
 Current initiative: none
 
-Next recommended initiative: `Initiative 4: Invoice And PDF Receipt`
+Next recommended initiative: `Initiative 5: Payment And Reconciliation`
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md`
 
@@ -63,12 +63,21 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md`
   - Added the `Bảng phí` UI workflow for period fee setup, preview before invoice generation, and saved schedule list.
   - Preserved the legacy payment-row fee template and the `PaymentItems` total-overrides-amount invariant.
   - Added tests, README docs, and glossary terms.
+- Initiative 4: Invoice And PDF Receipt is complete:
+  - Added production schema for `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, and `receipt_documents`.
+  - Added invoice APIs for options, list, preview, idempotent generation, QR payment data, and PDF receipt output.
+  - Generated stable invoice codes that map directly to VietQR `BillNumber`.
+  - Snapshot invoice line items and adjustments from saved fee schedules so issued invoices do not change when schedules are edited later.
+  - Added PDF receipt rendering from invoice data with school, student, class, period, line items, total, status, issue timestamp, and VietQR QR.
+  - Added the `Hóa đơn` UI workflow with preview, generation, invoice list, QR preview, and PDF links.
+  - Kept the legacy `Thanh toán` tab before `Email & Cron`.
+  - Added tests, README docs, and glossary terms.
 
 ## Not Started
 
 - No payment provider integration has been implemented.
-- Web Admin production screens beyond the student master-data and fee schedule tabs have not been implemented.
-- Invoices, PDF receipts, reconciliation, notification campaigns, reports, and operations modules have not started.
+- Web Admin production screens beyond the student master-data, fee schedule, and invoice tabs have not been implemented.
+- Reconciliation, notification campaigns, reports, and operations modules have not started.
 
 ## Agent Protocol
 
@@ -102,7 +111,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Start Initiative 4 from docs/initiatives/production-module-roadmap.md. Build invoice generation and PDF receipt output as the production source of payment requests. Preserve current VietQR/email behavior and update docs/initiatives/current-state.md when finished.
+Start Initiative 5 from docs/initiatives/production-module-roadmap.md. Build production payment provider adapters, webhook ingestion, transaction ledger, and invoice reconciliation. Preserve current VietQR/email behavior and update docs/initiatives/current-state.md when finished.
 ```
 
 ## Known Safety Constraints
