@@ -20,8 +20,8 @@
         </div>
       </div>
       <div class="actions" aria-label="Tác vụ dữ liệu">
-        <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import CSV</span></label>
-        <input id="csvFile" type="file" accept=".csv,text/csv" />
+        <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
+        <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
         <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
         <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
       </div>
@@ -37,6 +37,38 @@
 
     <main id="paymentsTab" class="tab-panel" role="tabpanel" hidden>
       <div class="workspace">
+        <section id="paymentMappingPanel" class="panel import-mapping-panel" hidden>
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Fields mapping</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">schema</span><span>Map cột vào bảng thanh toán</span></h2>
+            </div>
+            <div class="panel-actions">
+              <span id="paymentMappingCount" class="count-badge">0 cột</span>
+              <button id="cancelPaymentImport" type="button"><span class="mui-icon" aria-hidden="true">close</span><span>Hủy</span></button>
+              <button id="applyPaymentImport" class="primary" type="button"><span class="mui-icon" aria-hidden="true">publish</span><span>Import vào bảng</span></button>
+            </div>
+          </div>
+          <div id="paymentMappingSummary" class="import-mapping-summary">Chưa có file import</div>
+          <div class="table-wrap import-mapping-table-wrap">
+            <table class="import-mapping-table" aria-label="Mapping cột bảng thanh toán">
+              <colgroup>
+                <col class="mapping-source-col" />
+                <col class="mapping-target-col" />
+                <col class="mapping-sample-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Cột Excel/CSV</th>
+                  <th scope="col">Trường hệ thống</th>
+                  <th scope="col">Mẫu dữ liệu</th>
+                </tr>
+              </thead>
+              <tbody id="paymentMappingRows"></tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel data-panel">
           <div class="panel-head">
             <div>
@@ -421,18 +453,45 @@
         <section class="panel master-import-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">CSV import</p>
+              <p class="section-kicker">Excel/CSV import</p>
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import master data</span></h2>
             </div>
             <span id="masterImportCount" class="count-badge">0 dòng</span>
           </div>
           <div class="master-import-actions">
-            <label class="file-button" for="masterCsvFile"><span class="mui-icon" aria-hidden="true">attach_file</span><span>Chọn CSV</span></label>
-            <input id="masterCsvFile" type="file" accept=".csv,text/csv" />
+            <label class="file-button" for="masterCsvFile"><span class="mui-icon" aria-hidden="true">attach_file</span><span>Chọn Excel/CSV</span></label>
+            <input id="masterCsvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
             <button id="checkMasterImport" type="button"><span class="mui-icon" aria-hidden="true">rule</span><span>Kiểm tra import</span></button>
             <button id="applyMasterImport" class="primary" type="button"><span class="mui-icon" aria-hidden="true">publish</span><span>Áp dụng import</span></button>
           </div>
           <div id="masterImportSummary" class="master-import-summary">Chưa có file import</div>
+          <div id="masterMappingPanel" class="import-mapping-panel import-mapping-inline" hidden>
+            <div class="import-mapping-toolbar">
+              <div>
+                <strong>Fields Mapping</strong>
+                <span id="masterMappingCount" class="count-badge">0 cột</span>
+              </div>
+              <button id="clearMasterImportMapping" type="button"><span class="mui-icon" aria-hidden="true">close</span><span>Hủy file</span></button>
+            </div>
+            <div id="masterMappingSummary" class="import-mapping-summary">Chưa có file import</div>
+            <div class="table-wrap import-mapping-table-wrap">
+              <table class="import-mapping-table" aria-label="Mapping cột master data">
+                <colgroup>
+                  <col class="mapping-source-col" />
+                  <col class="mapping-target-col" />
+                  <col class="mapping-sample-col" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col">Cột Excel/CSV</th>
+                    <th scope="col">Trường hệ thống</th>
+                    <th scope="col">Mẫu dữ liệu</th>
+                  </tr>
+                </thead>
+                <tbody id="masterMappingRows"></tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
         <section class="panel master-list-panel">

@@ -42,6 +42,33 @@ Nguyen An,2025-2026,3.02,Nguyen Van A,a@example.com
 	}
 }
 
+func TestParseMasterDataCSVRowsWithFieldMapping(t *testing.T) {
+	body := strings.NewReader(`Mã HS,Họ và tên,Năm học,Lớp,Phụ huynh,Email
+S001,Nguyen An,2025-2026,3.02,Nguyen Van A,a@example.com
+`)
+	rows, err := parseMasterDataCSVRowsWithMapping(body, map[string]string{
+		"Mã HS":     "student_code",
+		"Họ và tên": "student",
+		"Năm học":   "school_year",
+		"Lớp":       "class_name",
+		"Phụ huynh": "parent",
+		"Email":     "parent_email",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected one row, got %d", len(rows))
+	}
+	row := rows[0]
+	if row.StudentCode != "S001" || row.StudentName != "Nguyen An" || row.ClassName != "3.02" {
+		t.Fatalf("unexpected mapped student fields: %+v", row)
+	}
+	if row.Grade != "3" || row.ParentName != "Nguyen Van A" || row.ParentEmail != "a@example.com" {
+		t.Fatalf("unexpected mapped parent fields: %+v", row)
+	}
+}
+
 func TestValidateMasterDataImportDetectsStudentCodeConflicts(t *testing.T) {
 	body := strings.NewReader(`student_code,student_name,school_year,class_name,parent_name,parent_email
 S001,Nguyen An,2025-2026,3.02,Nguyen Van A,a@example.com

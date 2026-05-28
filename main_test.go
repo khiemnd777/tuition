@@ -1,8 +1,11 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -131,6 +134,67 @@ func TestImportCSV(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"amount":6980000`) {
 		t.Fatalf("expected fee columns to override amount, got %s", rec.Body.String())
+	}
+}
+
+func TestParsePaymentCSVRowsWithFieldMapping(t *testing.T) {
+	body := strings.NewReader("Họ và tên,Phụ huynh,Lớp,BIN ngân hàng,Số tài khoản,Tổng phí,Mã hóa đơn,Nội dung\nNguyen An,Nguyen Van Binh,3.02,970415,0011001932418,120000,SUN001,HP Nguyen An\n")
+	rows, err := parseCSVRowsWithMapping(body, map[string]string{
+		"Họ và tên":     "student",
+		"Phụ huynh":     "parent",
+		"Lớp":           "class_name",
+		"BIN ngân hàng": "bank_bin",
+		"Số tài khoản":  "bank_account",
+		"Tổng phí":      "amount",
+		"Mã hóa đơn":    "bill_number",
+		"Nội dung":      "note",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected one row, got %d", len(rows))
+	}
+	row := rows[0]
+	if row.StudentName != "Nguyen An" || row.ParentName != "Nguyen Van Binh" || row.ClassName != "3.02" {
+		t.Fatalf("unexpected mapped identity fields: %+v", row)
+	}
+	if row.BankBIN != "970415" || row.BankAccount != "0011001932418" || row.Amount != 120000 {
+		t.Fatalf("unexpected mapped payment fields: %+v", row)
+	}
+	if row.BillNumber != "SUN001" || row.Note != "HP Nguyen An" {
+		t.Fatalf("unexpected mapped QR metadata: %+v", row)
+	}
+}
+
+func TestParseXLSXPaymentRowsWithFieldMapping(t *testing.T) {
+	data := testXLSX(t, [][]string{
+		{"Họ và tên", "Phụ huynh", "Lớp", "BIN ngân hàng", "Số tài khoản", "Tổng phí", "Mã hóa đơn", "Nội dung"},
+		{"Nguyen An", "Nguyen Van Binh", "3.02", "970415", "0011001932418", "120000", "SUN001", "HP Nguyen An"},
+	})
+	table, err := parseImportTableBytes(data, "students.xlsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := parsePaymentRows(table, normalizeImportMapping("payments", map[string]string{
+		"Họ và tên":     "student",
+		"Phụ huynh":     "parent",
+		"Lớp":           "class_name",
+		"BIN ngân hàng": "bank_bin",
+		"Số tài khoản":  "bank_account",
+		"Tổng phí":      "amount",
+		"Mã hóa đơn":    "bill_number",
+		"Nội dung":      "note",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected one row, got %d", len(rows))
+	}
+	row := rows[0]
+	if row.StudentName != "Nguyen An" || row.BankAccount != "0011001932418" || row.Amount != 120000 {
+		t.Fatalf("unexpected row parsed from xlsx: %+v", row)
 	}
 }
 
@@ -306,4 +370,89 @@ func TestEmailCronRolling24HourQuota(t *testing.T) {
 	if got := sentLast24hForState(state, now); got != 3 {
 		t.Fatalf("expected three sends after append, got %d", got)
 	}
+}
+
+func testXLSX(t *testing.T, rows [][]string) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	writeZipFile(t, writer, "[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`)
+	writeZipFile(t, writer, "_rels/.rels", `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`)
+	writeZipFile(t, writer, "xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`)
+	writeZipFile(t, writer, "xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`)
+	writeZipFile(t, writer, "xl/worksheets/sheet1.xml", testSheetXML(rows))
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
+}
+
+func writeZipFile(t *testing.T, writer *zip.Writer, name string, content string) {
+	t.Helper()
+	file, err := writer.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write([]byte(content)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func testSheetXML(rows [][]string) string {
+	var builder strings.Builder
+	builder.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
+	builder.WriteString(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>`)
+	for rowIdx, row := range rows {
+		builder.WriteString(`<row r="`)
+		builder.WriteString(strconv.Itoa(rowIdx + 1))
+		builder.WriteString(`">`)
+		for colIdx, value := range row {
+			ref := testColumnName(colIdx) + strconv.Itoa(rowIdx+1)
+			builder.WriteString(`<c r="`)
+			builder.WriteString(ref)
+			builder.WriteString(`" t="inlineStr"><is><t>`)
+			builder.WriteString(testEscapeXML(value))
+			builder.WriteString(`</t></is></c>`)
+		}
+		builder.WriteString(`</row>`)
+	}
+	builder.WriteString(`</sheetData></worksheet>`)
+	return builder.String()
+}
+
+func testColumnName(idx int) string {
+	idx++
+	name := ""
+	for idx > 0 {
+		idx--
+		name = string(rune('A'+idx%26)) + name
+		idx /= 26
+	}
+	return name
+}
+
+func testEscapeXML(value string) string {
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&apos;",
+	)
+	return replacer.Replace(value)
 }

@@ -222,6 +222,7 @@ textarea:focus-visible {
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
   padding: 18px 24px 0;
 }
 
@@ -397,6 +398,76 @@ textarea:focus-visible {
 .master-import-summary.error {
   color: var(--red);
   background: #fff8f8;
+}
+
+.import-mapping-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.import-mapping-inline {
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.import-mapping-toolbar {
+  min-height: 48px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-muted);
+}
+
+.import-mapping-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.import-mapping-toolbar strong {
+  font-size: 13px;
+}
+
+.import-mapping-summary {
+  min-height: 40px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.import-mapping-table-wrap {
+  max-height: 286px;
+}
+
+.import-mapping-table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+
+.import-mapping-table .mapping-source-col {
+  width: 240px;
+}
+
+.import-mapping-table .mapping-target-col {
+  width: 260px;
+}
+
+.import-mapping-table .mapping-sample-col {
+  width: 260px;
+}
+
+.import-mapping-table td {
+  vertical-align: middle;
+}
+
+.import-mapping-table td:last-child {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .master-table-wrap {

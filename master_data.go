@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -192,13 +191,12 @@ func handleMasterDataStudents(w http.ResponseWriter, r *http.Request) {
 func handleMasterDataImportCSV(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<20)
 
-	reader, err := csvRequestReader(r)
+	req, err := readImportFileRequest(r, "master_data")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	defer reader.Close()
-	rows, err := parseMasterDataCSVRows(reader)
+	rows, err := parseMasterDataRows(req.Table, req.Mapping)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -222,25 +220,6 @@ func handleMasterDataImportCSV(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusConflict
 	}
 	writeJSON(w, status, response)
-}
-
-func csvRequestReader(r *http.Request) (io.ReadCloser, error) {
-	contentType := r.Header.Get("Content-Type")
-	if strings.HasPrefix(contentType, "multipart/form-data") {
-		if err := r.ParseMultipartForm(4 << 20); err != nil {
-			return nil, errors.New("invalid multipart body")
-		}
-		file, _, err := r.FormFile("file")
-		if err != nil {
-			return nil, errors.New("missing file field")
-		}
-		return file, nil
-	}
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, errors.New("cannot read body")
-	}
-	return io.NopCloser(strings.NewReader(string(body))), nil
 }
 
 func openMasterDataDatabase(ctx context.Context) (*sql.DB, error) {
@@ -417,41 +396,36 @@ LIMIT 1000`
 }
 
 func parseMasterDataCSVRows(input io.Reader) ([]masterDataImportRow, error) {
-	reader := csv.NewReader(input)
-	reader.TrimLeadingSpace = true
-	reader.FieldsPerRecord = -1
+	return parseMasterDataCSVRowsWithMapping(input, nil)
+}
 
-	records, err := reader.ReadAll()
+func parseMasterDataCSVRowsWithMapping(input io.Reader, mapping map[string]string) ([]masterDataImportRow, error) {
+	table, err := readCSVTable(input)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse csv: %w", err)
+		return nil, err
 	}
-	if len(records) == 0 {
-		return nil, errors.New("empty csv")
-	}
+	return parseMasterDataRows(table, normalizeImportMapping("master_data", mapping))
+}
 
-	header := map[string]int{}
-	for idx, name := range records[0] {
-		header[headerKey(name)] = idx
-	}
-
-	rows := make([]masterDataImportRow, 0, len(records)-1)
-	for idx, record := range records[1:] {
+func parseMasterDataRows(table importTable, mapping map[string]string) ([]masterDataImportRow, error) {
+	rows := make([]masterDataImportRow, 0, len(table.Records))
+	for idx, record := range table.Records {
 		if isBlankRecord(record) {
 			continue
 		}
-		parentEmail := normalizeEmail(masterDataCSVField(record, header, "parent_email"))
+		parentEmail := normalizeEmail(importFieldValue(record, table, mapping, "parent_email", masterDataCSVAliases("parent_email")))
 		row := masterDataImportRow{
 			RowNumber:            idx + 2,
-			StudentCode:          normalizeStudentCode(masterDataCSVField(record, header, "student_code")),
-			StudentName:          strings.TrimSpace(masterDataCSVField(record, header, "student")),
-			SchoolYearCode:       normalizeSchoolYearCode(masterDataCSVField(record, header, "school_year")),
-			Grade:                normalizeGrade(masterDataCSVField(record, header, "grade")),
-			ClassName:            strings.TrimSpace(masterDataCSVField(record, header, "class_name")),
-			ParentName:           strings.TrimSpace(masterDataCSVField(record, header, "parent")),
+			StudentCode:          normalizeStudentCode(importFieldValue(record, table, mapping, "student_code", masterDataCSVAliases("student_code"))),
+			StudentName:          strings.TrimSpace(importFieldValue(record, table, mapping, "student", masterDataCSVAliases("student"))),
+			SchoolYearCode:       normalizeSchoolYearCode(importFieldValue(record, table, mapping, "school_year", masterDataCSVAliases("school_year"))),
+			Grade:                normalizeGrade(importFieldValue(record, table, mapping, "grade", masterDataCSVAliases("grade"))),
+			ClassName:            strings.TrimSpace(importFieldValue(record, table, mapping, "class_name", masterDataCSVAliases("class_name"))),
+			ParentName:           strings.TrimSpace(importFieldValue(record, table, mapping, "parent", masterDataCSVAliases("parent"))),
 			ParentEmail:          parentEmail,
-			IsPrimary:            parseBoolWithDefault(masterDataCSVField(record, header, "parent_primary"), true),
-			ParentActive:         parseBoolWithDefault(masterDataCSVField(record, header, "parent_active"), true),
-			ReceivesBillingEmail: parseBoolWithDefault(masterDataCSVField(record, header, "receives_billing_email"), parentEmail != ""),
+			IsPrimary:            parseBoolWithDefault(importFieldValue(record, table, mapping, "parent_primary", masterDataCSVAliases("parent_primary")), true),
+			ParentActive:         parseBoolWithDefault(importFieldValue(record, table, mapping, "parent_active", masterDataCSVAliases("parent_active")), true),
+			ReceivesBillingEmail: parseBoolWithDefault(importFieldValue(record, table, mapping, "receives_billing_email", masterDataCSVAliases("receives_billing_email")), parentEmail != ""),
 		}
 		if row.Grade == "" {
 			row.Grade = deriveGradeFromClass(row.ClassName)
@@ -465,29 +439,20 @@ func parseMasterDataCSVRows(input io.Reader) ([]masterDataImportRow, error) {
 	return rows, nil
 }
 
-func masterDataCSVField(record []string, header map[string]int, canonical string) string {
-	for _, key := range masterDataCSVAliases(canonical) {
-		if idx, ok := header[key]; ok && idx < len(record) {
-			return strings.TrimSpace(record[idx])
-		}
-	}
-	return ""
-}
-
 func masterDataCSVAliases(canonical string) []string {
 	switch canonical {
 	case "student_code":
 		return []string{"student_code", "student_id", "ma_hoc_sinh", "ma_hs", "mhs"}
 	case "student":
-		return []string{"student_name", "student", "ten_hoc_sinh", "hoc_sinh"}
+		return []string{"student_name", "student", "ten_hoc_sinh", "hoc_sinh", "ho_va_ten", "ho_ten", "ten_hs"}
 	case "school_year":
 		return []string{"school_year", "academic_year", "nam_hoc", "nien_khoa"}
 	case "grade":
 		return []string{"grade", "khoi", "khoi_lop"}
 	case "class_name":
-		return []string{"class_name", "class", "lop", "ten_lop"}
+		return []string{"class_name", "class", "lop", "ten_lop", "lop_hoc"}
 	case "parent":
-		return []string{"parent_name", "parent", "ten_phu_huynh", "phu_huynh"}
+		return []string{"parent_name", "parent", "ten_phu_huynh", "phu_huynh", "ten_ba_me", "ba_me", "ten_bo_me"}
 	case "parent_email":
 		return []string{"parent_email", "billing_email", "email_phu_huynh", "email", "mail"}
 	case "parent_primary":

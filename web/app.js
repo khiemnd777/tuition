@@ -9,6 +9,12 @@ const generateBtn = document.querySelector("#generate");
 const addRowBtn = document.querySelector("#addRow");
 const loadSampleBtn = document.querySelector("#loadSample");
 const csvFileEl = document.querySelector("#csvFile");
+const paymentMappingPanelEl = document.querySelector("#paymentMappingPanel");
+const paymentMappingCountEl = document.querySelector("#paymentMappingCount");
+const paymentMappingSummaryEl = document.querySelector("#paymentMappingSummary");
+const paymentMappingRowsEl = document.querySelector("#paymentMappingRows");
+const applyPaymentImportBtn = document.querySelector("#applyPaymentImport");
+const cancelPaymentImportBtn = document.querySelector("#cancelPaymentImport");
 const toggleFeeColumnBtn = document.querySelector("#toggleFeeColumn");
 const feeTemplateEl = document.querySelector("#feeTemplate");
 const applyFeeTemplateBtn = document.querySelector("#applyFeeTemplate");
@@ -52,6 +58,11 @@ const refreshMasterDataBtn = document.querySelector("#refreshMasterData");
 const masterCsvFileEl = document.querySelector("#masterCsvFile");
 const checkMasterImportBtn = document.querySelector("#checkMasterImport");
 const applyMasterImportBtn = document.querySelector("#applyMasterImport");
+const masterMappingPanelEl = document.querySelector("#masterMappingPanel");
+const masterMappingCountEl = document.querySelector("#masterMappingCount");
+const masterMappingSummaryEl = document.querySelector("#masterMappingSummary");
+const masterMappingRowsEl = document.querySelector("#masterMappingRows");
+const clearMasterImportMappingBtn = document.querySelector("#clearMasterImportMapping");
 const masterImportCountEl = document.querySelector("#masterImportCount");
 const masterImportSummaryEl = document.querySelector("#masterImportSummary");
 const masterStudentsEl = document.querySelector("#masterStudents");
@@ -107,6 +118,8 @@ let feeColumnCollapsed = false;
 let savedEmailConfig = {};
 let masterDataOptions = { schoolYears: [], classes: [] };
 let masterDataLoaded = false;
+let paymentImportState = null;
+let masterImportState = null;
 let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
 let feeSchedulesLoaded = false;
 let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
@@ -434,6 +447,183 @@ async function loadEmailCron() {
   renderCronStatus(await res.json());
 }
 
+async function prepareImportMapping(target, file) {
+  if (!file) return;
+  if (target === "payments") {
+    await activateTab("paymentsTab");
+    status("Đang đọc file", "busy");
+  } else {
+    setMasterStatus("Đang đọc file", "busy");
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`/api/v1/import/fields?target=${encodeURIComponent(target)}`, {
+    method: "POST",
+    body: form,
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    if (target === "payments") {
+      status("Lỗi", "error");
+      previewEl.className = "preview-empty";
+      previewEl.textContent = text || "Không đọc được file import";
+    } else {
+      setMasterStatus(text || "Không đọc được file import", "error");
+      masterImportSummaryEl.textContent = text || "Không đọc được file import";
+    }
+    return;
+  }
+
+  const state = {
+    target,
+    file,
+    headers: data.headers || [],
+    fields: data.fields || [],
+    mapping: data.suggestedMapping || {},
+    preview: data.preview || [],
+  };
+  if (target === "payments") {
+    paymentImportState = state;
+    renderImportMapping(state);
+    status("Đã đọc file", "ready");
+  } else {
+    masterImportState = state;
+    renderImportMapping(state);
+    masterImportSummaryEl.className = "master-import-summary";
+    masterImportSummaryEl.textContent = `${file.name} · kiểm tra mapping trước khi import`;
+    setMasterStatus("Đã đọc file", "ready");
+  }
+}
+
+function renderImportMapping(state) {
+  const els = importMappingElements(state.target);
+  els.panel.hidden = false;
+  els.count.textContent = `${state.headers.length} cột`;
+  els.summary.textContent = `${state.file.name} · ${state.headers.length} cột · preview ${state.preview.length} dòng`;
+  els.rows.innerHTML = state.headers
+    .map((header, idx) => {
+      const selected = state.mapping[header] || "";
+      return `
+        <tr>
+          <td><strong>${escapeHtml(header || `Cột ${idx + 1}`)}</strong></td>
+          <td>
+            <select data-import-source="${escapeAttr(header)}">
+              ${importMappingOptions(state.fields, selected)}
+            </select>
+          </td>
+          <td>${escapeHtml(importSampleValues(state, header) || "-")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  els.rows.querySelectorAll("select[data-import-source]").forEach((select) => {
+    select.addEventListener("change", () => {
+      state.mapping[select.dataset.importSource] = select.value;
+    });
+  });
+}
+
+function importMappingElements(target) {
+  if (target === "master_data") {
+    return {
+      panel: masterMappingPanelEl,
+      count: masterMappingCountEl,
+      summary: masterMappingSummaryEl,
+      rows: masterMappingRowsEl,
+    };
+  }
+  return {
+    panel: paymentMappingPanelEl,
+    count: paymentMappingCountEl,
+    summary: paymentMappingSummaryEl,
+    rows: paymentMappingRowsEl,
+  };
+}
+
+function importMappingOptions(fields, selected) {
+  return [
+    `<option value="">Bỏ qua</option>`,
+    ...fields.map((field) => {
+      const label = `${field.label}${field.required ? " *" : ""}`;
+      const isSelected = field.key === selected ? "selected" : "";
+      return `<option value="${escapeAttr(field.key)}" ${isSelected}>${escapeHtml(label)}</option>`;
+    }),
+  ].join("");
+}
+
+function importSampleValues(state, header) {
+  return state.preview
+    .map((row) => row.values?.[header] || "")
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" · ");
+}
+
+function collectImportMapping(state) {
+  if (!state) return {};
+  const els = importMappingElements(state.target);
+  const mapping = {};
+  els.rows.querySelectorAll("select[data-import-source]").forEach((select) => {
+    mapping[select.dataset.importSource] = select.value;
+  });
+  return mapping;
+}
+
+async function submitPaymentImport() {
+  if (!paymentImportState?.file) {
+    status("Chưa chọn file", "error");
+    return;
+  }
+  status("Đang import", "busy");
+  const form = new FormData();
+  form.append("file", paymentImportState.file);
+  form.append("mapping", JSON.stringify(collectImportMapping(paymentImportState)));
+  const res = await fetch("/api/v1/import/csv", {
+    method: "POST",
+    body: form,
+  });
+
+  if (!res.ok) {
+    status("Lỗi", "error");
+    previewEl.className = "preview-empty";
+    previewEl.textContent = await res.text();
+    return;
+  }
+
+  const data = await res.json();
+  renderRows(data.rows || []);
+  clearPaymentImport();
+  await activateTab("paymentsTab");
+  await generate();
+}
+
+function clearPaymentImport() {
+  paymentImportState = null;
+  paymentMappingPanelEl.hidden = true;
+  paymentMappingRowsEl.innerHTML = "";
+  paymentMappingSummaryEl.textContent = "Chưa có file import";
+  paymentMappingCountEl.textContent = "0 cột";
+  csvFileEl.value = "";
+}
+
+function clearMasterImport() {
+  masterImportState = null;
+  masterMappingPanelEl.hidden = true;
+  masterMappingRowsEl.innerHTML = "";
+  masterMappingSummaryEl.textContent = "Chưa có file import";
+  masterMappingCountEl.textContent = "0 cột";
+  masterImportSummaryEl.className = "master-import-summary";
+  masterImportSummaryEl.textContent = "Chưa có file import";
+  masterCsvFileEl.value = "";
+}
+
 async function loadMasterData(force = false) {
   if (!force && masterDataLoaded) {
     return;
@@ -564,9 +754,9 @@ function renderMasterStudents(students) {
 }
 
 async function submitMasterImport(apply) {
-  const file = masterCsvFileEl.files[0];
+  const file = masterImportState?.file || masterCsvFileEl.files[0];
   if (!file) {
-    setMasterStatus("Chưa chọn CSV", "error");
+    setMasterStatus("Chưa chọn file", "error");
     return;
   }
   if (apply && !window.confirm("Áp dụng import sẽ ghi dữ liệu học sinh, phụ huynh và lớp vào database. Tiếp tục?")) {
@@ -576,6 +766,9 @@ async function submitMasterImport(apply) {
   setMasterStatus(apply ? "Đang áp dụng" : "Đang kiểm tra", "busy");
   const form = new FormData();
   form.append("file", file);
+  if (masterImportState) {
+    form.append("mapping", JSON.stringify(collectImportMapping(masterImportState)));
+  }
   const res = await fetch(`/api/v1/master-data/import/csv?apply=${apply ? "true" : "false"}`, {
     method: "POST",
     body: form,
@@ -609,6 +802,7 @@ async function submitMasterImport(apply) {
 function renderMasterImport(data) {
   if (!data) {
     masterImportCountEl.textContent = "0 dòng";
+    masterImportSummaryEl.className = "master-import-summary";
     masterImportSummaryEl.textContent = "Chưa có file import";
     renderMasterConflicts([]);
     return;
@@ -1610,29 +1804,10 @@ applyFeeTemplateBtn.addEventListener("click", async () => {
 csvFileEl.addEventListener("change", async () => {
   const file = csvFileEl.files[0];
   if (!file) return;
-
-  status("Đang import", "busy");
-  const form = new FormData();
-  form.append("file", file);
-
-  const res = await fetch("/api/v1/import/csv", {
-    method: "POST",
-    body: form,
-  });
-
-  if (!res.ok) {
-    status("Lỗi", "error");
-    previewEl.className = "preview-empty";
-    previewEl.textContent = await res.text();
-    return;
-  }
-
-  const data = await res.json();
-  renderRows(data.rows || []);
-  await activateTab("paymentsTab");
-  await generate();
-  csvFileEl.value = "";
+  await prepareImportMapping("payments", file);
 });
+applyPaymentImportBtn.addEventListener("click", submitPaymentImport);
+cancelPaymentImportBtn.addEventListener("click", clearPaymentImport);
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
@@ -1652,10 +1827,16 @@ masterSearchEl.addEventListener("input", () => {
   masterSearchEl.dataset.timer = window.setTimeout(loadMasterStudents, 250);
 });
 refreshMasterDataBtn.addEventListener("click", () => loadMasterData(true));
-masterCsvFileEl.addEventListener("change", () => {
+masterCsvFileEl.addEventListener("change", async () => {
   const file = masterCsvFileEl.files[0];
-  masterImportSummaryEl.textContent = file ? file.name : "Chưa có file import";
+  if (!file) {
+    clearMasterImport();
+    return;
+  }
+  masterImportSummaryEl.textContent = file.name;
+  await prepareImportMapping("master_data", file);
 });
+clearMasterImportMappingBtn.addEventListener("click", clearMasterImport);
 checkMasterImportBtn.addEventListener("click", () => submitMasterImport(false));
 applyMasterImportBtn.addEventListener("click", () => submitMasterImport(true));
 

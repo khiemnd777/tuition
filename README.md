@@ -119,7 +119,7 @@ Endpoint PNG test nhanh:
 http://localhost:18080/api/v1/qr.png?bankBin=970441&account=625704060370690&amount=0&billNumber=TESTVIB01&note=TEST%20VIB
 ```
 
-## CSV mẫu
+## Excel/CSV mẫu
 
 File mẫu: `samples/students.csv`
 
@@ -139,9 +139,19 @@ Nếu dùng các khoản phí động, có thể gửi `paymentItems` qua JSON h
 tuition_april,shuttle_april,tuition_may,health_insurance,uniform_fee,international_material,previous_fees
 ```
 
+Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong UI hoặc gửi multipart field `mapping` dạng JSON vào endpoint import. Ví dụ:
+
+```json
+{
+  "Họ và tên": "student",
+  "Phụ huynh": "parent",
+  "Tổng phí": "amount"
+}
+```
+
 Trong UI, workflow được tách thành các tab: `Học sinh`, `Bảng phí`, `Hóa đơn`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh`, `Bảng phí`, và `Hóa đơn` dùng PostgreSQL đã cấu hình.
 
-## CSV master data
+## Excel/CSV master data
 
 File mẫu: `samples/master_data.csv`
 
@@ -159,6 +169,7 @@ Quy tắc import:
 - Một học sinh có thể có nhiều phụ huynh; mỗi học sinh chỉ có một phụ huynh chính đang active.
 - `parent_email` được chuẩn hóa lowercase. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
 - Import preview sẽ báo conflict nếu CSV hoặc database hiện có mâu thuẫn; apply import không tự overwrite dữ liệu khác biệt.
+- UI sẽ scan header Excel/CSV trước và cho map cột, ví dụ `Họ và tên` -> `Họ, tên`, `Phụ huynh` -> `Tên ba mẹ`.
 
 ## Bảng phí theo kỳ
 
@@ -201,11 +212,12 @@ PDF receipt được render từ dữ liệu hóa đơn đã lưu, không đọc
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
 - `GET /api/v1/qr.png`: trả về ảnh PNG để scan trực tiếp.
 - `GET /api/v1/banks`: danh sách ngân hàng từ package VietQR.
-- `POST /api/v1/import/csv`: parse CSV thành rows.
+- `POST /api/v1/import/fields?target=payments|master_data`: scan header Excel/CSV, trả fields và suggested mapping.
+- `POST /api/v1/import/csv`: parse Excel/CSV thành rows, hỗ trợ multipart field `mapping`.
 - `GET /api/v1/master-data/options`: danh sách năm học/lớp production cho bộ lọc UI.
 - `GET /api/v1/master-data/students`: danh sách học sinh production, hỗ trợ `schoolYearId`, `schoolYear`, `classId`, `grade`, `q`.
-- `POST /api/v1/master-data/import/csv?apply=false`: preview import CSV master data và trả conflict report.
-- `POST /api/v1/master-data/import/csv?apply=true`: áp dụng import master data nếu không có conflict.
+- `POST /api/v1/master-data/import/csv?apply=false`: preview import Excel/CSV master data và trả conflict report, hỗ trợ multipart field `mapping`.
+- `POST /api/v1/master-data/import/csv?apply=true`: áp dụng import Excel/CSV master data nếu không có conflict.
 - `GET /api/v1/fee-schedules/options`: danh sách năm học/lớp và fee type cho bảng phí theo kỳ.
 - `GET /api/v1/fee-schedules`: danh sách bảng phí đã lưu, hỗ trợ `schoolYearId`, `classId`, `grade`, `status`.
 - `POST /api/v1/fee-schedules/preview`: preview bảng phí theo kỳ trước khi sinh invoice.
