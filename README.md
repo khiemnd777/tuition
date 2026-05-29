@@ -229,6 +229,17 @@ export ABC_PAYOS_RETURN_URL='https://example.edu.vn/payment-return'
 export ABC_PAYOS_CANCEL_URL='https://example.edu.vn/payment-cancel'
 ```
 
+## Notification campaigns
+
+Tab `Thông báo` chuyển luồng gửi email từ danh sách payment row tạm sang campaign dựa trên invoice production. Campaign chọn invoice theo năm học, kỳ thu, khối/lớp, trạng thái invoice và hạn thanh toán; recipient lấy từ parent contact đang active và có `receives_billing_email=true`.
+
+Template mặc định:
+
+- `first_notice`: thông báo thanh toán lần đầu cho invoice `unpaid`.
+- `reminder`: nhắc thanh toán, chỉ cho invoice `unpaid` hoặc `partial`; backend chặn chọn nhầm `paid`.
+
+Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải thu và số tiền còn phải thu trước khi gửi. Khi gửi thật, app dùng lại email provider hiện tại, render email học phí với QR inline CID, ghi `notification_logs` theo campaign/template/invoice/recipient, và bỏ qua recipient đã gửi trong cùng campaign/template/invoice/email nếu không bật resend rõ ràng. Email gửi từ campaign cũng tính vào quota rolling 24 giờ giống gửi thủ công và cron.
+
 ## API
 
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
@@ -256,6 +267,13 @@ export ABC_PAYOS_CANCEL_URL='https://example.edu.vn/payment-cancel'
 - `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, summary, invoices, transactions, intents.
 - `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos`, lưu raw event, parse transaction và đối soát.
 - `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice.
+- `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
+- `GET /api/v1/notifications/templates`: danh sách notification template/version.
+- `GET /api/v1/notifications/campaigns`: danh sách campaign đã lưu.
+- `POST /api/v1/notifications/campaigns/preview`: dry-run target invoice/recipient trước khi lưu hoặc gửi.
+- `POST /api/v1/notifications/campaigns/save`: lưu campaign và snapshot recipient hiện tại.
+- `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật.
+- `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
 - `POST /api/v1/vietqr/batch`: sinh QR theo danh sách rows.
 - `GET/POST /api/v1/email/config`: đọc/lưu cấu hình email local.
 - `POST /api/v1/email/preview`: render HTML email theo dòng đầu tiên.

@@ -119,6 +119,27 @@ const paymentReconInvoiceRowsEl = document.querySelector("#paymentReconInvoiceRo
 const paymentReconTransactionCountEl = document.querySelector("#paymentReconTransactionCount");
 const paymentReconTransactionRowsEl = document.querySelector("#paymentReconTransactionRows");
 const paymentReconDetailEl = document.querySelector("#paymentReconDetail");
+const notificationStatusEl = document.querySelector("#notificationStatus");
+const refreshNotificationsBtn = document.querySelector("#refreshNotifications");
+const notificationCampaignNameEl = document.querySelector("#notificationCampaignName");
+const notificationCampaignTypeEl = document.querySelector("#notificationCampaignType");
+const notificationTemplateEl = document.querySelector("#notificationTemplate");
+const notificationSchoolYearEl = document.querySelector("#notificationSchoolYear");
+const notificationGradeEl = document.querySelector("#notificationGrade");
+const notificationClassEl = document.querySelector("#notificationClass");
+const notificationPeriodEl = document.querySelector("#notificationPeriod");
+const notificationInvoiceStatusEl = document.querySelector("#notificationInvoiceStatus");
+const notificationDueBeforeEl = document.querySelector("#notificationDueBefore");
+const previewNotificationsBtn = document.querySelector("#previewNotifications");
+const saveNotificationCampaignBtn = document.querySelector("#saveNotificationCampaign");
+const sendNotificationCampaignBtn = document.querySelector("#sendNotificationCampaign");
+const notificationSummaryEl = document.querySelector("#notificationSummary");
+const notificationRecipientCountEl = document.querySelector("#notificationRecipientCount");
+const notificationRecipientsEl = document.querySelector("#notificationRecipients");
+const notificationCampaignCountEl = document.querySelector("#notificationCampaignCount");
+const notificationCampaignRowsEl = document.querySelector("#notificationCampaignRows");
+const notificationLogCountEl = document.querySelector("#notificationLogCount");
+const notificationLogsEl = document.querySelector("#notificationLogs");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
@@ -137,6 +158,10 @@ let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
 let invoicesLoaded = false;
 let paymentReconciliationLoaded = false;
 let paymentReconciliationData = { providers: [], invoices: [], transactions: [], intents: {}, summary: {} };
+let notificationLoaded = false;
+let notificationOptions = { templates: [], campaigns: [], schoolYears: [], classes: [] };
+let notificationPreviewData = { recipients: [], summary: {}, campaign: null, logs: [] };
+let currentNotificationCampaignId = "";
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -209,6 +234,10 @@ async function init() {
   renderInvoicePreview(null);
   renderInvoices([]);
   renderPaymentReconciliation(null);
+  renderNotificationControls();
+  renderNotificationPreview(null);
+  renderNotificationCampaigns([]);
+  renderNotificationLogs([]);
   renderFeeTemplate(defaultPaymentItems);
   renderRows(sampleRows);
   await loadMasterData();
@@ -251,6 +280,9 @@ async function activateTab(targetId) {
   }
   if (targetId === "reconciliationTab") {
     await loadPaymentReconciliation();
+  }
+  if (targetId === "notificationTab") {
+    await loadNotifications();
   }
   if (targetId === "emailTab") {
     await previewEmail();
@@ -1681,6 +1713,317 @@ function paymentIntentDetailTemplate(data) {
   `;
 }
 
+async function loadNotifications(force = false) {
+  if (notificationLoaded && !force) return;
+  setNotificationStatus("Đang tải", "busy");
+  const [optionsRes, logsRes] = await Promise.all([
+    fetch("/api/v1/notifications/options"),
+    fetch("/api/v1/notifications/logs?limit=50"),
+  ]);
+  const optionsText = await optionsRes.text();
+  if (!optionsRes.ok) {
+    setNotificationStatus(optionsText || "Không tải được notification", "error");
+    renderNotificationControls();
+    renderNotificationPreview(null);
+    renderNotificationCampaigns([]);
+    renderNotificationLogs([]);
+    return;
+  }
+  notificationOptions = JSON.parse(optionsText);
+  renderNotificationControls();
+  renderNotificationCampaigns(notificationOptions.campaigns || []);
+  if (logsRes.ok) {
+    const logsData = await logsRes.json();
+    renderNotificationLogs(logsData.logs || []);
+  } else {
+    renderNotificationLogs([]);
+  }
+  notificationLoaded = true;
+  setNotificationStatus("Sẵn sàng", "ready");
+}
+
+function renderNotificationControls() {
+  const templates = notificationOptions.templates || [];
+  const selectedTemplate = notificationTemplateEl.value;
+  notificationTemplateEl.innerHTML = templates.length
+    ? templates
+        .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name || item.code)} v${Number(item.version || 1)}</option>`)
+        .join("")
+    : `<option value="">Chưa có template</option>`;
+  if (templates.some((item) => item.id === selectedTemplate)) {
+    notificationTemplateEl.value = selectedTemplate;
+  } else {
+    const type = notificationCampaignTypeEl.value || "first_notice";
+    const match = templates.find((item) => item.code === type) || templates[0];
+    if (match) notificationTemplateEl.value = match.id;
+  }
+
+  const currentYear = notificationSchoolYearEl.value;
+  notificationSchoolYearEl.innerHTML = `<option value="">Tất cả</option>${(notificationOptions.schoolYears || [])
+    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code || item.name || "")}</option>`)
+    .join("")}`;
+  if ((notificationOptions.schoolYears || []).some((item) => item.id === currentYear)) {
+    notificationSchoolYearEl.value = currentYear;
+  }
+  renderNotificationGradeOptions();
+  renderNotificationClassOptions();
+}
+
+function renderNotificationGradeOptions() {
+  const current = notificationGradeEl.value;
+  const yearId = notificationSchoolYearEl.value;
+  const grades = [
+    ...new Set(
+      (notificationOptions.classes || [])
+        .filter((item) => !yearId || item.schoolYearId === yearId)
+        .map((item) => item.grade)
+        .filter(Boolean),
+    ),
+  ].sort((a, b) => String(a).localeCompare(String(b), "vi", { numeric: true }));
+  notificationGradeEl.innerHTML = `<option value="">Tất cả</option>${grades
+    .map((grade) => `<option value="${escapeAttr(grade)}">${escapeHtml(grade)}</option>`)
+    .join("")}`;
+  if (grades.includes(current)) {
+    notificationGradeEl.value = current;
+  }
+}
+
+function renderNotificationClassOptions() {
+  const current = notificationClassEl.value;
+  const yearId = notificationSchoolYearEl.value;
+  const grade = notificationGradeEl.value;
+  const classes = (notificationOptions.classes || []).filter((item) => {
+    return (!yearId || item.schoolYearId === yearId) && (!grade || item.grade === grade);
+  });
+  notificationClassEl.innerHTML = `<option value="">Tất cả</option>${classes
+    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)} · Khối ${escapeHtml(item.grade || "-")}</option>`)
+    .join("")}`;
+  if (classes.some((item) => item.id === current)) {
+    notificationClassEl.value = current;
+  }
+}
+
+function collectNotificationInput() {
+  return {
+    campaignId: currentNotificationCampaignId,
+    name: notificationCampaignNameEl.value.trim(),
+    campaignType: notificationCampaignTypeEl.value || "first_notice",
+    templateId: notificationTemplateEl.value || "",
+    schoolYearId: notificationSchoolYearEl.value || "",
+    classId: notificationClassEl.value || "",
+    grade: notificationGradeEl.value || "",
+    periodCode: notificationPeriodEl.value.trim(),
+    invoiceStatus: notificationInvoiceStatusEl.value || "",
+    dueOnOrBefore: notificationDueBeforeEl.value || "",
+  };
+}
+
+async function previewNotifications() {
+  setNotificationStatus("Đang preview", "busy");
+  const res = await fetch("/api/v1/notifications/campaigns/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectNotificationInput()),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setNotificationStatus(text || "Preview failed", "error");
+    return null;
+  }
+  const data = JSON.parse(text);
+  notificationPreviewData = data;
+  renderNotificationPreview(data);
+  if (data.campaign?.id) currentNotificationCampaignId = data.campaign.id;
+  setNotificationStatus((data.issues || []).length ? "Cần xử lý" : "Preview xong", (data.issues || []).length ? "error" : "ready");
+  return data;
+}
+
+async function saveNotificationCampaign() {
+  setNotificationStatus("Đang lưu", "busy");
+  const res = await fetch("/api/v1/notifications/campaigns/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectNotificationInput()),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setNotificationStatus(text || "Không lưu được campaign", "error");
+    return null;
+  }
+  const data = JSON.parse(text);
+  currentNotificationCampaignId = data.campaign?.id || currentNotificationCampaignId;
+  notificationPreviewData = { ...notificationPreviewData, recipients: data.recipients || [], summary: data.summary || {}, campaign: data.campaign };
+  renderNotificationPreview(notificationPreviewData);
+  renderNotificationCampaigns(data.campaigns || notificationOptions.campaigns || []);
+  notificationLoaded = false;
+  setNotificationStatus("Đã lưu", "ready");
+  return data.campaign;
+}
+
+async function sendNotificationCampaign() {
+  if (!window.confirm("Gửi campaign sẽ gửi email thật qua provider hiện tại và ghi log theo từng invoice/recipient. Tiếp tục?")) {
+    return;
+  }
+  setNotificationStatus("Đang gửi", "busy");
+  const input = { ...collectNotificationInput(), confirmSend: true, dryRun: false };
+  const res = await fetch("/api/v1/notifications/campaigns/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setNotificationStatus(text || "Không gửi được campaign", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  currentNotificationCampaignId = data.campaign?.id || currentNotificationCampaignId;
+  renderNotificationResults(data);
+  notificationLoaded = false;
+  setNotificationStatus("Đã xử lý gửi", "ready");
+}
+
+function renderNotificationPreview(data) {
+  const issues = data?.issues || [];
+  const recipients = data?.recipients || [];
+  const summary = data?.summary || {};
+  notificationRecipientCountEl.textContent = `${recipients.length} email`;
+  if (!data) {
+    notificationSummaryEl.textContent = "Chưa có preview";
+    notificationRecipientsEl.innerHTML = `<tr><td colspan="6">Chưa có recipient</td></tr>`;
+    return;
+  }
+  if (issues.length) {
+    notificationSummaryEl.innerHTML = issues.map((item) => `<div><strong>${escapeHtml(item.type)}</strong><span>${escapeHtml(item.message)}</span></div>`).join("");
+  } else {
+    notificationSummaryEl.innerHTML = `
+      <div><strong>${Number(summary.invoiceCount || 0)}</strong><span>invoice</span></div>
+      <div><strong>${Number(summary.recipientCount || 0)}</strong><span>recipient</span></div>
+      <div><strong>${formatMoney(summary.totalAmount || 0)}</strong><span>phải thu</span></div>
+      <div><strong>${formatMoney(summary.unpaidAmount || 0)}</strong><span>còn phải thu</span></div>
+      <div><strong>${Number(summary.alreadySent || 0)}</strong><span>đã gửi trước</span></div>
+    `;
+  }
+  notificationRecipientsEl.innerHTML = recipients.length
+    ? recipients.map(notificationRecipientRowTemplate).join("")
+    : `<tr><td colspan="6">Không có recipient phù hợp</td></tr>`;
+}
+
+function notificationRecipientRowTemplate(item) {
+  const status = item.alreadySent ? "already sent" : item.status || item.invoiceStatus || "pending";
+  return `
+    <tr>
+      <td><strong>${escapeHtml(item.invoiceCode || "")}</strong><small>${escapeHtml(item.periodCode || "")}</small></td>
+      <td>${escapeHtml(item.studentCode || "")}<small>${escapeHtml(item.studentName || "")}</small></td>
+      <td>${escapeHtml(item.className || "")}<small>${escapeHtml(item.dueDate || "")}</small></td>
+      <td>${escapeHtml(item.recipientEmail || "")}<small>${escapeHtml(item.recipientName || "")}</small></td>
+      <td>${formatMoney(item.amount || 0)}<small>Đã thu ${formatMoney(item.paidAmount || 0)}</small></td>
+      <td><span class="status-pill">${escapeHtml(status)}</span></td>
+    </tr>
+  `;
+}
+
+function renderNotificationCampaigns(campaigns) {
+  notificationOptions.campaigns = campaigns || [];
+  notificationCampaignCountEl.textContent = `${notificationOptions.campaigns.length} campaign`;
+  notificationCampaignRowsEl.innerHTML = notificationOptions.campaigns.length
+    ? notificationOptions.campaigns.map(notificationCampaignRowTemplate).join("")
+    : `<tr><td colspan="5">Chưa có campaign</td></tr>`;
+  notificationCampaignRowsEl.querySelectorAll("tr[data-campaign-id]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const campaign = notificationOptions.campaigns.find((item) => item.id === row.dataset.campaignId);
+      if (campaign) selectNotificationCampaign(campaign);
+    });
+  });
+}
+
+function notificationCampaignRowTemplate(item) {
+  return `
+    <tr data-campaign-id="${escapeAttr(item.id || "")}">
+      <td><strong>${escapeHtml(item.name || item.code || "")}</strong><small>${escapeHtml(item.campaignType || "")}</small></td>
+      <td>${escapeHtml(item.periodCode || "-")}<small>${escapeHtml(item.className || item.grade || item.schoolYearCode || "Tất cả")}</small></td>
+      <td>${escapeHtml(item.template || "")}<small>v${Number(item.templateVersion || 1)}</small></td>
+      <td>${Number(item.recipientCount || 0)}<small>sent ${Number(item.sentCount || 0)} · errors ${Number(item.errorCount || 0)}</small></td>
+      <td><span class="status-pill">${escapeHtml(item.status || "")}</span></td>
+    </tr>
+  `;
+}
+
+async function selectNotificationCampaign(campaign) {
+  currentNotificationCampaignId = campaign.id || "";
+  notificationCampaignNameEl.value = campaign.name || "";
+  notificationCampaignTypeEl.value = campaign.campaignType || "first_notice";
+  notificationSchoolYearEl.value = campaign.schoolYearId || "";
+  renderNotificationGradeOptions();
+  notificationGradeEl.value = campaign.grade || "";
+  renderNotificationClassOptions();
+  notificationClassEl.value = campaign.classId || "";
+  notificationPeriodEl.value = campaign.periodCode || "";
+  notificationInvoiceStatusEl.value = campaign.invoiceStatus || "";
+  notificationDueBeforeEl.value = campaign.dueOnOrBefore || "";
+  if ((notificationOptions.templates || []).some((item) => item.id === campaign.templateId)) {
+    notificationTemplateEl.value = campaign.templateId;
+  }
+  await loadNotificationLogs(campaign.id);
+}
+
+async function loadNotificationLogs(campaignId = "") {
+  const params = new URLSearchParams({ limit: "50" });
+  if (campaignId) params.set("campaignId", campaignId);
+  const res = await fetch(`/api/v1/notifications/logs?${params.toString()}`);
+  if (!res.ok) {
+    renderNotificationLogs([]);
+    return;
+  }
+  const data = await res.json();
+  renderNotificationLogs(data.logs || []);
+}
+
+function renderNotificationLogs(logs) {
+  notificationLogCountEl.textContent = `${logs.length} log`;
+  notificationLogsEl.innerHTML = logs.length
+    ? logs.map(notificationLogTemplate).join("")
+    : "Chưa có log gửi";
+}
+
+function notificationLogTemplate(item) {
+  const message = item.error || item.providerMessageId || item.status || "";
+  return `
+    <div class="notification-log-item">
+      <strong>${escapeHtml(item.status || "")} · ${escapeHtml(item.invoiceCode || "")}</strong>
+      <span>${escapeHtml(item.recipientEmail || "")}</span>
+      <small>${escapeHtml(item.campaignName || "")} · ${escapeHtml(item.templateCode || "")} v${Number(item.templateVersion || 1)}</small>
+      <small>${escapeHtml(formatDateTime(item.sentAt))} · ${escapeHtml(item.provider || (item.dryRun ? "dry-run" : "-"))}</small>
+      <small>${escapeHtml(message)}</small>
+    </div>
+  `;
+}
+
+function renderNotificationResults(data) {
+  const results = data.results || [];
+  const logs = data.logs || [];
+  notificationPreviewData = {
+    ...notificationPreviewData,
+    campaign: data.campaign,
+    summary: data.summary || {},
+    recipients: (notificationPreviewData.recipients || []).map((recipient) => {
+      const result = results.find((item) => item.id === recipient.id || item.email === recipient.recipientEmail);
+      return result ? { ...recipient, status: result.status, lastError: result.error || "" } : recipient;
+    }),
+  };
+  renderNotificationPreview(notificationPreviewData);
+  renderNotificationLogs(logs);
+  if (data.campaign) {
+    const campaigns = [data.campaign, ...(notificationOptions.campaigns || []).filter((item) => item.id !== data.campaign.id)];
+    renderNotificationCampaigns(campaigns);
+  }
+}
+
+function setNotificationStatus(message, tone = "ready") {
+  notificationStatusEl.textContent = message;
+  notificationStatusEl.dataset.tone = tone;
+}
+
 
 function collectEmailConfig() {
   return {
@@ -2140,6 +2483,20 @@ refreshPaymentReconBtn.addEventListener("click", () => loadPaymentReconciliation
 paymentProviderFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 paymentInvoiceStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 paymentTransactionStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
+refreshNotificationsBtn.addEventListener("click", () => loadNotifications(true));
+notificationCampaignTypeEl.addEventListener("change", () => {
+  currentNotificationCampaignId = "";
+  const match = (notificationOptions.templates || []).find((item) => item.code === notificationCampaignTypeEl.value);
+  if (match) notificationTemplateEl.value = match.id;
+});
+notificationSchoolYearEl.addEventListener("change", () => {
+  renderNotificationGradeOptions();
+  renderNotificationClassOptions();
+});
+notificationGradeEl.addEventListener("change", renderNotificationClassOptions);
+previewNotificationsBtn.addEventListener("click", previewNotifications);
+saveNotificationCampaignBtn.addEventListener("click", saveNotificationCampaign);
+sendNotificationCampaignBtn.addEventListener("click", sendNotificationCampaign);
 
 saveEmailConfigBtn.addEventListener("click", saveEmailConfig);
 previewEmailBtn.addEventListener("click", previewEmail);

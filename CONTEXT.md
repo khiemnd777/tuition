@@ -86,6 +86,18 @@ The auditable link between a payment transaction and an invoice. It records matc
 **Manual cash receipt**:
 A staff-entered cash collection record for an invoice. It creates a payment transaction and a reconciliation match with collector, timestamp, amount, and receipt reference.
 
+**Notification template**:
+A versioned invoice-email template used by notification campaigns. Baseline templates are first payment notice and payment reminder.
+
+**Notification campaign**:
+An invoice-based email batch targeting invoices by school year, period, class, invoice status, and due date. It replaces row-based batches for production billing notices.
+
+**Notification recipient**:
+One parent billing contact selected for one invoice inside a notification campaign. Recipients come from active parent links that receive billing email.
+
+**Notification log**:
+The auditable delivery record for a campaign/template/invoice/recipient. It stores provider, status, provider message ID, error, dry-run flag, and sent timestamp.
+
 ## Relationships
 
 - A payment row can have many payment items.
@@ -105,9 +117,13 @@ A staff-entered cash collection record for an invoice. It creates a payment tran
 - A provider event can create at most one idempotent payment transaction per provider transaction reference.
 - A payment transaction can match one invoice through reconciliation.
 - Manual cash receipts create payment transactions and reconciliation matches.
+- A notification campaign targets many invoices and many notification recipients.
+- A notification recipient belongs to one invoice and one parent billing contact.
+- A notification log records one dry-run, send, skip, or error outcome for one campaign/template/invoice/recipient.
 
 ## Flagged Ambiguities
 
 - "QR" can mean payload, PNG image, or email link. Use the precise term above.
 - "Amount" can mean raw CSV/JSON amount or payment-item total. In this app, payment-item total wins when payment items exist.
 - "Payment" can mean a payment intent, a provider transaction, a reconciliation match, or an invoice status. Use the precise term above.
+- "Notification" can mean a template, campaign, recipient, or delivery log. Use the precise term above.

@@ -179,6 +179,41 @@ func TestLoadEmbeddedMigrationsIncludesPaymentSchema(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesNotificationSchema(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var notification migration
+	for _, item := range migrations {
+		if item.Version == "0006" {
+			notification = item
+			break
+		}
+	}
+	if notification.Name != "notification_campaigns" {
+		t.Fatalf("expected notification migration 0006, got %+v", notification)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS notification_templates",
+		"CREATE TABLE IF NOT EXISTS notification_campaigns",
+		"CREATE TABLE IF NOT EXISTS notification_recipients",
+		"CREATE TABLE IF NOT EXISTS notification_logs",
+		"notification_logs_send_idempotency_key",
+		"'first_notice'",
+		"'reminder'",
+		"notifications.read",
+		"notifications.write",
+		"notifications.send",
+	} {
+		if !strings.Contains(notification.SQL, want) {
+			t.Fatalf("expected notification migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

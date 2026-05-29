@@ -1,16 +1,16 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, and payment/reconciliation ledger complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, and notification campaigns complete.
 
-Current phase: `initiative_5_complete`
+Current phase: `initiative_6_complete`
 
 Current initiative: none
 
-Next recommended initiative: `Initiative 6: Notification Campaigns`
+Next recommended initiative: `Initiative 7: Web Admin`
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md`
 
@@ -81,11 +81,21 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md`
   - Reconciled incoming transactions to invoices by invoice code/provider reference, collection account, and amount; invoice `paid_amount` and status now derive from active reconciliation matches.
   - Added the `Đối soát` UI workflow with provider filters, receivable summary, invoice ledger actions, transaction table, QR/payment intent detail, and manual cash receipt entry.
   - Added tests, README docs, env examples, and glossary terms.
+- Initiative 6: Notification Campaigns is complete:
+  - Added production schema for `notification_templates`, `notification_campaigns`, `notification_recipients`, and `notification_logs`.
+  - Seeded versioned baseline templates for first notice and reminder campaigns.
+  - Added notification APIs for options/templates, campaign listing, dry-run preview, save, send, and delivery logs.
+  - Targeted invoice recipients through active parent billing contacts instead of temporary payment rows.
+  - Enforced reminder targeting so paid invoices are not accidentally included.
+  - Reused the existing email renderer/provider path so notification sends keep inline VietQR CID images and Gmail/Resend behavior.
+  - Added idempotent send behavior per campaign/template/invoice/recipient unless explicitly re-sent.
+  - Added the `Thông báo` UI workflow with filters, recipient dry-run, saved campaign list, real-send confirmation, and delivery logs.
+  - Added tests, README docs, and glossary terms.
 
 ## Not Started
 
-- Web Admin production screens beyond the student master-data, fee schedule, and invoice tabs have not been implemented.
-- Notification campaigns, reports, and operations modules have not started.
+- Dashboard, reporting, role administration, and production operations screens have not been implemented.
+- Reports and operations modules have not started.
 
 ## Agent Protocol
 
@@ -119,7 +129,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Start Initiative 6 from docs/initiatives/production-module-roadmap.md. Build invoice-based notification templates, campaigns, dry-run, send logs, and reminders. Preserve current VietQR/payment reconciliation behavior and update docs/initiatives/current-state.md when finished.
+Start Initiative 7 from docs/initiatives/production-module-roadmap.md. Build production Web Admin workflows for dashboard, reports, roles, and any remaining admin screens. Preserve current VietQR/payment reconciliation and notification campaign behavior, and update docs/initiatives/current-state.md when finished.
 ```
 
 ## Known Safety Constraints

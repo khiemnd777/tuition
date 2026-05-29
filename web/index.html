@@ -32,6 +32,7 @@
       <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
       <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
       <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
+      <button class="tab-button" type="button" data-tab-target="notificationTab" aria-controls="notificationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">campaign</span><span>Thông báo</span></button>
       <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
       <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
     </nav>
@@ -538,6 +539,152 @@
             </div>
           </div>
           <div id="paymentReconDetail" class="reconciliation-detail">Chưa chọn hóa đơn hoặc giao dịch</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="notificationTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="notification-workspace">
+        <section class="panel notification-control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Invoice campaigns</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">campaign</span><span>Thông báo học phí</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshNotifications" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="notificationStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="notification-toolbar">
+            <label>
+              <span>Tên campaign</span>
+              <input id="notificationCampaignName" placeholder="Thông báo thanh toán 2026-04" />
+            </label>
+            <label>
+              <span>Loại</span>
+              <select id="notificationCampaignType">
+                <option value="first_notice">Thông báo đầu tiên</option>
+                <option value="reminder">Nhắc thanh toán</option>
+              </select>
+            </label>
+            <label>
+              <span>Template</span>
+              <select id="notificationTemplate"></select>
+            </label>
+            <label>
+              <span>Năm học</span>
+              <select id="notificationSchoolYear"></select>
+            </label>
+            <label>
+              <span>Khối</span>
+              <select id="notificationGrade"></select>
+            </label>
+            <label>
+              <span>Lớp</span>
+              <select id="notificationClass"></select>
+            </label>
+            <label>
+              <span>Kỳ thu</span>
+              <input id="notificationPeriod" placeholder="2026-04" />
+            </label>
+            <label>
+              <span>Invoice status</span>
+              <select id="notificationInvoiceStatus">
+                <option value="">Mặc định theo loại</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="overpaid">Overpaid</option>
+                <option value="manual_review">Manual review</option>
+              </select>
+            </label>
+            <label>
+              <span>Hạn trước ngày</span>
+              <input id="notificationDueBefore" type="date" />
+            </label>
+          </div>
+          <div class="notification-actions">
+            <button id="previewNotifications" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
+            <button id="saveNotificationCampaign" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu campaign</span></button>
+            <button id="sendNotificationCampaign" class="primary" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi campaign</span></button>
+          </div>
+          <div id="notificationSummary" class="notification-summary">Chưa có preview</div>
+        </section>
+
+        <section class="panel notification-recipient-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Dry-run recipients</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">mark_email_unread</span><span>Người nhận</span></h2>
+            </div>
+            <span id="notificationRecipientCount" class="count-badge">0 email</span>
+          </div>
+          <div class="table-wrap notification-table-wrap">
+            <table class="notification-table" aria-label="Người nhận notification">
+              <colgroup>
+                <col class="notification-invoice-col" />
+                <col class="notification-student-col" />
+                <col class="notification-class-col" />
+                <col class="notification-email-col" />
+                <col class="notification-money-col" />
+                <col class="notification-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Invoice</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Số tiền</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="notificationRecipients"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel notification-campaign-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Saved campaigns</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">fact_check</span><span>Campaign đã lưu</span></h2>
+            </div>
+            <span id="notificationCampaignCount" class="count-badge">0 campaign</span>
+          </div>
+          <div class="table-wrap notification-table-wrap">
+            <table class="notification-table" aria-label="Campaign notification">
+              <colgroup>
+                <col class="notification-campaign-col" />
+                <col class="notification-class-col" />
+                <col class="notification-status-col" />
+                <col class="notification-money-col" />
+                <col class="notification-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Campaign</th>
+                  <th scope="col">Kỳ/Lớp</th>
+                  <th scope="col">Template</th>
+                  <th scope="col">Recipients</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="notificationCampaignRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="panel notification-log-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Delivery logs</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">history</span><span>Log gửi</span></h2>
+            </div>
+            <span id="notificationLogCount" class="count-badge">0 log</span>
+          </div>
+          <div id="notificationLogs" class="notification-log-list">Chưa có log gửi</div>
         </aside>
       </div>
     </section>

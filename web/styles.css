@@ -332,13 +332,15 @@ textarea:focus-visible {
 .fee-template-wrap,
 .fee-workspace,
 .invoice-workspace,
-.reconciliation-workspace {
+.reconciliation-workspace,
+.notification-workspace {
   margin: 18px 24px;
 }
 
 .fee-workspace,
 .invoice-workspace,
-.reconciliation-workspace {
+.reconciliation-workspace,
+.notification-workspace {
   display: grid;
   gap: 18px;
 }
@@ -979,6 +981,150 @@ textarea:focus-visible {
   font-size: 12px;
 }
 
+.notification-workspace {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+}
+
+.notification-control-panel,
+.notification-recipient-panel,
+.notification-campaign-panel {
+  min-width: 0;
+}
+
+.notification-control-panel {
+  grid-column: 1 / -1;
+}
+
+.notification-log-panel {
+  grid-row: span 2;
+  position: sticky;
+  top: 16px;
+}
+
+.notification-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(140px, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.notification-toolbar label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-toolbar input,
+.notification-toolbar select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.notification-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 1px;
+  border-top: 1px solid var(--line);
+  background: var(--line);
+  color: var(--ink-soft);
+  font-weight: 700;
+  overflow-x: auto;
+}
+
+.notification-summary > div {
+  min-height: 58px;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  padding: 10px 14px;
+  background: #ffffff;
+}
+
+.notification-summary strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.notification-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notification-table-wrap {
+  max-height: 380px;
+}
+
+.notification-table {
+  min-width: 980px;
+  table-layout: fixed;
+}
+
+.notification-table td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.notification-invoice-col,
+.notification-status-col {
+  width: 140px;
+}
+
+.notification-student-col,
+.notification-email-col,
+.notification-campaign-col {
+  width: 240px;
+}
+
+.notification-class-col,
+.notification-money-col {
+  width: 130px;
+}
+
+.notification-log-list {
+  display: grid;
+  gap: 8px;
+  min-height: 260px;
+  max-height: 720px;
+  overflow: auto;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.notification-log-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.notification-log-item strong {
+  color: var(--ink);
+}
+
 .reconciliation-detail-grid strong {
   min-width: 0;
   color: var(--ink);
@@ -1148,7 +1294,9 @@ td select:hover,
 .fee-config-table input:hover,
 #feeAdjustmentsCsv:hover,
 .invoice-toolbar input:hover,
-.invoice-toolbar select:hover {
+.invoice-toolbar select:hover,
+.notification-toolbar input:hover,
+.notification-toolbar select:hover {
   border-color: var(--line-strong);
 }
 
@@ -1166,7 +1314,9 @@ td select:focus,
 .fee-config-table input:focus,
 #feeAdjustmentsCsv:focus,
 .invoice-toolbar input:focus,
-.invoice-toolbar select:focus {
+.invoice-toolbar select:focus,
+.notification-toolbar input:focus,
+.notification-toolbar select:focus {
   border-color: var(--focus);
 }
 
@@ -1559,7 +1709,9 @@ td select:focus,
   .fee-schedule-body,
   .invoice-toolbar,
   .reconciliation-workspace,
-  .reconciliation-toolbar {
+  .reconciliation-toolbar,
+  .notification-workspace,
+  .notification-toolbar {
     grid-template-columns: 1fr;
   }
 
@@ -1567,12 +1719,14 @@ td select:focus,
     grid-column: auto;
   }
 
-  .reconciliation-detail-panel {
+  .reconciliation-detail-panel,
+  .notification-log-panel {
     position: static;
     grid-row: auto;
   }
 
-  .reconciliation-summary {
+  .reconciliation-summary,
+  .notification-summary {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
 
@@ -1590,7 +1744,8 @@ td select:focus,
   .fee-template-wrap,
   .fee-workspace,
   .invoice-workspace,
-  .reconciliation-workspace {
+  .reconciliation-workspace,
+  .notification-workspace {
     margin-left: 14px;
     margin-right: 14px;
   }
