@@ -1,16 +1,16 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-05-24
+Last updated: 2026-05-28
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, and invoice/PDF receipt output complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, and payment/reconciliation ledger complete.
 
-Current phase: `initiative_4_complete`
+Current phase: `initiative_5_complete`
 
 Current initiative: none
 
-Next recommended initiative: `Initiative 5: Payment And Reconciliation`
+Next recommended initiative: `Initiative 6: Notification Campaigns`
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md`
 
@@ -72,12 +72,20 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md`
   - Added the `Hóa đơn` UI workflow with preview, generation, invoice list, QR preview, and PDF links.
   - Kept the legacy `Thanh toán` tab before `Email & Cron`.
   - Added tests, README docs, and glossary terms.
+- Initiative 5: Payment And Reconciliation is complete:
+  - Added production schema for `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, and `manual_cash_receipts`.
+  - Seeded baseline providers for `manual_vietqr`, `sepay`, and `payos`.
+  - Added payment APIs for providers, payment intent creation, transaction listing, reconciliation dashboard data, provider webhooks, and manual cash receipts.
+  - Implemented idempotent webhook/event and transaction storage so retries do not duplicate payment ledger entries.
+  - Added SePay webhook normalization, payOS payment link request/signature support, payOS webhook signature verification when checksum key is configured, and manual VietQR intents.
+  - Reconciled incoming transactions to invoices by invoice code/provider reference, collection account, and amount; invoice `paid_amount` and status now derive from active reconciliation matches.
+  - Added the `Đối soát` UI workflow with provider filters, receivable summary, invoice ledger actions, transaction table, QR/payment intent detail, and manual cash receipt entry.
+  - Added tests, README docs, env examples, and glossary terms.
 
 ## Not Started
 
-- No payment provider integration has been implemented.
 - Web Admin production screens beyond the student master-data, fee schedule, and invoice tabs have not been implemented.
-- Reconciliation, notification campaigns, reports, and operations modules have not started.
+- Notification campaigns, reports, and operations modules have not started.
 
 ## Agent Protocol
 
@@ -111,7 +119,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Start Initiative 5 from docs/initiatives/production-module-roadmap.md. Build production payment provider adapters, webhook ingestion, transaction ledger, and invoice reconciliation. Preserve current VietQR/email behavior and update docs/initiatives/current-state.md when finished.
+Start Initiative 6 from docs/initiatives/production-module-roadmap.md. Build invoice-based notification templates, campaigns, dry-run, send logs, and reminders. Preserve current VietQR/payment reconciliation behavior and update docs/initiatives/current-state.md when finished.
 ```
 
 ## Known Safety Constraints

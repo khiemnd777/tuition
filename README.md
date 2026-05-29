@@ -104,7 +104,7 @@ go run . migrate up
 
 `ABC_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `ABC_DATABASE_URL_LOCAL`, `ABC_DATABASE_URL_STAGING`, `ABC_DATABASE_URL_PRODUCTION`; sau đó fallback sang `ABC_DATABASE_URL` và `DATABASE_URL`.
 
-Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production.
+Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice.
 
 Quy ước production hiện tại:
 
@@ -149,7 +149,7 @@ Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong
 }
 ```
 
-Trong UI, workflow được tách thành các tab: `Học sinh`, `Bảng phí`, `Hóa đơn`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh`, `Bảng phí`, và `Hóa đơn` dùng PostgreSQL đã cấu hình.
+Trong UI, workflow được tách thành các tab: `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh`, `Bảng phí`, `Hóa đơn`, và `Đối soát` dùng PostgreSQL đã cấu hình.
 
 ## Excel/CSV master data
 
@@ -207,6 +207,28 @@ Hóa đơn snapshot các dữ liệu sau tại thời điểm sinh:
 
 PDF receipt được render từ dữ liệu hóa đơn đã lưu, không đọc lại bảng phí. PDF chứa tên trường, học sinh, lớp, kỳ thu, line items, tổng tiền, trạng thái, thời điểm phát hành, thông tin VietQR, và QR thanh toán.
 
+## Thanh toán và đối soát
+
+Tab `Đối soát` ghi nhận payment intent, webhook provider, giao dịch vào, match đối soát và phiếu thu tiền mặt trên database production. Provider mặc định:
+
+- `manual_vietqr`: dùng QR hóa đơn hiện tại, đối soát thủ công hoặc tiền mặt.
+- `sepay`: nhận webhook biến động số dư, lưu raw payload trước rồi parse transaction theo `id`, `transferAmount`, `accountNumber`, `content`, `referenceCode`.
+- `payos`: tạo payment link qua API merchant khi có cấu hình env và nhận webhook payment link.
+
+Webhook provider được xử lý idempotent bằng unique key trên `provider_events` và `payment_transactions`; provider retry hoặc gửi lại cùng giao dịch sẽ không tạo thêm khoản thu. Match tự động dựa trên mã hóa đơn hoặc provider reference trong nội dung/reference, số tài khoản thu, và số tiền. Sau mỗi match, app tính lại `paid_amount` từ `reconciliation_matches` active và cập nhật status invoice thành `unpaid`, `partial`, `paid`, hoặc `overpaid`.
+
+Ghi nhận tiền mặt yêu cầu người thu tiền, số tiền, và mã phiếu thu. Giao dịch tiền mặt cũng đi qua ledger `payment_transactions`, tạo `manual_cash_receipts`, và có match `cash` để audit được như giao dịch webhook.
+
+payOS dùng env sau, không commit secret thật:
+
+```sh
+export ABC_PAYOS_CLIENT_ID='...'
+export ABC_PAYOS_API_KEY='...'
+export ABC_PAYOS_CHECKSUM_KEY='...'
+export ABC_PAYOS_RETURN_URL='https://example.edu.vn/payment-return'
+export ABC_PAYOS_CANCEL_URL='https://example.edu.vn/payment-cancel'
+```
+
 ## API
 
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
@@ -228,6 +250,12 @@ PDF receipt được render từ dữ liệu hóa đơn đã lưu, không đọc
 - `POST /api/v1/invoices/generate`: sinh hóa đơn idempotent từ bảng phí đã lưu.
 - `GET /api/v1/invoices/payment?id=...`: trả payment row đã sinh QR cho một hóa đơn.
 - `GET /api/v1/invoices/pdf?id=...`: trả PDF receipt cho một hóa đơn.
+- `GET /api/v1/payments/providers`: danh sách provider thanh toán và trạng thái cấu hình.
+- `POST /api/v1/payments/intents`: tạo payment intent cho invoice qua `manual_vietqr`, `sepay`, hoặc `payos`.
+- `GET /api/v1/payments/transactions`: danh sách giao dịch ledger, hỗ trợ `provider`, `status`, `limit`.
+- `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, summary, invoices, transactions, intents.
+- `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos`, lưu raw event, parse transaction và đối soát.
+- `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice.
 - `POST /api/v1/vietqr/batch`: sinh QR theo danh sách rows.
 - `GET/POST /api/v1/email/config`: đọc/lưu cấu hình email local.
 - `POST /api/v1/email/preview`: render HTML email theo dòng đầu tiên.

@@ -31,6 +31,7 @@
       <button class="tab-button active" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
       <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
       <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
+      <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
       <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
       <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
     </nav>
@@ -415,6 +416,128 @@
             <span id="invoicePaymentStatus" class="status-pill">Chưa chọn</span>
           </div>
           <div id="invoicePaymentPreview" class="preview-empty">Chưa chọn hóa đơn</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="reconciliationTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="reconciliation-workspace">
+        <section class="panel reconciliation-control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Payment reconciliation</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát thanh toán</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshPaymentRecon" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="paymentReconStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="reconciliation-toolbar">
+            <label>
+              <span>Provider</span>
+              <select id="paymentProviderFilter"></select>
+            </label>
+            <label>
+              <span>Invoice status</span>
+              <select id="paymentInvoiceStatusFilter">
+                <option value="">Tất cả</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="overpaid">Overpaid</option>
+                <option value="manual_review">Manual review</option>
+              </select>
+            </label>
+            <label>
+              <span>Transaction status</span>
+              <select id="paymentTransactionStatusFilter">
+                <option value="">Tất cả</option>
+                <option value="unmatched">Unmatched</option>
+                <option value="matched">Matched</option>
+                <option value="manual_review">Manual review</option>
+              </select>
+            </label>
+          </div>
+          <div id="paymentReconSummary" class="reconciliation-summary">Chưa có dữ liệu đối soát</div>
+        </section>
+
+        <section class="panel reconciliation-invoice-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Receivables</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Hóa đơn cần thu</span></h2>
+            </div>
+            <span id="paymentReconInvoiceCount" class="count-badge">0 hóa đơn</span>
+          </div>
+          <div class="table-wrap reconciliation-table-wrap">
+            <table class="reconciliation-table" aria-label="Hóa đơn đối soát">
+              <colgroup>
+                <col class="recon-code-col" />
+                <col class="recon-student-col" />
+                <col class="recon-class-col" />
+                <col class="recon-money-col" />
+                <col class="recon-money-col" />
+                <col class="recon-status-col" />
+                <col class="recon-action-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Mã HĐ</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Phải thu</th>
+                  <th scope="col">Đã thu</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody id="paymentReconInvoiceRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel reconciliation-transaction-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Ledger</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">sync_alt</span><span>Giao dịch vào</span></h2>
+            </div>
+            <span id="paymentReconTransactionCount" class="count-badge">0 giao dịch</span>
+          </div>
+          <div class="table-wrap reconciliation-table-wrap">
+            <table class="reconciliation-table" aria-label="Giao dịch đối soát">
+              <colgroup>
+                <col class="recon-provider-col" />
+                <col class="recon-time-col" />
+                <col class="recon-money-col" />
+                <col class="recon-account-col" />
+                <col class="recon-description-col" />
+                <col class="recon-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Provider</th>
+                  <th scope="col">Thời gian</th>
+                  <th scope="col">Số tiền</th>
+                  <th scope="col">Tài khoản</th>
+                  <th scope="col">Nội dung</th>
+                  <th scope="col">Match</th>
+                </tr>
+              </thead>
+              <tbody id="paymentReconTransactionRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="panel reconciliation-detail-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Detail</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">manage_search</span><span>Chi tiết đối soát</span></h2>
+            </div>
+          </div>
+          <div id="paymentReconDetail" class="reconciliation-detail">Chưa chọn hóa đơn hoặc giao dịch</div>
         </aside>
       </div>
     </section>

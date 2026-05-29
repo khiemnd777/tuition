@@ -68,6 +68,24 @@ The stable production invoice reference. It maps directly to VietQR Bill Number 
 **PDF receipt**:
 A generated PDF document rendered from invoice data. It includes school, student, class, period, invoice items, total, payment status, issue timestamp, and VietQR payment QR.
 
+**Payment provider**:
+The production adapter that creates payment intents or receives transaction events. Current baseline providers are `manual_vietqr`, `sepay`, and `payos`.
+
+**Payment intent**:
+The provider-specific payment request for one invoice. For manual VietQR it stores the generated QR payload; for payOS it stores the provider reference and payment URL.
+
+**Provider event**:
+The raw webhook payload received from a payment provider. It is stored before normalized transaction parsing so retries and provider data remain auditable.
+
+**Payment transaction**:
+A ledger entry for money movement from a provider webhook or manual cash receipt. It is not deleted; matching or reversal records describe how it affects an invoice.
+
+**Reconciliation match**:
+The auditable link between a payment transaction and an invoice. It records match type, score, applied amount, and reason.
+
+**Manual cash receipt**:
+A staff-entered cash collection record for an invoice. It creates a payment transaction and a reconciliation match with collector, timestamp, amount, and receipt reference.
+
 ## Relationships
 
 - A payment row can have many payment items.
@@ -83,8 +101,13 @@ A generated PDF document rendered from invoice data. It includes school, student
 - A bảng phí theo kỳ can generate one active invoice per student.
 - An invoice has many invoice items and optional invoice adjustments.
 - An invoice generates VietQR payment data using invoice code as the bill number.
+- An invoice can have payment intents through multiple providers.
+- A provider event can create at most one idempotent payment transaction per provider transaction reference.
+- A payment transaction can match one invoice through reconciliation.
+- Manual cash receipts create payment transactions and reconciliation matches.
 
 ## Flagged Ambiguities
 
 - "QR" can mean payload, PNG image, or email link. Use the precise term above.
 - "Amount" can mean raw CSV/JSON amount or payment-item total. In this app, payment-item total wins when payment items exist.
+- "Payment" can mean a payment intent, a provider transaction, a reconciliation match, or an invoice status. Use the precise term above.

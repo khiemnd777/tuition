@@ -108,6 +108,17 @@ const invoiceRowsEl = document.querySelector("#invoiceRows");
 const invoiceCountEl = document.querySelector("#invoiceCount");
 const invoicePaymentStatusEl = document.querySelector("#invoicePaymentStatus");
 const invoicePaymentPreviewEl = document.querySelector("#invoicePaymentPreview");
+const paymentReconStatusEl = document.querySelector("#paymentReconStatus");
+const refreshPaymentReconBtn = document.querySelector("#refreshPaymentRecon");
+const paymentProviderFilterEl = document.querySelector("#paymentProviderFilter");
+const paymentInvoiceStatusFilterEl = document.querySelector("#paymentInvoiceStatusFilter");
+const paymentTransactionStatusFilterEl = document.querySelector("#paymentTransactionStatusFilter");
+const paymentReconSummaryEl = document.querySelector("#paymentReconSummary");
+const paymentReconInvoiceCountEl = document.querySelector("#paymentReconInvoiceCount");
+const paymentReconInvoiceRowsEl = document.querySelector("#paymentReconInvoiceRows");
+const paymentReconTransactionCountEl = document.querySelector("#paymentReconTransactionCount");
+const paymentReconTransactionRowsEl = document.querySelector("#paymentReconTransactionRows");
+const paymentReconDetailEl = document.querySelector("#paymentReconDetail");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
@@ -124,6 +135,8 @@ let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
 let feeSchedulesLoaded = false;
 let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
 let invoicesLoaded = false;
+let paymentReconciliationLoaded = false;
+let paymentReconciliationData = { providers: [], invoices: [], transactions: [], intents: {}, summary: {} };
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -195,6 +208,7 @@ async function init() {
   renderInvoiceControls();
   renderInvoicePreview(null);
   renderInvoices([]);
+  renderPaymentReconciliation(null);
   renderFeeTemplate(defaultPaymentItems);
   renderRows(sampleRows);
   await loadMasterData();
@@ -234,6 +248,9 @@ async function activateTab(targetId) {
   }
   if (targetId === "invoiceTab") {
     await loadInvoices();
+  }
+  if (targetId === "reconciliationTab") {
+    await loadPaymentReconciliation();
   }
   if (targetId === "emailTab") {
     await previewEmail();
@@ -1404,6 +1421,266 @@ function setInvoiceStatus(message, tone = "ready") {
   invoiceStatusEl.dataset.tone = tone;
 }
 
+function setPaymentReconStatus(message, tone = "ready") {
+  paymentReconStatusEl.textContent = message;
+  paymentReconStatusEl.dataset.tone = tone;
+}
+
+async function loadPaymentReconciliation(force = false) {
+  if (!force && paymentReconciliationLoaded) {
+    return;
+  }
+  setPaymentReconStatus("Đang tải", "busy");
+  const params = new URLSearchParams();
+  if (paymentProviderFilterEl.value) {
+    params.set("provider", paymentProviderFilterEl.value);
+  }
+  if (paymentInvoiceStatusFilterEl.value) {
+    params.set("invoiceStatus", paymentInvoiceStatusFilterEl.value);
+  }
+  if (paymentTransactionStatusFilterEl.value) {
+    params.set("transactionStatus", paymentTransactionStatusFilterEl.value);
+  }
+  const query = params.toString();
+  const res = await fetch(`/api/v1/payments/reconciliation${query ? `?${query}` : ""}`);
+  const text = await res.text();
+  if (!res.ok) {
+    paymentReconciliationLoaded = false;
+    renderPaymentReconciliation(null);
+    setPaymentReconStatus(text || "Chưa cấu hình DB", "error");
+    return;
+  }
+  paymentReconciliationData = JSON.parse(text);
+  paymentReconciliationLoaded = true;
+  renderPaymentReconciliation(paymentReconciliationData);
+  setPaymentReconStatus("Sẵn sàng", "ready");
+}
+
+function renderPaymentReconciliation(data) {
+  const providers = data?.providers || paymentReconciliationData.providers || [];
+  renderPaymentProviderFilter(providers);
+  renderPaymentReconSummary(data?.summary || null);
+  renderPaymentReconInvoices(data?.invoices || [], data?.intents || {});
+  renderPaymentReconTransactions(data?.transactions || []);
+}
+
+function renderPaymentProviderFilter(providers) {
+  const selected = paymentProviderFilterEl.value;
+  paymentProviderFilterEl.innerHTML = [
+    `<option value="">Tất cả</option>`,
+    ...providers.map((provider) => {
+      const suffix = provider.configured ? "" : " · thiếu cấu hình";
+      return `<option value="${escapeAttr(provider.code)}">${escapeHtml(provider.displayName || provider.code)}${suffix}</option>`;
+    }),
+  ].join("");
+  paymentProviderFilterEl.value = optionValueOrEmpty(paymentProviderFilterEl, selected);
+}
+
+function renderPaymentReconSummary(summary) {
+  if (!summary) {
+    paymentReconSummaryEl.textContent = "Chưa có dữ liệu đối soát";
+    return;
+  }
+  const outstanding = summary.outstandingAmount || 0;
+  paymentReconSummaryEl.innerHTML = `
+    <div><strong>${formatMoney(summary.totalReceivable || 0)}</strong><span>Cần thu</span></div>
+    <div><strong>${formatMoney(summary.totalCollected || 0)}</strong><span>Đã nhận</span></div>
+    <div><strong>${formatMoney(outstanding)}</strong><span>Còn thiếu</span></div>
+    <div><strong>${Number(summary.partialCount || 0)}</strong><span>Partial</span></div>
+    <div><strong>${Number(summary.overpaidCount || 0)}</strong><span>Overpaid</span></div>
+    <div><strong>${Number(summary.unmatchedCount || 0) + Number(summary.manualReviewCount || 0)}</strong><span>Cần xử lý</span></div>
+  `;
+}
+
+function renderPaymentReconInvoices(invoices, intents) {
+  paymentReconInvoiceCountEl.textContent = `${invoices.length} hóa đơn`;
+  const hasPayOS = (paymentReconciliationData.providers || []).some((provider) => provider.code === "payos");
+  paymentReconInvoiceRowsEl.innerHTML = invoices
+    .map((invoice) => {
+      const paid = Number(invoice.paidAmount || 0);
+      const total = Number(invoice.totalAmount || 0);
+      const outstanding = Math.max(total - paid, 0);
+      const intent = intents?.[invoice.id];
+      const intentLabel = intent?.provider ? `${intent.provider}: ${intent.status}` : "";
+      return `
+        <tr data-recon-invoice-row="${escapeAttr(invoice.id || "")}">
+          <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong>${intentLabel ? `<small>${escapeHtml(intentLabel)}</small>` : ""}</td>
+          <td>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</td>
+          <td>${escapeHtml(invoice.className || "")}</td>
+          <td class="money">${formatMoney(total)}</td>
+          <td class="money">${formatMoney(paid)}</td>
+          <td><span class="tag">${escapeHtml(invoice.status || "unpaid")}</span></td>
+          <td>
+            <div class="invoice-actions">
+              <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
+              ${hasPayOS ? `<button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
+              <button type="button" data-recon-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Tiền mặt</span></button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (!invoices.length) {
+    paymentReconInvoiceRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có hóa đơn để đối soát</td></tr>`;
+  }
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-intent]").forEach((button) => {
+    button.addEventListener("click", () => createPaymentIntent(button.dataset.reconIntent, button.dataset.reconProvider));
+  });
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-cash]").forEach((button) => {
+    button.addEventListener("click", () => recordManualCashReceipt(button.dataset.reconCash, Number(button.dataset.reconDefaultAmount || 0)));
+  });
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-invoice-row]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button, a")) return;
+      const invoice = (paymentReconciliationData.invoices || []).find((item) => item.id === row.dataset.reconInvoiceRow);
+      renderPaymentReconDetail(invoiceDetailTemplate(invoice));
+    });
+  });
+}
+
+function renderPaymentReconTransactions(transactions) {
+  paymentReconTransactionCountEl.textContent = `${transactions.length} giao dịch`;
+  paymentReconTransactionRowsEl.innerHTML = transactions
+    .map(
+      (transaction) => `
+        <tr data-recon-transaction-row="${escapeAttr(transaction.id || "")}">
+          <td><strong>${escapeHtml(transaction.provider || "")}</strong><small>${escapeHtml(transaction.providerTransactionId || "")}</small></td>
+          <td>${escapeHtml(formatDateTime(transaction.transactionTime))}</td>
+          <td class="money">${formatMoney(transaction.amount || 0)}</td>
+          <td>${escapeHtml(transaction.accountNumber || "")}</td>
+          <td>${escapeHtml(transaction.description || transaction.referenceCode || "")}</td>
+          <td><span class="tag">${escapeHtml(transaction.invoiceCode || transaction.status || "unmatched")}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!transactions.length) {
+    paymentReconTransactionRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có giao dịch vào</td></tr>`;
+  }
+  paymentReconTransactionRowsEl.querySelectorAll("[data-recon-transaction-row]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const transaction = (paymentReconciliationData.transactions || []).find((item) => item.id === row.dataset.reconTransactionRow);
+      renderPaymentReconDetail(transactionDetailTemplate(transaction));
+    });
+  });
+}
+
+async function createPaymentIntent(invoiceId, provider) {
+  if (!invoiceId) return;
+  setPaymentReconStatus("Đang tạo intent", "busy");
+  const res = await fetch("/api/v1/payments/intents", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ invoiceId, provider }),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data?.intent) {
+    setPaymentReconStatus("Lỗi", "error");
+    renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không tạo được payment intent")}</div>`);
+    return;
+  }
+  renderPaymentReconDetail(paymentIntentDetailTemplate(data));
+  paymentReconciliationLoaded = false;
+  await loadPaymentReconciliation(true);
+}
+
+async function recordManualCashReceipt(invoiceId, defaultAmount) {
+  if (!invoiceId) return;
+  const amountValue = window.prompt("Số tiền thu tiền mặt", String(defaultAmount || ""));
+  if (amountValue === null) return;
+  const amount = parseMoneyInput(amountValue);
+  const collectorName = window.prompt("Người thu tiền", "");
+  if (collectorName === null) return;
+  const receiptReference = window.prompt("Mã phiếu thu", `CASH${Date.now()}`);
+  if (receiptReference === null) return;
+  if (!window.confirm("Ghi nhận khoản thu tiền mặt vào ledger đối soát?")) {
+    return;
+  }
+  setPaymentReconStatus("Đang ghi nhận", "busy");
+  const res = await fetch("/api/v1/payments/cash-receipts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ invoiceId, amount, collectorName, receiptReference }),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    setPaymentReconStatus("Lỗi", "error");
+    renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không ghi nhận được tiền mặt")}</div>`);
+    return;
+  }
+  paymentReconciliationLoaded = false;
+  await loadPaymentReconciliation(true);
+  renderPaymentReconDetail(transactionDetailTemplate(data.transaction));
+  setPaymentReconStatus("Đã ghi nhận", "ready");
+}
+
+function renderPaymentReconDetail(html) {
+  paymentReconDetailEl.innerHTML = html || "Chưa chọn hóa đơn hoặc giao dịch";
+}
+
+function invoiceDetailTemplate(invoice) {
+  if (!invoice) return "Không tìm thấy hóa đơn";
+  return `
+    <div class="reconciliation-detail-grid">
+      <span>Mã hóa đơn</span><strong>${escapeHtml(invoice.invoiceCode || "")}</strong>
+      <span>Học sinh</span><strong>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</strong>
+      <span>Lớp / kỳ</span><strong>${escapeHtml(invoice.className || "")} · ${escapeHtml(invoice.periodCode || "")}</strong>
+      <span>Phải thu</span><strong>${formatMoney(invoice.totalAmount || 0)}</strong>
+      <span>Đã thu</span><strong>${formatMoney(invoice.paidAmount || 0)}</strong>
+      <span>Status</span><strong>${escapeHtml(invoice.status || "")}</strong>
+    </div>
+  `;
+}
+
+function transactionDetailTemplate(transaction) {
+  if (!transaction) return "Không tìm thấy giao dịch";
+  return `
+    <div class="reconciliation-detail-grid">
+      <span>Provider</span><strong>${escapeHtml(transaction.provider || "")}</strong>
+      <span>Reference</span><strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</strong>
+      <span>Hóa đơn</span><strong>${escapeHtml(transaction.invoiceCode || "Chưa match")}</strong>
+      <span>Số tiền</span><strong>${formatMoney(transaction.amount || 0)}</strong>
+      <span>Thời gian</span><strong>${escapeHtml(formatDateTime(transaction.transactionTime))}</strong>
+      <span>Nội dung</span><strong>${escapeHtml(transaction.description || "")}</strong>
+      <span>Status</span><strong>${escapeHtml(transaction.status || "")}</strong>
+    </div>
+  `;
+}
+
+function paymentIntentDetailTemplate(data) {
+  const intent = data.intent || {};
+  const qr = data.qr || {};
+  const link = intent.paymentUrl ? `<a class="button-link" href="${escapeAttr(intent.paymentUrl)}" target="_blank" rel="noreferrer">${muiIcon("open_in_new")}<span>Mở link</span></a>` : "";
+  const image = qr.qrData ? `<img class="reconciliation-qr" src="${escapeAttr(qr.qrData)}" alt="QR thanh toán" />` : "";
+  return `
+    <div class="reconciliation-intent-detail">
+      ${image}
+      <div class="reconciliation-detail-grid">
+        <span>Provider</span><strong>${escapeHtml(intent.provider || "")}</strong>
+        <span>Intent</span><strong>${escapeHtml(intent.intentCode || "")}</strong>
+        <span>Reference</span><strong>${escapeHtml(intent.providerReference || "")}</strong>
+        <span>Số tiền</span><strong>${formatMoney(intent.amount || 0)}</strong>
+        <span>Status</span><strong>${escapeHtml(intent.status || "")}</strong>
+      </div>
+      ${link}
+      ${qr.vietqr ? `<textarea class="payload" readonly>${escapeHtml(qr.vietqr)}</textarea>` : ""}
+    </div>
+  `;
+}
+
 
 function collectEmailConfig() {
   return {
@@ -1859,6 +2136,10 @@ saveFeeScheduleBtn.addEventListener("click", saveFeeSchedule);
 refreshInvoicesBtn.addEventListener("click", () => loadInvoices(true));
 previewInvoicesBtn.addEventListener("click", previewInvoices);
 generateInvoicesBtn.addEventListener("click", generateInvoices);
+refreshPaymentReconBtn.addEventListener("click", () => loadPaymentReconciliation(true));
+paymentProviderFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
+paymentInvoiceStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
+paymentTransactionStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 
 saveEmailConfigBtn.addEventListener("click", saveEmailConfig);
 previewEmailBtn.addEventListener("click", previewEmail);

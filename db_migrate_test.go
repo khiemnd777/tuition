@@ -142,6 +142,43 @@ func TestLoadEmbeddedMigrationsIncludesInvoiceSchema(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesPaymentSchema(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var payment migration
+	for _, item := range migrations {
+		if item.Version == "0005" {
+			payment = item
+			break
+		}
+	}
+	if payment.Name != "payments_and_reconciliation" {
+		t.Fatalf("expected payment migration 0005, got %+v", payment)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS payment_providers",
+		"CREATE TABLE IF NOT EXISTS payment_intents",
+		"CREATE TABLE IF NOT EXISTS provider_events",
+		"CREATE TABLE IF NOT EXISTS payment_transactions",
+		"CREATE TABLE IF NOT EXISTS reconciliation_matches",
+		"CREATE TABLE IF NOT EXISTS manual_cash_receipts",
+		"provider_events_provider_event_id_key",
+		"payment_transactions_provider_txn_key",
+		"payments.reconcile",
+		"'manual_vietqr'",
+		"'sepay'",
+		"'payos'",
+	} {
+		if !strings.Contains(payment.SQL, want) {
+			t.Fatalf("expected payment migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

@@ -331,12 +331,14 @@ textarea:focus-visible {
 
 .fee-template-wrap,
 .fee-workspace,
-.invoice-workspace {
+.invoice-workspace,
+.reconciliation-workspace {
   margin: 18px 24px;
 }
 
 .fee-workspace,
-.invoice-workspace {
+.invoice-workspace,
+.reconciliation-workspace {
   display: grid;
   gap: 18px;
 }
@@ -820,6 +822,186 @@ textarea:focus-visible {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.reconciliation-workspace {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+}
+
+.reconciliation-control-panel,
+.reconciliation-invoice-panel,
+.reconciliation-transaction-panel {
+  min-width: 0;
+}
+
+.reconciliation-control-panel {
+  grid-column: 1 / -1;
+}
+
+.reconciliation-detail-panel {
+  grid-row: span 2;
+  position: sticky;
+  top: 16px;
+}
+
+.reconciliation-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.reconciliation-toolbar label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reconciliation-toolbar select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.reconciliation-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 1px;
+  border-top: 1px solid var(--line);
+  background: var(--line);
+  color: var(--ink-soft);
+  font-weight: 700;
+  overflow-x: auto;
+}
+
+.reconciliation-summary > div {
+  min-height: 64px;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  padding: 10px 14px;
+  background: #ffffff;
+}
+
+.reconciliation-summary strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.reconciliation-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reconciliation-table-wrap {
+  max-height: 380px;
+}
+
+.reconciliation-table {
+  min-width: 1020px;
+  table-layout: fixed;
+}
+
+.reconciliation-table tr {
+  cursor: default;
+}
+
+.reconciliation-table td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.recon-code-col {
+  width: 150px;
+}
+
+.recon-student-col {
+  width: 230px;
+}
+
+.recon-class-col,
+.recon-status-col,
+.recon-provider-col {
+  width: 120px;
+}
+
+.recon-money-col {
+  width: 140px;
+}
+
+.recon-action-col {
+  width: 220px;
+}
+
+.recon-time-col {
+  width: 150px;
+}
+
+.recon-account-col {
+  width: 150px;
+}
+
+.recon-description-col {
+  width: 320px;
+}
+
+.reconciliation-detail {
+  display: grid;
+  gap: 12px;
+  min-height: 260px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.reconciliation-detail-grid {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: start;
+}
+
+.reconciliation-detail-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reconciliation-detail-grid strong {
+  min-width: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.reconciliation-intent-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.reconciliation-qr {
+  width: min(100%, 220px);
+  aspect-ratio: 1;
+  justify-self: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.reconciliation-error {
+  color: var(--red);
 }
 
 .button-link {
@@ -1375,8 +1557,23 @@ td select:focus,
 
   .fee-schedule-grid,
   .fee-schedule-body,
-  .invoice-toolbar {
+  .invoice-toolbar,
+  .reconciliation-workspace,
+  .reconciliation-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .reconciliation-control-panel {
+    grid-column: auto;
+  }
+
+  .reconciliation-detail-panel {
+    position: static;
+    grid-row: auto;
+  }
+
+  .reconciliation-summary {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
 
   .fee-schedule-name,
@@ -1392,7 +1589,8 @@ td select:focus,
   .email-wrap,
   .fee-template-wrap,
   .fee-workspace,
-  .invoice-workspace {
+  .invoice-workspace,
+  .reconciliation-workspace {
     margin-left: 14px;
     margin-right: 14px;
   }
