@@ -115,22 +115,52 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+.app-shell {
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: #fbfcfd;
+}
+
+.app-main {
+  min-width: 0;
+}
+
 .app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 16px 24px;
+  min-height: 82px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 1px 0 rgba(23, 33, 27, 0.02);
+}
+
+.content-shell {
+  min-width: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
+  padding: 18px 16px 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 .brand-mark {
@@ -145,21 +175,33 @@ textarea:focus-visible {
   font-size: 26px;
 }
 
-.app-bar h1,
+.brand h1,
+.screen-heading h1,
 .panel-head h2 {
   margin: 0;
   letter-spacing: 0;
 }
 
-.app-bar h1 {
-  font-size: 20px;
+.brand h1 {
+  font-size: 16px;
   line-height: 1.2;
 }
 
-.app-bar p {
+.brand p,
+.screen-heading p {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.screen-heading {
+  min-width: 220px;
+}
+
+.screen-heading h1 {
+  margin-top: 3px;
+  font-size: 20px;
+  line-height: 1.2;
 }
 
 .eyebrow,
@@ -186,28 +228,46 @@ textarea:focus-visible {
 
 .tabs {
   display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 12px 18px;
+}
+
+.menu-group {
+  display: grid;
   gap: 4px;
-  padding: 10px 24px 0;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  overflow-x: auto;
+}
+
+.menu-group-title {
+  margin: 0 0 3px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .tab-button {
-  min-height: 42px;
-  min-width: 112px;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  margin-bottom: -1px;
-  color: var(--muted);
+  justify-content: flex-start;
+  min-height: 38px;
+  width: 100%;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
   font-weight: 700;
 }
 
-.tab-button.active {
+.tab-button:hover {
   border-color: var(--line);
-  border-bottom-color: var(--surface);
   background: var(--surface);
-  color: var(--ink);
+}
+
+.tab-button.active {
+  border-color: #cfe0d7;
+  background: var(--green-soft);
+  color: var(--green);
+  box-shadow: inset 3px 0 0 var(--green);
 }
 
 .tab-button .mui-icon {
@@ -236,6 +296,7 @@ textarea:focus-visible {
 .panel,
 .results-wrap,
 .fee-template-wrap {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -251,6 +312,10 @@ textarea:focus-visible {
   gap: 12px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
+}
+
+.panel-head > div {
+  min-width: 0;
 }
 
 .panel-head h2 {
@@ -271,6 +336,9 @@ textarea:focus-visible {
 }
 
 .panel-head > span {
+  max-width: min(100%, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--muted);
   font-size: 13px;
   white-space: nowrap;
@@ -538,8 +606,28 @@ textarea:focus-visible {
 
 .master-wrap {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
   gap: 18px;
   margin: 18px 24px 24px;
+}
+
+.master-controls,
+.master-import-panel,
+.master-conflict-panel {
+  grid-column: 1 / -1;
+}
+
+.master-list-panel,
+.master-detail-panel {
+  min-width: 0;
+}
+
+.master-detail-panel,
+.invoice-payment-panel,
+.reconciliation-detail-panel {
+  position: sticky;
+  top: 98px;
 }
 
 .master-toolbar,
@@ -704,6 +792,14 @@ textarea:focus-visible {
 
 .master-table .master-col-status {
   width: 120px;
+}
+
+tr.is-selected td {
+  background: #eef8f2;
+}
+
+tr.is-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--green);
 }
 
 .empty-cell {
@@ -968,6 +1064,21 @@ textarea:focus-visible {
   color: var(--ink);
 }
 
+.invoice-workspace {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+}
+
+.invoice-control-panel,
+.invoice-preview-panel {
+  grid-column: 1 / -1;
+}
+
+.invoice-list-panel,
+.invoice-payment-panel {
+  min-width: 0;
+}
+
 .invoice-summary {
   min-height: 44px;
   border-bottom: 1px solid var(--line);
@@ -1036,7 +1147,7 @@ textarea:focus-visible {
 .reconciliation-detail-panel {
   grid-row: span 2;
   position: sticky;
-  top: 16px;
+  top: 98px;
 }
 
 .reconciliation-toolbar {
@@ -1161,6 +1272,70 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
+.detail-panel-body {
+  display: grid;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+}
+
+.detail-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  gap: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.detail-placeholder .mui-icon {
+  font-size: 28px;
+}
+
+.detail-hero {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.detail-hero > .mui-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 22px;
+}
+
+.detail-hero strong,
+.detail-hero span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-hero strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.detail-hero span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 .reconciliation-detail-grid {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr);
@@ -1168,9 +1343,70 @@ textarea:focus-visible {
   align-items: start;
 }
 
+.detail-grid span,
 .reconciliation-detail-grid span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.detail-grid strong,
+.reconciliation-detail-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-section {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.detail-section-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.detail-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-list li {
+  display: grid;
+  gap: 3px;
+}
+
+.detail-list strong,
+.detail-list span,
+.detail-list small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-list strong {
+  color: var(--ink);
+}
+
+.detail-list span,
+.detail-list small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .notification-workspace {
@@ -1867,16 +2103,50 @@ td select:focus,
 }
 
 @media (max-width: 980px) {
+  .app-shell {
+    display: block;
+  }
+
+  .app-sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .tabs {
+    flex-direction: row;
+    gap: 10px;
+    padding: 10px 14px 12px;
+    overflow-x: auto;
+  }
+
+  .menu-group {
+    align-content: start;
+    min-width: 158px;
+  }
+
+  .tab-button {
+    min-height: 36px;
+  }
+
   .app-bar,
-  .tabs,
   .workspace {
     padding-left: 14px;
     padding-right: 14px;
   }
 
   .app-bar {
+    position: static;
     align-items: flex-start;
     flex-direction: column;
+    min-height: auto;
   }
 
   .actions {
@@ -1907,6 +2177,8 @@ td select:focus,
 
   .fee-schedule-grid,
   .fee-schedule-body,
+  .master-wrap,
+  .invoice-workspace,
   .invoice-toolbar,
   .reconciliation-workspace,
   .reconciliation-toolbar,
@@ -1915,14 +2187,21 @@ td select:focus,
   .admin-filter-grid,
   .admin-user-form,
   .users-workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
+  .master-controls,
+  .master-import-panel,
+  .master-conflict-panel,
+  .invoice-control-panel,
+  .invoice-preview-panel,
   .reconciliation-control-panel,
   .admin-user-editor-panel {
     grid-column: auto;
   }
 
+  .master-detail-panel,
+  .invoice-payment-panel,
   .reconciliation-detail-panel,
   .notification-log-panel,
   .admin-roles-panel {
@@ -1950,6 +2229,7 @@ td select:focus,
   .email-wrap,
   .fee-template-wrap,
   .fee-workspace,
+  .master-wrap,
   .invoice-workspace,
   .reconciliation-workspace,
   .notification-workspace,

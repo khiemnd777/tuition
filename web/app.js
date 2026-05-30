@@ -67,6 +67,7 @@ const masterImportCountEl = document.querySelector("#masterImportCount");
 const masterImportSummaryEl = document.querySelector("#masterImportSummary");
 const masterStudentsEl = document.querySelector("#masterStudents");
 const masterStudentCountEl = document.querySelector("#masterStudentCount");
+const masterStudentDetailEl = document.querySelector("#masterStudentDetail");
 const masterConflictPanelEl = document.querySelector("#masterConflictPanel");
 const masterConflictCountEl = document.querySelector("#masterConflictCount");
 const masterConflictListEl = document.querySelector("#masterConflictList");
@@ -107,6 +108,7 @@ const invoicePreviewSummaryEl = document.querySelector("#invoicePreviewSummary")
 const invoicePreviewRowsEl = document.querySelector("#invoicePreviewRows");
 const invoiceRowsEl = document.querySelector("#invoiceRows");
 const invoiceCountEl = document.querySelector("#invoiceCount");
+const invoiceDetailSummaryEl = document.querySelector("#invoiceDetailSummary");
 const invoicePaymentStatusEl = document.querySelector("#invoicePaymentStatus");
 const invoicePaymentPreviewEl = document.querySelector("#invoicePaymentPreview");
 const paymentReconStatusEl = document.querySelector("#paymentReconStatus");
@@ -195,6 +197,9 @@ const adminRoleCountEl = document.querySelector("#adminRoleCount");
 const adminRoleListEl = document.querySelector("#adminRoleList");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
+const currentSectionKickerEl = document.querySelector("#currentSectionKicker");
+const currentSectionTitleEl = document.querySelector("#currentSectionTitle");
+const currentSectionDescriptionEl = document.querySelector("#currentSectionDescription");
 
 let banks = [];
 let currentItems = [];
@@ -203,14 +208,19 @@ let feeColumnCollapsed = false;
 let savedEmailConfig = {};
 let masterDataOptions = { schoolYears: [], classes: [] };
 let masterDataLoaded = false;
+let masterStudentsData = [];
+let selectedMasterStudentKey = "";
 let paymentImportState = null;
 let masterImportState = null;
 let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
 let feeSchedulesLoaded = false;
 let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
 let invoicesLoaded = false;
+let invoicesData = [];
+let selectedInvoiceId = "";
 let paymentReconciliationLoaded = false;
 let paymentReconciliationData = { providers: [], invoices: [], transactions: [], intents: {}, summary: {} };
+let paymentReconSelection = { type: "", id: "" };
 let notificationLoaded = false;
 let notificationOptions = { templates: [], campaigns: [], schoolYears: [], classes: [] };
 let notificationPreviewData = { recipients: [], summary: {}, campaign: null, logs: [] };
@@ -272,6 +282,64 @@ const sampleRows = [
   },
 ];
 
+const tabMetadata = {
+  dashboardTab: {
+    kicker: "Tổng quan",
+    title: "Dashboard thu học phí",
+    description: "Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.",
+  },
+  masterDataTab: {
+    kicker: "Trường & học sinh",
+    title: "Học sinh, phụ huynh, lớp",
+    description: "Quản lý dữ liệu nền cho học sinh, phụ huynh, lớp và năm học.",
+  },
+  feeTemplateTab: {
+    kicker: "Học phí",
+    title: "Bảng phí theo kỳ",
+    description: "Thiết lập biểu phí, phụ phí và preview trước khi sinh hóa đơn.",
+  },
+  invoiceTab: {
+    kicker: "Học phí",
+    title: "Hóa đơn",
+    description: "Sinh, kiểm tra và xuất hóa đơn/PDF receipt từ bảng phí đã lưu.",
+  },
+  reconciliationTab: {
+    kicker: "Thanh toán",
+    title: "Đối soát thanh toán",
+    description: "Theo dõi intent, giao dịch, tiền mặt và trạng thái đối soát hóa đơn.",
+  },
+  paymentsTab: {
+    kicker: "Thanh toán",
+    title: "Thanh toán VietQR",
+    description: "Import batch thanh toán legacy, sinh QR và kiểm tra payload thanh toán.",
+  },
+  notificationTab: {
+    kicker: "Liên lạc",
+    title: "Thông báo học phí",
+    description: "Tạo campaign, preview người nhận và theo dõi log gửi thông báo.",
+  },
+  emailTab: {
+    kicker: "Liên lạc",
+    title: "Email & Cron",
+    description: "Cấu hình provider email, preview/dry-run và quản lý lịch gửi cục bộ.",
+  },
+  reportsTab: {
+    kicker: "Quản trị",
+    title: "Báo cáo công nợ",
+    description: "Xem và export báo cáo lớp, hóa đơn và giao dịch thanh toán.",
+  },
+  operationsTab: {
+    kicker: "Quản trị",
+    title: "Vận hành",
+    description: "Kiểm tra operational logs, audit logs và các lỗi nền cần xử lý.",
+  },
+  usersTab: {
+    kicker: "Quản trị",
+    title: "Người dùng và quyền",
+    description: "Quản lý user, role và permission trước khi bật enforcement đầy đủ.",
+  },
+};
+
 init();
 
 function muiIcon(name) {
@@ -325,6 +393,7 @@ function renderRows(rows) {
 }
 
 async function activateTab(targetId) {
+  updateCurrentSection(targetId);
   tabButtons.forEach((button) => {
     const isActive = button.dataset.tabTarget === targetId;
     button.classList.toggle("active", isActive);
@@ -365,6 +434,13 @@ async function activateTab(targetId) {
   if (targetId === "emailTab") {
     await previewEmail();
   }
+}
+
+function updateCurrentSection(targetId) {
+  const metadata = tabMetadata[targetId] || tabMetadata.dashboardTab;
+  currentSectionKickerEl.textContent = metadata.kicker;
+  currentSectionTitleEl.textContent = metadata.title;
+  currentSectionDescriptionEl.textContent = metadata.description;
 }
 
 function rowTemplate(row = {}) {
@@ -1343,10 +1419,15 @@ async function loadMasterStudents() {
   setMasterStatus("Sẵn sàng", "ready");
 }
 
-function renderMasterStudents(students) {
+function renderMasterStudents(students = []) {
+  masterStudentsData = students || [];
+  if (!masterStudentsData.some((student) => masterStudentKey(student) === selectedMasterStudentKey)) {
+    selectedMasterStudentKey = masterStudentsData[0] ? masterStudentKey(masterStudentsData[0]) : "";
+  }
   masterStudentCountEl.textContent = `${students.length} học sinh`;
   masterStudentsEl.innerHTML = students
     .map((student) => {
+      const key = masterStudentKey(student);
       const primary = (student.parents || []).find((parent) => parent.isPrimary) || (student.parents || [])[0] || {};
       const parentNames = (student.parents || []).map((parent) => parent.parentName).filter(Boolean).join(", ");
       const billingEmails = (student.parents || [])
@@ -1354,7 +1435,7 @@ function renderMasterStudents(students) {
         .map((parent) => parent.email)
         .join(", ");
       return `
-        <tr>
+        <tr data-master-student-row="${escapeAttr(key)}" class="${key === selectedMasterStudentKey ? "is-selected" : ""}">
           <td><strong>${escapeHtml(student.studentCode || "")}</strong></td>
           <td>${escapeHtml(student.studentName || "")}</td>
           <td>${escapeHtml(student.schoolYearCode || "")}</td>
@@ -1370,6 +1451,72 @@ function renderMasterStudents(students) {
   if (!students.length) {
     masterStudentsEl.innerHTML = `<tr><td colspan="8" class="empty-cell">Chưa có dữ liệu học sinh</td></tr>`;
   }
+  masterStudentsEl.querySelectorAll("[data-master-student-row]").forEach((row) => {
+    row.addEventListener("click", () => selectMasterStudent(row.dataset.masterStudentRow));
+  });
+  renderMasterStudentDetail(masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey));
+}
+
+function masterStudentKey(student) {
+  return student?.id || student?.studentId || student?.studentCode || student?.studentName || "";
+}
+
+function selectMasterStudent(key) {
+  selectedMasterStudentKey = key || "";
+  masterStudentsEl.querySelectorAll("[data-master-student-row]").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.masterStudentRow === selectedMasterStudentKey);
+  });
+  renderMasterStudentDetail(masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey));
+}
+
+function renderMasterStudentDetail(student) {
+  if (!student) {
+    masterStudentDetailEl.innerHTML = `<div class="detail-placeholder">${muiIcon("person_search")}<span>Chọn một học sinh để xem lớp, năm học và thông tin phụ huynh.</span></div>`;
+    return;
+  }
+  const parents = student.parents || [];
+  const activeBillingEmails = parents
+    .filter((parent) => parent.receivesBillingEmail && parent.isActive && parent.emailActive && parent.email)
+    .map((parent) => parent.email);
+  const parentList = parents.length
+    ? parents
+        .map((parent) => {
+          const flags = [
+            parent.isPrimary ? "Chính" : "",
+            parent.receivesBillingEmail ? "Nhận phí" : "",
+            parent.isActive === false || parent.emailActive === false ? "Tạm dừng" : "",
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return `
+            <li>
+              <strong>${escapeHtml(parent.parentName || "-")}</strong>
+              <span>${escapeHtml(parent.relationship || "Phụ huynh")}${flags ? ` · ${escapeHtml(flags)}` : ""}</span>
+              <small>${escapeHtml(parent.email || "Chưa có email")}</small>
+            </li>
+          `;
+        })
+        .join("")
+    : `<li><strong>Chưa có phụ huynh</strong><span>Import hoặc cập nhật master data</span></li>`;
+  masterStudentDetailEl.innerHTML = `
+    <div class="detail-hero">
+      ${muiIcon("person")}
+      <div>
+        <strong>${escapeHtml(student.studentName || "-")}</strong>
+        <span>${escapeHtml(student.studentCode || "Chưa có mã HS")}</span>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <span>Năm học</span><strong>${escapeHtml(student.schoolYearCode || "-")}</strong>
+      <span>Khối / lớp</span><strong>${escapeHtml([student.grade ? `Khối ${student.grade}` : "", student.className || ""].filter(Boolean).join(" · ") || "-")}</strong>
+      <span>Trạng thái</span><strong>${escapeHtml(student.status || "active")}</strong>
+      <span>Email nhận phí</span><strong>${escapeHtml(activeBillingEmails.join(", ") || "-")}</strong>
+    </div>
+    <div class="detail-section">
+      <p class="detail-section-title">Phụ huynh</p>
+      <ul class="detail-list">${parentList}</ul>
+    </div>
+  `;
 }
 
 async function submitMasterImport(apply) {
@@ -1942,12 +2089,16 @@ function renderInvoicePreview(data) {
   }
 }
 
-function renderInvoices(invoices) {
+function renderInvoices(invoices = []) {
+  invoicesData = invoices || [];
+  if (!invoicesData.some((invoice) => invoice.id === selectedInvoiceId)) {
+    selectedInvoiceId = invoicesData[0]?.id || "";
+  }
   invoiceCountEl.textContent = `${invoices.length} hóa đơn`;
   invoiceRowsEl.innerHTML = invoices
     .map(
       (invoice) => `
-        <tr>
+        <tr data-invoice-row="${escapeAttr(invoice.id || "")}" class="${invoice.id === selectedInvoiceId ? "is-selected" : ""}">
           <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong></td>
           <td>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</td>
           <td>${escapeHtml(invoice.className || "")}</td>
@@ -1967,15 +2118,31 @@ function renderInvoices(invoices) {
   if (!invoices.length) {
     invoiceRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có hóa đơn</td></tr>`;
   }
+  invoiceRowsEl.querySelectorAll("[data-invoice-row]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button, a")) return;
+      selectInvoice(row.dataset.invoiceRow);
+    });
+  });
   invoiceRowsEl.querySelectorAll("[data-invoice-qr]").forEach((button) => {
     button.addEventListener("click", () => loadInvoicePayment(button.dataset.invoiceQr));
   });
+  if (selectedInvoiceId) {
+    selectInvoice(selectedInvoiceId);
+  } else {
+    renderInvoiceDetail(null);
+    invoicePaymentStatusEl.textContent = "Chưa chọn";
+    invoicePaymentStatusEl.dataset.tone = "";
+    invoicePaymentPreviewEl.className = "preview-empty";
+    invoicePaymentPreviewEl.textContent = "Chưa chọn hóa đơn";
+  }
 }
 
 async function loadInvoicePayment(invoiceId) {
   if (!invoiceId) {
     return;
   }
+  selectInvoice(invoiceId, { keepQr: true });
   invoicePaymentStatusEl.textContent = "Đang tải";
   invoicePaymentStatusEl.dataset.tone = "busy";
   const res = await fetch(`/api/v1/invoices/payment?id=${encodeURIComponent(invoiceId)}`);
@@ -2007,6 +2174,51 @@ async function loadInvoicePayment(invoiceId) {
     </div>
     <textarea class="payload" readonly>${escapeHtml(item.vietqr || "")}</textarea>
   `;
+}
+
+function selectInvoice(invoiceId, options = {}) {
+  selectedInvoiceId = invoiceId || "";
+  invoiceRowsEl.querySelectorAll("[data-invoice-row]").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.invoiceRow === selectedInvoiceId);
+  });
+  renderInvoiceDetail(invoicesData.find((invoice) => invoice.id === selectedInvoiceId));
+  if (!options.keepQr) {
+    invoicePaymentStatusEl.textContent = selectedInvoiceId ? "Đã chọn" : "Chưa chọn";
+    invoicePaymentStatusEl.dataset.tone = selectedInvoiceId ? "ready" : "";
+    invoicePaymentPreviewEl.className = "preview-empty";
+    invoicePaymentPreviewEl.textContent = selectedInvoiceId ? "Bấm QR để xem payload thanh toán của hóa đơn này" : "Chưa chọn hóa đơn";
+  }
+}
+
+function renderInvoiceDetail(invoice) {
+  if (!invoice) {
+    invoiceDetailSummaryEl.innerHTML = `<div class="detail-placeholder">${muiIcon("receipt_long")}<span>Chọn một hóa đơn để xem tổng tiền, trạng thái và thao tác QR/PDF.</span></div>`;
+    return;
+  }
+  const outstanding = Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0);
+  invoiceDetailSummaryEl.innerHTML = `
+    <div class="detail-hero">
+      ${muiIcon("receipt_long")}
+      <div>
+        <strong>${escapeHtml(invoice.invoiceCode || "-")}</strong>
+        <span>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</span>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <span>Lớp / kỳ</span><strong>${escapeHtml([invoice.className || "", invoice.periodCode || ""].filter(Boolean).join(" · ") || "-")}</strong>
+      <span>Tổng tiền</span><strong>${formatMoney(invoice.totalAmount || 0)}</strong>
+      <span>Đã thu</span><strong>${formatMoney(invoice.paidAmount || 0)}</strong>
+      <span>Còn thiếu</span><strong>${formatMoney(outstanding)}</strong>
+      <span>Status</span><strong>${escapeHtml(invoice.status || "unpaid")}</strong>
+    </div>
+    <div class="detail-actions">
+      <button type="button" data-detail-invoice-qr="${escapeAttr(invoice.id || "")}">${muiIcon("qr_code")}<span>Xem QR</span></button>
+      <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>Mở PDF</span></a>
+    </div>
+  `;
+  invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-qr]").forEach((button) => {
+    button.addEventListener("click", () => loadInvoicePayment(button.dataset.detailInvoiceQr));
+  });
 }
 
 function setMasterStatus(message, tone = "ready") {
@@ -2134,10 +2346,11 @@ function renderPaymentReconInvoices(invoices, intents) {
     button.addEventListener("click", () => recordManualCashReceipt(button.dataset.reconCash, Number(button.dataset.reconDefaultAmount || 0)));
   });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-invoice-row]").forEach((row) => {
+    row.classList.toggle("is-selected", paymentReconSelection.type === "invoice" && paymentReconSelection.id === row.dataset.reconInvoiceRow);
     row.addEventListener("click", (event) => {
       if (event.target.closest("button, a")) return;
       const invoice = (paymentReconciliationData.invoices || []).find((item) => item.id === row.dataset.reconInvoiceRow);
-      renderPaymentReconDetail(invoiceDetailTemplate(invoice));
+      renderPaymentReconDetail(invoiceDetailTemplate(invoice), { type: "invoice", id: row.dataset.reconInvoiceRow });
     });
   });
 }
@@ -2162,15 +2375,18 @@ function renderPaymentReconTransactions(transactions) {
     paymentReconTransactionRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có giao dịch vào</td></tr>`;
   }
   paymentReconTransactionRowsEl.querySelectorAll("[data-recon-transaction-row]").forEach((row) => {
+    row.classList.toggle("is-selected", paymentReconSelection.type === "transaction" && paymentReconSelection.id === row.dataset.reconTransactionRow);
     row.addEventListener("click", () => {
       const transaction = (paymentReconciliationData.transactions || []).find((item) => item.id === row.dataset.reconTransactionRow);
-      renderPaymentReconDetail(transactionDetailTemplate(transaction));
+      renderPaymentReconDetail(transactionDetailTemplate(transaction), { type: "transaction", id: row.dataset.reconTransactionRow });
     });
   });
 }
 
 async function createPaymentIntent(invoiceId, provider) {
   if (!invoiceId) return;
+  paymentReconSelection = { type: "invoice", id: invoiceId };
+  updatePaymentReconActiveRows();
   setPaymentReconStatus("Đang tạo intent", "busy");
   const res = await fetch("/api/v1/payments/intents", {
     method: "POST",
@@ -2186,16 +2402,18 @@ async function createPaymentIntent(invoiceId, provider) {
   }
   if (!res.ok || !data?.intent) {
     setPaymentReconStatus("Lỗi", "error");
-    renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không tạo được payment intent")}</div>`);
+    renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không tạo được payment intent")}</div>`, { type: "invoice", id: invoiceId });
     return;
   }
-  renderPaymentReconDetail(paymentIntentDetailTemplate(data));
+  renderPaymentReconDetail(paymentIntentDetailTemplate(data), { type: "invoice", id: invoiceId });
   paymentReconciliationLoaded = false;
   await loadPaymentReconciliation(true);
 }
 
 async function recordManualCashReceipt(invoiceId, defaultAmount) {
   if (!invoiceId) return;
+  paymentReconSelection = { type: "invoice", id: invoiceId };
+  updatePaymentReconActiveRows();
   const amountValue = window.prompt("Số tiền thu tiền mặt", String(defaultAmount || ""));
   if (amountValue === null) return;
   const amount = parseMoneyInput(amountValue);
@@ -2223,17 +2441,30 @@ async function recordManualCashReceipt(invoiceId, defaultAmount) {
   }
   if (!res.ok || !data) {
     setPaymentReconStatus("Lỗi", "error");
-    renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không ghi nhận được tiền mặt")}</div>`);
+    renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không ghi nhận được tiền mặt")}</div>`, { type: "invoice", id: invoiceId });
     return;
   }
   paymentReconciliationLoaded = false;
   await loadPaymentReconciliation(true);
-  renderPaymentReconDetail(transactionDetailTemplate(data.transaction));
+  renderPaymentReconDetail(transactionDetailTemplate(data.transaction), { type: "transaction", id: data.transaction?.id || "" });
   setPaymentReconStatus("Đã ghi nhận", "ready");
 }
 
-function renderPaymentReconDetail(html) {
+function renderPaymentReconDetail(html, selection = null) {
+  if (selection) {
+    paymentReconSelection = selection;
+    updatePaymentReconActiveRows();
+  }
   paymentReconDetailEl.innerHTML = html || "Chưa chọn hóa đơn hoặc giao dịch";
+}
+
+function updatePaymentReconActiveRows() {
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-invoice-row]").forEach((row) => {
+    row.classList.toggle("is-selected", paymentReconSelection.type === "invoice" && paymentReconSelection.id === row.dataset.reconInvoiceRow);
+  });
+  paymentReconTransactionRowsEl.querySelectorAll("[data-recon-transaction-row]").forEach((row) => {
+    row.classList.toggle("is-selected", paymentReconSelection.type === "transaction" && paymentReconSelection.id === row.dataset.reconTransactionRow);
+  });
 }
 
 function invoiceDetailTemplate(invoice) {

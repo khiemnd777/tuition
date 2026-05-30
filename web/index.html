@@ -10,37 +10,66 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="app-bar">
-      <div class="brand">
-        <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
-        <div>
-          <p class="eyebrow">ABC SUN</p>
-          <h1>ABC SUN - QR Generating System</h1>
-          <p>Quản lý batch VietQR học phí và email thanh toán</p>
+    <div class="app-shell">
+      <aside class="app-sidebar">
+        <div class="brand">
+          <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
+          <div>
+            <p class="eyebrow">ABC SUN</p>
+            <h1>QR Generating System</h1>
+            <p>Quản lý học phí và VietQR</p>
+          </div>
         </div>
-      </div>
-      <div class="actions" aria-label="Tác vụ dữ liệu">
-        <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
-        <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-        <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
-        <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
-      </div>
-    </header>
 
-    <nav class="tabs" aria-label="Khu vực làm việc">
-      <button class="tab-button active" type="button" data-tab-target="dashboardTab" aria-controls="dashboardTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">dashboard</span><span>Dashboard</span></button>
-      <button class="tab-button" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
-      <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
-      <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
-      <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
-      <button class="tab-button" type="button" data-tab-target="notificationTab" aria-controls="notificationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">campaign</span><span>Thông báo</span></button>
-      <button class="tab-button" type="button" data-tab-target="reportsTab" aria-controls="reportsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo</span></button>
-      <button class="tab-button" type="button" data-tab-target="operationsTab" aria-controls="operationsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Vận hành</span></button>
-      <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng</span></button>
-      <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
-      <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
-    </nav>
+        <nav class="tabs app-menu" aria-label="Khu vực làm việc">
+          <div class="menu-group">
+            <p class="menu-group-title">Tổng quan</p>
+            <button class="tab-button active" type="button" data-tab-target="dashboardTab" aria-controls="dashboardTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">dashboard</span><span>Dashboard</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Trường & học sinh</p>
+            <button class="tab-button" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Học phí</p>
+            <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
+            <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Thanh toán</p>
+            <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
+            <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Liên lạc</p>
+            <button class="tab-button" type="button" data-tab-target="notificationTab" aria-controls="notificationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">campaign</span><span>Thông báo</span></button>
+            <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Quản trị</p>
+            <button class="tab-button" type="button" data-tab-target="reportsTab" aria-controls="reportsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo</span></button>
+            <button class="tab-button" type="button" data-tab-target="operationsTab" aria-controls="operationsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Vận hành</span></button>
+            <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng</span></button>
+          </div>
+        </nav>
+      </aside>
 
+      <div class="app-main">
+        <header class="app-bar">
+          <div class="screen-heading">
+            <p id="currentSectionKicker" class="eyebrow">Tổng quan</p>
+            <h1 id="currentSectionTitle">Dashboard thu học phí</h1>
+            <p id="currentSectionDescription">Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.</p>
+          </div>
+          <div class="actions" aria-label="Tác vụ dữ liệu">
+            <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
+            <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+            <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
+            <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
+          </div>
+        </header>
+
+        <div class="content-shell">
     <main id="dashboardTab" class="tab-panel active" role="tabpanel">
       <div class="admin-workspace">
         <section class="panel admin-control-panel">
@@ -536,11 +565,12 @@
         <aside class="panel invoice-payment-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">Invoice QR</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">qr_code</span><span>QR hóa đơn</span></h2>
+              <p class="section-kicker">Invoice detail</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">manage_search</span><span>Chi tiết hóa đơn</span></h2>
             </div>
             <span id="invoicePaymentStatus" class="status-pill">Chưa chọn</span>
           </div>
+          <div id="invoiceDetailSummary" class="detail-panel-body">Chưa chọn hóa đơn</div>
           <div id="invoicePaymentPreview" class="preview-empty">Chưa chọn hóa đơn</div>
         </aside>
       </div>
@@ -1234,6 +1264,16 @@
           </div>
         </section>
 
+        <aside class="panel master-detail-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Student detail</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">badge</span><span>Chi tiết học sinh</span></h2>
+            </div>
+          </div>
+          <div id="masterStudentDetail" class="detail-panel-body">Chưa chọn học sinh</div>
+        </aside>
+
         <section id="masterConflictPanel" class="panel master-conflict-panel" hidden>
           <div class="panel-head">
             <div>
@@ -1362,6 +1402,10 @@
         </div>
       </div>
     </section>
+
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>
