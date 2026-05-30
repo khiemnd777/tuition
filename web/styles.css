@@ -333,16 +333,199 @@ textarea:focus-visible {
 .fee-workspace,
 .invoice-workspace,
 .reconciliation-workspace,
-.notification-workspace {
+.notification-workspace,
+.admin-workspace {
   margin: 18px 24px;
 }
 
 .fee-workspace,
 .invoice-workspace,
 .reconciliation-workspace,
-.notification-workspace {
+.notification-workspace,
+.admin-workspace {
   display: grid;
   gap: 18px;
+}
+
+.admin-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.users-workspace {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+}
+
+.admin-user-editor-panel,
+.admin-users-panel {
+  min-width: 0;
+}
+
+.admin-user-editor-panel {
+  grid-column: 1 / -1;
+}
+
+.admin-roles-panel {
+  grid-row: span 2;
+}
+
+.admin-filter-grid,
+.admin-user-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.admin-filter-grid {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+}
+
+.admin-user-form {
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr) 150px minmax(220px, 1.2fr) auto;
+  align-items: end;
+}
+
+.admin-filter-grid label,
+.admin-user-form label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-filter-grid input,
+.admin-filter-grid select,
+.admin-user-form input,
+.admin-user-form select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.admin-user-form select[multiple] {
+  min-height: 86px;
+}
+
+.admin-user-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(120px, 1fr));
+  gap: 1px;
+  border-top: 1px solid var(--line);
+  background: var(--line);
+  color: var(--ink-soft);
+  font-weight: 700;
+  overflow-x: auto;
+}
+
+.admin-metrics > div {
+  min-height: 64px;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  padding: 10px 14px;
+  background: #ffffff;
+}
+
+.admin-metrics strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.admin-metrics span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-table-wrap {
+  max-height: 440px;
+}
+
+.admin-table {
+  min-width: 920px;
+  table-layout: fixed;
+}
+
+.admin-table td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.admin-code-col,
+.admin-status-col,
+.admin-small-col {
+  width: 130px;
+}
+
+.admin-student-col {
+  width: 240px;
+}
+
+.admin-class-col {
+  width: 180px;
+}
+
+.admin-money-col {
+  width: 150px;
+}
+
+.admin-role-list {
+  display: grid;
+  gap: 8px;
+  min-height: 260px;
+  max-height: 720px;
+  overflow: auto;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.admin-role-item {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.admin-role-item strong,
+.admin-role-item small,
+.admin-role-item p {
+  display: block;
+}
+
+.admin-role-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-role-item p {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.admin-permission-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .master-wrap {
@@ -1296,7 +1479,11 @@ td select:hover,
 .invoice-toolbar input:hover,
 .invoice-toolbar select:hover,
 .notification-toolbar input:hover,
-.notification-toolbar select:hover {
+.notification-toolbar select:hover,
+.admin-filter-grid input:hover,
+.admin-filter-grid select:hover,
+.admin-user-form input:hover,
+.admin-user-form select:hover {
   border-color: var(--line-strong);
 }
 
@@ -1316,7 +1503,11 @@ td select:focus,
 .invoice-toolbar input:focus,
 .invoice-toolbar select:focus,
 .notification-toolbar input:focus,
-.notification-toolbar select:focus {
+.notification-toolbar select:focus,
+.admin-filter-grid input:focus,
+.admin-filter-grid select:focus,
+.admin-user-form input:focus,
+.admin-user-form select:focus {
   border-color: var(--focus);
 }
 
@@ -1711,22 +1902,28 @@ td select:focus,
   .reconciliation-workspace,
   .reconciliation-toolbar,
   .notification-workspace,
-  .notification-toolbar {
+  .notification-toolbar,
+  .admin-filter-grid,
+  .admin-user-form,
+  .users-workspace {
     grid-template-columns: 1fr;
   }
 
-  .reconciliation-control-panel {
+  .reconciliation-control-panel,
+  .admin-user-editor-panel {
     grid-column: auto;
   }
 
   .reconciliation-detail-panel,
-  .notification-log-panel {
+  .notification-log-panel,
+  .admin-roles-panel {
     position: static;
     grid-row: auto;
   }
 
   .reconciliation-summary,
-  .notification-summary {
+  .notification-summary,
+  .admin-metrics {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
 
@@ -1745,7 +1942,8 @@ td select:focus,
   .fee-workspace,
   .invoice-workspace,
   .reconciliation-workspace,
-  .notification-workspace {
+  .notification-workspace,
+  .admin-workspace {
     margin-left: 14px;
     margin-right: 14px;
   }

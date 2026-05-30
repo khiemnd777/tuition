@@ -98,6 +98,21 @@ One parent billing contact selected for one invoice inside a notification campai
 **Notification log**:
 The auditable delivery record for a campaign/template/invoice/recipient. It stores provider, status, provider message ID, error, dry-run flag, and sent timestamp.
 
+**Admin dashboard**:
+The production overview built from invoices and payment transactions. It reports receivable, collected, outstanding, collection rate, unpaid/partial/review counts, and top classes by outstanding amount.
+
+**Admin report**:
+A filterable production report over durable invoice and payment data, grouped by class or listed by invoice for accounting review and export preparation.
+
+**App user**:
+An administrative user stored in `app_users`. This is separate from students and parents.
+
+**App role**:
+A named set of app permissions assigned to app users through `app_user_roles`.
+
+**App permission**:
+A code seeded in `app_permissions` and attached to roles. Admin write APIs declare required permission codes through their request contract.
+
 ## Relationships
 
 - A payment row can have many payment items.
@@ -120,6 +135,9 @@ The auditable delivery record for a campaign/template/invoice/recipient. It stor
 - A notification campaign targets many invoices and many notification recipients.
 - A notification recipient belongs to one invoice and one parent billing contact.
 - A notification log records one dry-run, send, skip, or error outcome for one campaign/template/invoice/recipient.
+- An admin dashboard summarizes many invoices and payment transactions.
+- An app user can have many app roles.
+- An app role can have many app permissions.
 
 ## Flagged Ambiguities
 
@@ -127,3 +145,4 @@ The auditable delivery record for a campaign/template/invoice/recipient. It stor
 - "Amount" can mean raw CSV/JSON amount or payment-item total. In this app, payment-item total wins when payment items exist.
 - "Payment" can mean a payment intent, a provider transaction, a reconciliation match, or an invoice status. Use the precise term above.
 - "Notification" can mean a template, campaign, recipient, or delivery log. Use the precise term above.
+- "User" can mean an app user, student, parent contact, or operator. Use the precise term above.

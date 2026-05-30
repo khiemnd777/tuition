@@ -1,16 +1,16 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-05-29
+Last updated: 2026-05-30
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, and notification campaigns complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, notification campaigns, and production Web Admin screens complete.
 
-Current phase: `initiative_6_complete`
+Current phase: `initiative_7_complete`
 
 Current initiative: none
 
-Next recommended initiative: `Initiative 7: Web Admin`
+Next recommended initiative: `Initiative 8: Reports, Audit, And Operations`
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md`
 
@@ -91,11 +91,18 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md`
   - Added idempotent send behavior per campaign/template/invoice/recipient unless explicitly re-sent.
   - Added the `Thông báo` UI workflow with filters, recipient dry-run, saved campaign list, real-send confirmation, and delivery logs.
   - Added tests, README docs, and glossary terms.
+- Initiative 7: Web Admin is complete:
+  - Added admin dashboard APIs for receivable, collected, outstanding, collection rate, unpaid/partial/review counts, unmatched transactions, top classes by outstanding amount, and attention invoices.
+  - Added report APIs for class-level summaries and invoice-level detail with filters for school year, grade, class, period, month, and status.
+  - Added user, role, and permission APIs over `app_users`, `app_roles`, `app_permissions`, and `app_user_roles`.
+  - Added a `0007_web_admin` migration to seed dashboard/report and role-assignment permissions without changing prior migration checksums.
+  - Added the `Dashboard`, `Báo cáo`, and `Người dùng` UI workflows while preserving existing `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, and `Thông báo` workflows.
+  - Added focused tests for dashboard/report aggregation, attention invoice ordering, user input normalization, and migration permission seeds.
+  - Updated README docs and glossary terms.
 
 ## Not Started
 
-- Dashboard, reporting, role administration, and production operations screens have not been implemented.
-- Reports and operations modules have not started.
+- Production operations exports, immutable audit review screens, webhook/email/background-job operational logs, deployment readiness checklist, and staging smoke tests have not been implemented.
 
 ## Agent Protocol
 
@@ -129,7 +136,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Start Initiative 7 from docs/initiatives/production-module-roadmap.md. Build production Web Admin workflows for dashboard, reports, roles, and any remaining admin screens. Preserve current VietQR/payment reconciliation and notification campaign behavior, and update docs/initiatives/current-state.md when finished.
+Start Initiative 8 from docs/initiatives/production-module-roadmap.md. Build reporting, audit, exports, and operational readiness for production. Preserve current VietQR/payment reconciliation, notification campaign, and Web Admin behavior, and update docs/initiatives/current-state.md when finished.
 ```
 
 ## Known Safety Constraints

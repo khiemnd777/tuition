@@ -140,6 +140,46 @@ const notificationCampaignCountEl = document.querySelector("#notificationCampaig
 const notificationCampaignRowsEl = document.querySelector("#notificationCampaignRows");
 const notificationLogCountEl = document.querySelector("#notificationLogCount");
 const notificationLogsEl = document.querySelector("#notificationLogs");
+const adminDashboardStatusEl = document.querySelector("#adminDashboardStatus");
+const refreshAdminDashboardBtn = document.querySelector("#refreshAdminDashboard");
+const adminDashboardYearEl = document.querySelector("#adminDashboardYear");
+const adminDashboardGradeEl = document.querySelector("#adminDashboardGrade");
+const adminDashboardClassEl = document.querySelector("#adminDashboardClass");
+const adminDashboardPeriodEl = document.querySelector("#adminDashboardPeriod");
+const adminDashboardMonthEl = document.querySelector("#adminDashboardMonth");
+const adminDashboardInvoiceStatusEl = document.querySelector("#adminDashboardInvoiceStatus");
+const adminDashboardMetricsEl = document.querySelector("#adminDashboardMetrics");
+const adminTopClassCountEl = document.querySelector("#adminTopClassCount");
+const adminTopClassRowsEl = document.querySelector("#adminTopClassRows");
+const adminAttentionCountEl = document.querySelector("#adminAttentionCount");
+const adminAttentionRowsEl = document.querySelector("#adminAttentionRows");
+const adminReportsStatusEl = document.querySelector("#adminReportsStatus");
+const refreshAdminReportsBtn = document.querySelector("#refreshAdminReports");
+const adminReportsYearEl = document.querySelector("#adminReportsYear");
+const adminReportsGradeEl = document.querySelector("#adminReportsGrade");
+const adminReportsClassEl = document.querySelector("#adminReportsClass");
+const adminReportsPeriodEl = document.querySelector("#adminReportsPeriod");
+const adminReportsMonthEl = document.querySelector("#adminReportsMonth");
+const adminReportsInvoiceStatusEl = document.querySelector("#adminReportsInvoiceStatus");
+const adminReportsSummaryEl = document.querySelector("#adminReportsSummary");
+const adminReportClassCountEl = document.querySelector("#adminReportClassCount");
+const adminReportClassRowsEl = document.querySelector("#adminReportClassRows");
+const adminReportInvoiceCountEl = document.querySelector("#adminReportInvoiceCount");
+const adminReportInvoiceRowsEl = document.querySelector("#adminReportInvoiceRows");
+const adminUsersStatusEl = document.querySelector("#adminUsersStatus");
+const refreshAdminUsersBtn = document.querySelector("#refreshAdminUsers");
+const adminUserIdEl = document.querySelector("#adminUserId");
+const adminUserEmailEl = document.querySelector("#adminUserEmail");
+const adminUserDisplayNameEl = document.querySelector("#adminUserDisplayName");
+const adminUserStatusEl = document.querySelector("#adminUserStatus");
+const adminUserRolesEl = document.querySelector("#adminUserRoles");
+const clearAdminUserBtn = document.querySelector("#clearAdminUser");
+const saveAdminUserBtn = document.querySelector("#saveAdminUser");
+const assignAdminUserRolesBtn = document.querySelector("#assignAdminUserRoles");
+const adminUserCountEl = document.querySelector("#adminUserCount");
+const adminUserRowsEl = document.querySelector("#adminUserRows");
+const adminRoleCountEl = document.querySelector("#adminRoleCount");
+const adminRoleListEl = document.querySelector("#adminRoleList");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
@@ -162,6 +202,11 @@ let notificationLoaded = false;
 let notificationOptions = { templates: [], campaigns: [], schoolYears: [], classes: [] };
 let notificationPreviewData = { recipients: [], summary: {}, campaign: null, logs: [] };
 let currentNotificationCampaignId = "";
+let adminOptions = { schoolYears: [], classes: [] };
+let adminDashboardLoaded = false;
+let adminReportsLoaded = false;
+let adminUsersLoaded = false;
+let adminUsersData = { users: [], roles: [], permissions: [] };
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -238,8 +283,14 @@ async function init() {
   renderNotificationPreview(null);
   renderNotificationCampaigns([]);
   renderNotificationLogs([]);
+  renderAdminFilters("dashboard");
+  renderAdminFilters("reports");
+  renderAdminDashboard(null);
+  renderAdminReports(null);
+  renderAdminUsers(null);
   renderFeeTemplate(defaultPaymentItems);
   renderRows(sampleRows);
+  await loadAdminDashboard();
   await loadMasterData();
   await generate();
   await previewEmail();
@@ -269,6 +320,9 @@ async function activateTab(targetId) {
     panel.hidden = !isActive;
     panel.classList.toggle("active", isActive);
   });
+  if (targetId === "dashboardTab") {
+    await loadAdminDashboard();
+  }
   if (targetId === "masterDataTab") {
     await loadMasterData();
   }
@@ -283,6 +337,12 @@ async function activateTab(targetId) {
   }
   if (targetId === "notificationTab") {
     await loadNotifications();
+  }
+  if (targetId === "reportsTab") {
+    await loadAdminReports();
+  }
+  if (targetId === "usersTab") {
+    await loadAdminUsers();
   }
   if (targetId === "emailTab") {
     await previewEmail();
@@ -748,6 +808,408 @@ function renderMasterClassFilter(selectedClass = masterClassFilterEl.value) {
 
 function optionValueOrEmpty(selectEl, value) {
   return [...selectEl.options].some((option) => option.value === value) ? value : "";
+}
+
+function adminFilterElements(kind) {
+  if (kind === "reports") {
+    return {
+      year: adminReportsYearEl,
+      grade: adminReportsGradeEl,
+      classEl: adminReportsClassEl,
+      period: adminReportsPeriodEl,
+      month: adminReportsMonthEl,
+      status: adminReportsInvoiceStatusEl,
+    };
+  }
+  return {
+    year: adminDashboardYearEl,
+    grade: adminDashboardGradeEl,
+    classEl: adminDashboardClassEl,
+    period: adminDashboardPeriodEl,
+    month: adminDashboardMonthEl,
+    status: adminDashboardInvoiceStatusEl,
+  };
+}
+
+function setAdminStatus(el, message, tone = "ready") {
+  el.textContent = message;
+  el.dataset.tone = tone;
+}
+
+function renderAdminFilters(kind) {
+  const elements = adminFilterElements(kind);
+  const selectedYear = elements.year.value;
+  const selectedGrade = elements.grade.value;
+  const selectedClass = elements.classEl.value;
+  elements.year.innerHTML = [
+    `<option value="">Tất cả năm học</option>`,
+    ...(adminOptions.schoolYears || []).map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code)}</option>`),
+  ].join("");
+  elements.year.value = optionValueOrEmpty(elements.year, selectedYear);
+
+  const grades = [...new Set(
+    (adminOptions.classes || [])
+      .filter((item) => !elements.year.value || item.schoolYearId === elements.year.value)
+      .map((item) => item.grade)
+      .filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
+  elements.grade.innerHTML = [
+    `<option value="">Tất cả khối</option>`,
+    ...grades.map((grade) => `<option value="${escapeAttr(grade)}">${escapeHtml(grade)}</option>`),
+  ].join("");
+  elements.grade.value = optionValueOrEmpty(elements.grade, selectedGrade);
+
+  const classes = (adminOptions.classes || []).filter((item) => {
+    if (elements.year.value && item.schoolYearId !== elements.year.value) return false;
+    if (elements.grade.value && item.grade !== elements.grade.value) return false;
+    return true;
+  });
+  elements.classEl.innerHTML = [
+    `<option value="">Tất cả lớp</option>`,
+    ...classes.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.schoolYearCode)} · ${escapeHtml(item.name)}</option>`),
+  ].join("");
+  elements.classEl.value = optionValueOrEmpty(elements.classEl, selectedClass);
+}
+
+function adminFilterParams(kind) {
+  const elements = adminFilterElements(kind);
+  const params = new URLSearchParams();
+  if (elements.year.value) params.set("schoolYearId", elements.year.value);
+  if (elements.grade.value) params.set("grade", elements.grade.value);
+  if (elements.classEl.value) params.set("classId", elements.classEl.value);
+  if (elements.period.value.trim()) params.set("periodCode", elements.period.value.trim());
+  if (elements.month.value) params.set("month", elements.month.value);
+  if (elements.status.value) params.set("status", elements.status.value);
+  return params;
+}
+
+async function loadAdminDashboard(force = false) {
+  if (!force && adminDashboardLoaded) {
+    return;
+  }
+  setAdminStatus(adminDashboardStatusEl, "Đang tải", "busy");
+  const params = adminFilterParams("dashboard");
+  const query = params.toString();
+  const res = await fetch(`/api/v1/admin/dashboard${query ? `?${query}` : ""}`);
+  const text = await res.text();
+  if (!res.ok) {
+    adminDashboardLoaded = false;
+    renderAdminDashboard(null);
+    setAdminStatus(adminDashboardStatusEl, text || "Chưa cấu hình DB", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  adminOptions = data.options || adminOptions;
+  adminDashboardLoaded = true;
+  renderAdminFilters("dashboard");
+  renderAdminDashboard(data);
+  setAdminStatus(adminDashboardStatusEl, "Sẵn sàng", "ready");
+}
+
+function renderAdminDashboard(data) {
+  renderAdminMetrics(adminDashboardMetricsEl, data?.summary || null);
+  renderAdminTopClasses(data?.topClasses || []);
+  renderAdminAttentionInvoices(data?.attentionInvoices || []);
+}
+
+function renderAdminMetrics(root, summary) {
+  if (!summary) {
+    root.textContent = "Chưa có dữ liệu";
+    return;
+  }
+  root.innerHTML = `
+    <div><strong>${formatMoney(summary.totalReceivable || 0)}</strong><span>Cần thu</span></div>
+    <div><strong>${formatMoney(summary.totalCollected || 0)}</strong><span>Đã thu</span></div>
+    <div><strong>${formatMoney(summary.outstandingAmount || 0)}</strong><span>Còn thiếu</span></div>
+    <div><strong>${formatPercent(summary.collectionRate || 0)}</strong><span>Tỷ lệ thu</span></div>
+    <div><strong>${Number(summary.unpaidStudentCount || 0)}</strong><span>HS unpaid</span></div>
+    <div><strong>${Number(summary.partialPaymentCount || 0)}</strong><span>Partial</span></div>
+    <div><strong>${Number(summary.overpaidManualReviewCount || 0)}</strong><span>Overpaid/review</span></div>
+    <div><strong>${Number(summary.unmatchedTransactionCount || 0) + Number(summary.manualReviewCount || 0)}</strong><span>Giao dịch cần xử lý</span></div>
+  `;
+}
+
+function renderAdminTopClasses(rows) {
+  adminTopClassCountEl.textContent = `${rows.length} lớp`;
+  adminTopClassRowsEl.innerHTML = rows
+    .map(
+      (row) => `
+        <tr>
+          <td><strong>${escapeHtml(row.className || "-")}</strong><small>${escapeHtml(row.schoolYearCode || "")} · Khối ${escapeHtml(row.grade || "-")}</small></td>
+          <td>${Number(row.studentCount || 0)}</td>
+          <td class="money">${formatMoney(row.totalAmount || 0)}</td>
+          <td class="money">${formatMoney(row.paidAmount || 0)}</td>
+          <td class="money">${formatMoney(row.outstandingAmount || 0)}</td>
+          <td>${formatPercent(row.collectionRate || 0)}</td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    adminTopClassRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có dữ liệu lớp</td></tr>`;
+  }
+}
+
+function renderAdminAttentionInvoices(rows) {
+  adminAttentionCountEl.textContent = `${rows.length} hóa đơn`;
+  adminAttentionRowsEl.innerHTML = rows
+    .map(
+      (invoice) => `
+        <tr>
+          <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong><small>${escapeHtml(invoice.dueDate || "")}</small></td>
+          <td>${escapeHtml(invoice.studentCode || "")}<small>${escapeHtml(invoice.studentName || "")}</small></td>
+          <td>${escapeHtml(invoice.className || "")}<small>${escapeHtml(invoice.periodCode || "")}</small></td>
+          <td class="money">${formatMoney(invoice.totalAmount || 0)}</td>
+          <td class="money">${formatMoney(invoice.outstandingAmount || 0)}</td>
+          <td><span class="tag">${escapeHtml(invoice.status || "")}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    adminAttentionRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Không có hóa đơn cần xử lý</td></tr>`;
+  }
+}
+
+async function loadAdminReports(force = false) {
+  if (!force && adminReportsLoaded) {
+    return;
+  }
+  setAdminStatus(adminReportsStatusEl, "Đang tải", "busy");
+  const params = adminFilterParams("reports");
+  const query = params.toString();
+  const res = await fetch(`/api/v1/admin/reports${query ? `?${query}` : ""}`);
+  const text = await res.text();
+  if (!res.ok) {
+    adminReportsLoaded = false;
+    renderAdminReports(null);
+    setAdminStatus(adminReportsStatusEl, text || "Chưa cấu hình DB", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  adminOptions = data.options || adminOptions;
+  adminReportsLoaded = true;
+  renderAdminFilters("reports");
+  renderAdminReports(data);
+  setAdminStatus(adminReportsStatusEl, "Sẵn sàng", "ready");
+}
+
+function renderAdminReports(data) {
+  renderAdminMetrics(adminReportsSummaryEl, data?.summary || null);
+  renderAdminReportClasses(data?.classRows || []);
+  renderAdminReportInvoices(data?.invoiceRows || []);
+}
+
+function renderAdminReportClasses(rows) {
+  adminReportClassCountEl.textContent = `${rows.length} lớp`;
+  adminReportClassRowsEl.innerHTML = rows
+    .map(
+      (row) => `
+        <tr>
+          <td><strong>${escapeHtml(row.className || "-")}</strong><small>${escapeHtml(row.schoolYearCode || "")} · Khối ${escapeHtml(row.grade || "-")}</small></td>
+          <td>${Number(row.invoiceCount || 0)}<small>${Number(row.studentCount || 0)} học sinh</small></td>
+          <td class="money">${formatMoney(row.totalAmount || 0)}</td>
+          <td class="money">${formatMoney(row.paidAmount || 0)}</td>
+          <td class="money">${formatMoney(row.outstandingAmount || 0)}</td>
+          <td><span class="tag">U${Number(row.unpaidCount || 0)} P${Number(row.partialCount || 0)} R${Number(row.manualReviewCount || 0)}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    adminReportClassRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có báo cáo theo lớp</td></tr>`;
+  }
+}
+
+function renderAdminReportInvoices(rows) {
+  adminReportInvoiceCountEl.textContent = `${rows.length} hóa đơn`;
+  adminReportInvoiceRowsEl.innerHTML = rows
+    .map(
+      (invoice) => `
+        <tr>
+          <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong><small>${escapeHtml(invoice.dueDate || "")}</small></td>
+          <td>${escapeHtml(invoice.studentCode || "")}<small>${escapeHtml(invoice.studentName || "")}</small></td>
+          <td>${escapeHtml(invoice.className || "")}<small>${escapeHtml(invoice.periodCode || "")}</small></td>
+          <td class="money">${formatMoney(invoice.totalAmount || 0)}</td>
+          <td class="money">${formatMoney(invoice.paidAmount || 0)}</td>
+          <td><span class="tag">${escapeHtml(invoice.status || "")}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    adminReportInvoiceRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có hóa đơn trong bộ lọc</td></tr>`;
+  }
+}
+
+async function loadAdminUsers(force = false) {
+  if (!force && adminUsersLoaded) {
+    return;
+  }
+  setAdminStatus(adminUsersStatusEl, "Đang tải", "busy");
+  const res = await fetch("/api/v1/admin/users");
+  const text = await res.text();
+  if (!res.ok) {
+    adminUsersLoaded = false;
+    adminUsersData = { users: [], roles: [], permissions: [] };
+    renderAdminUsers(null);
+    setAdminStatus(adminUsersStatusEl, text || "Chưa cấu hình DB", "error");
+    return;
+  }
+  adminUsersData = JSON.parse(text);
+  adminUsersLoaded = true;
+  renderAdminUsers(adminUsersData);
+  setAdminStatus(adminUsersStatusEl, "Sẵn sàng", "ready");
+}
+
+function renderAdminUsers(data) {
+  const users = data?.users || [];
+  const roles = data?.roles || [];
+  renderAdminUserRoleSelect(roles);
+  renderAdminUserRows(users);
+  renderAdminRoleList(roles);
+}
+
+function renderAdminUserRoleSelect(roles) {
+  const selected = selectedOptionValues(adminUserRolesEl);
+  adminUserRolesEl.innerHTML = roles
+    .map((role) => `<option value="${escapeAttr(role.code || "")}">${escapeHtml(role.name || role.code || "")}</option>`)
+    .join("");
+  [...adminUserRolesEl.options].forEach((option) => {
+    option.selected = selected.includes(option.value);
+  });
+}
+
+function renderAdminUserRows(users) {
+  adminUserCountEl.textContent = `${users.length} user`;
+  adminUserRowsEl.innerHTML = users
+    .map((user) => {
+      const roleText = (user.roles || []).map((role) => role.code).join(", ");
+      return `
+        <tr data-admin-user-id="${escapeAttr(user.id || "")}">
+          <td><strong>${escapeHtml(user.email || "")}</strong></td>
+          <td>${escapeHtml(user.displayName || "")}</td>
+          <td><span class="tag">${escapeHtml(user.status || "")}</span></td>
+          <td>${escapeHtml(roleText || "-")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (!users.length) {
+    adminUserRowsEl.innerHTML = `<tr><td colspan="4" class="empty-cell">Chưa có user</td></tr>`;
+  }
+  adminUserRowsEl.querySelectorAll("[data-admin-user-id]").forEach((row) => {
+    row.addEventListener("click", () => selectAdminUser(row.dataset.adminUserId));
+  });
+}
+
+function renderAdminRoleList(roles) {
+  adminRoleCountEl.textContent = `${roles.length} role`;
+  adminRoleListEl.innerHTML = roles
+    .map((role) => {
+      const permissions = (role.permissions || []).map((permission) => `<span class="tag">${escapeHtml(permission.code || "")}</span>`).join("");
+      return `
+        <div class="admin-role-item">
+          <div>
+            <strong>${escapeHtml(role.name || role.code || "")}</strong>
+            <small>${escapeHtml(role.code || "")}${role.isSystem ? " · system" : ""}</small>
+            <p>${escapeHtml(role.description || "")}</p>
+          </div>
+          <div class="admin-permission-list">${permissions || `<span class="tag">no permissions</span>`}</div>
+        </div>
+      `;
+    })
+    .join("");
+  if (!roles.length) {
+    adminRoleListEl.textContent = "Chưa có role";
+  }
+}
+
+function selectAdminUser(userId) {
+  const user = (adminUsersData.users || []).find((item) => item.id === userId);
+  if (!user) return;
+  adminUserIdEl.value = user.id || "";
+  adminUserEmailEl.value = user.email || "";
+  adminUserDisplayNameEl.value = user.displayName || "";
+  adminUserStatusEl.value = optionValueOrEmpty(adminUserStatusEl, user.status || "active") || "active";
+  const roleCodes = (user.roles || []).map((role) => role.code);
+  [...adminUserRolesEl.options].forEach((option) => {
+    option.selected = roleCodes.includes(option.value);
+  });
+}
+
+function clearAdminUserForm() {
+  adminUserIdEl.value = "";
+  adminUserEmailEl.value = "";
+  adminUserDisplayNameEl.value = "";
+  adminUserStatusEl.value = "active";
+  [...adminUserRolesEl.options].forEach((option) => {
+    option.selected = false;
+  });
+}
+
+function selectedOptionValues(selectEl) {
+  return [...selectEl.selectedOptions].map((option) => option.value).filter(Boolean);
+}
+
+async function saveAdminUser() {
+  setAdminStatus(adminUsersStatusEl, "Đang lưu", "busy");
+  const res = await fetch("/api/v1/admin/users/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-ABC-Admin-Permission": "system.users.write",
+    },
+    body: JSON.stringify({
+      id: adminUserIdEl.value,
+      email: adminUserEmailEl.value,
+      displayName: adminUserDisplayNameEl.value,
+      status: adminUserStatusEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(adminUsersStatusEl, text || "Không lưu được user", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  if (data.user?.id) {
+    adminUserIdEl.value = data.user.id;
+  }
+  adminUsersLoaded = false;
+  await loadAdminUsers(true);
+  if (data.user?.id) {
+    selectAdminUser(data.user.id);
+  }
+  setAdminStatus(adminUsersStatusEl, "Đã lưu user", "ready");
+}
+
+async function assignAdminUserRoles() {
+  if (!adminUserIdEl.value) {
+    setAdminStatus(adminUsersStatusEl, "Chọn hoặc lưu user trước", "error");
+    return;
+  }
+  setAdminStatus(adminUsersStatusEl, "Đang lưu roles", "busy");
+  const res = await fetch("/api/v1/admin/users/roles", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-ABC-Admin-Permission": "system.users.assign_roles",
+    },
+    body: JSON.stringify({
+      userId: adminUserIdEl.value,
+      roleCodes: selectedOptionValues(adminUserRolesEl),
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(adminUsersStatusEl, text || "Không lưu được roles", "error");
+    return;
+  }
+  adminUsersLoaded = false;
+  await loadAdminUsers(true);
+  selectAdminUser(adminUserIdEl.value);
+  setAdminStatus(adminUsersStatusEl, "Đã lưu roles", "ready");
 }
 
 async function loadMasterStudents() {
@@ -2342,6 +2804,10 @@ function formatMoney(amount) {
   }).format(Number(amount || 0));
 }
 
+function formatPercent(value) {
+  return `${Math.round(Number(value || 0) * 1000) / 10}%`;
+}
+
 function parseMoneyInput(value) {
   const normalized = String(value || "").replace(/[.,\s_]/g, "");
   const amount = Number(normalized || 0);
@@ -2432,6 +2898,39 @@ cancelPaymentImportBtn.addEventListener("click", clearPaymentImport);
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
 });
+
+refreshAdminDashboardBtn.addEventListener("click", () => loadAdminDashboard(true));
+adminDashboardYearEl.addEventListener("change", async () => {
+  renderAdminFilters("dashboard");
+  await loadAdminDashboard(true);
+});
+adminDashboardGradeEl.addEventListener("change", async () => {
+  renderAdminFilters("dashboard");
+  await loadAdminDashboard(true);
+});
+adminDashboardClassEl.addEventListener("change", () => loadAdminDashboard(true));
+adminDashboardPeriodEl.addEventListener("change", () => loadAdminDashboard(true));
+adminDashboardMonthEl.addEventListener("change", () => loadAdminDashboard(true));
+adminDashboardInvoiceStatusEl.addEventListener("change", () => loadAdminDashboard(true));
+
+refreshAdminReportsBtn.addEventListener("click", () => loadAdminReports(true));
+adminReportsYearEl.addEventListener("change", async () => {
+  renderAdminFilters("reports");
+  await loadAdminReports(true);
+});
+adminReportsGradeEl.addEventListener("change", async () => {
+  renderAdminFilters("reports");
+  await loadAdminReports(true);
+});
+adminReportsClassEl.addEventListener("change", () => loadAdminReports(true));
+adminReportsPeriodEl.addEventListener("change", () => loadAdminReports(true));
+adminReportsMonthEl.addEventListener("change", () => loadAdminReports(true));
+adminReportsInvoiceStatusEl.addEventListener("change", () => loadAdminReports(true));
+
+refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
+clearAdminUserBtn.addEventListener("click", clearAdminUserForm);
+saveAdminUserBtn.addEventListener("click", saveAdminUser);
+assignAdminUserRolesBtn.addEventListener("click", assignAdminUserRoles);
 
 masterSchoolYearFilterEl.addEventListener("change", async () => {
   renderMasterFilters();

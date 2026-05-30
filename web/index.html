@@ -28,14 +28,134 @@
     </header>
 
     <nav class="tabs" aria-label="Khu vực làm việc">
-      <button class="tab-button active" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
+      <button class="tab-button active" type="button" data-tab-target="dashboardTab" aria-controls="dashboardTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">dashboard</span><span>Dashboard</span></button>
+      <button class="tab-button" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
       <button class="tab-button" type="button" data-tab-target="feeTemplateTab" aria-controls="feeTemplateTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Bảng phí</span></button>
       <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
       <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
       <button class="tab-button" type="button" data-tab-target="notificationTab" aria-controls="notificationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">campaign</span><span>Thông báo</span></button>
+      <button class="tab-button" type="button" data-tab-target="reportsTab" aria-controls="reportsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo</span></button>
+      <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng</span></button>
       <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
       <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
     </nav>
+
+    <main id="dashboardTab" class="tab-panel active" role="tabpanel">
+      <div class="admin-workspace">
+        <section class="panel admin-control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Production admin</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">dashboard</span><span>Dashboard thu học phí</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshAdminDashboard" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="adminDashboardStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="admin-filter-grid">
+            <label>
+              <span>Năm học</span>
+              <select id="adminDashboardYear"></select>
+            </label>
+            <label>
+              <span>Khối</span>
+              <select id="adminDashboardGrade"></select>
+            </label>
+            <label>
+              <span>Lớp</span>
+              <select id="adminDashboardClass"></select>
+            </label>
+            <label>
+              <span>Kỳ thu</span>
+              <input id="adminDashboardPeriod" placeholder="2026-04" />
+            </label>
+            <label>
+              <span>Tháng</span>
+              <input id="adminDashboardMonth" type="number" min="1" max="12" step="1" />
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="adminDashboardInvoiceStatus">
+                <option value="">Tất cả</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="overpaid">Overpaid</option>
+                <option value="manual_review">Manual review</option>
+              </select>
+            </label>
+          </div>
+          <div id="adminDashboardMetrics" class="admin-metrics">Chưa có dữ liệu dashboard</div>
+        </section>
+
+        <section class="panel admin-top-class-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Outstanding by class</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">stacked_bar_chart</span><span>Lớp còn phải thu cao</span></h2>
+            </div>
+            <span id="adminTopClassCount" class="count-badge">0 lớp</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Lớp còn phải thu cao">
+              <colgroup>
+                <col class="admin-class-col" />
+                <col class="admin-small-col" />
+                <col class="admin-money-col" />
+                <col class="admin-money-col" />
+                <col class="admin-money-col" />
+                <col class="admin-small-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Cần thu</th>
+                  <th scope="col">Đã thu</th>
+                  <th scope="col">Còn thiếu</th>
+                  <th scope="col">Tỷ lệ</th>
+                </tr>
+              </thead>
+              <tbody id="adminTopClassRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel admin-attention-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Needs action</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">priority_high</span><span>Hóa đơn cần xử lý</span></h2>
+            </div>
+            <span id="adminAttentionCount" class="count-badge">0 hóa đơn</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Hóa đơn cần xử lý">
+              <colgroup>
+                <col class="admin-code-col" />
+                <col class="admin-student-col" />
+                <col class="admin-class-col" />
+                <col class="admin-money-col" />
+                <col class="admin-money-col" />
+                <col class="admin-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Invoice</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp/Kỳ</th>
+                  <th scope="col">Phải thu</th>
+                  <th scope="col">Còn thiếu</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminAttentionRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
 
     <main id="paymentsTab" class="tab-panel" role="tabpanel" hidden>
       <div class="workspace">
@@ -689,7 +809,209 @@
       </div>
     </section>
 
-    <section id="masterDataTab" class="tab-panel active" role="tabpanel">
+    <section id="reportsTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace reports-workspace">
+        <section class="panel admin-control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Management reports</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo công nợ</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshAdminReports" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="adminReportsStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="admin-filter-grid">
+            <label>
+              <span>Năm học</span>
+              <select id="adminReportsYear"></select>
+            </label>
+            <label>
+              <span>Khối</span>
+              <select id="adminReportsGrade"></select>
+            </label>
+            <label>
+              <span>Lớp</span>
+              <select id="adminReportsClass"></select>
+            </label>
+            <label>
+              <span>Kỳ thu</span>
+              <input id="adminReportsPeriod" placeholder="2026-04" />
+            </label>
+            <label>
+              <span>Tháng</span>
+              <input id="adminReportsMonth" type="number" min="1" max="12" step="1" />
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="adminReportsInvoiceStatus">
+                <option value="">Tất cả</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="overpaid">Overpaid</option>
+                <option value="manual_review">Manual review</option>
+              </select>
+            </label>
+          </div>
+          <div id="adminReportsSummary" class="admin-metrics">Chưa có dữ liệu báo cáo</div>
+        </section>
+
+        <section class="panel admin-report-class-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Class summary</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">table_chart</span><span>Tổng hợp theo lớp</span></h2>
+            </div>
+            <span id="adminReportClassCount" class="count-badge">0 lớp</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Báo cáo theo lớp">
+              <colgroup>
+                <col class="admin-class-col" />
+                <col class="admin-small-col" />
+                <col class="admin-money-col" />
+                <col class="admin-money-col" />
+                <col class="admin-money-col" />
+                <col class="admin-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Lớp</th>
+                  <th scope="col">Invoice</th>
+                  <th scope="col">Cần thu</th>
+                  <th scope="col">Đã thu</th>
+                  <th scope="col">Còn thiếu</th>
+                  <th scope="col">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="adminReportClassRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel admin-report-invoice-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Invoice report</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Chi tiết hóa đơn</span></h2>
+            </div>
+            <span id="adminReportInvoiceCount" class="count-badge">0 hóa đơn</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Báo cáo hóa đơn">
+              <colgroup>
+                <col class="admin-code-col" />
+                <col class="admin-student-col" />
+                <col class="admin-class-col" />
+                <col class="admin-money-col" />
+                <col class="admin-money-col" />
+                <col class="admin-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Invoice</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col">Lớp/Kỳ</th>
+                  <th scope="col">Phải thu</th>
+                  <th scope="col">Đã thu</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminReportInvoiceRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="usersTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace users-workspace">
+        <section class="panel admin-user-editor-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">User and role admin</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng và quyền</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshAdminUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="adminUsersStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="admin-user-form">
+            <input id="adminUserId" type="hidden" />
+            <label>
+              <span>Email</span>
+              <input id="adminUserEmail" type="email" placeholder="billing@example.edu.vn" />
+            </label>
+            <label>
+              <span>Tên hiển thị</span>
+              <input id="adminUserDisplayName" />
+            </label>
+            <label>
+              <span>Trạng thái</span>
+              <select id="adminUserStatus">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </label>
+            <label class="admin-user-roles-field">
+              <span>Roles</span>
+              <select id="adminUserRoles" multiple></select>
+            </label>
+            <div class="admin-user-actions">
+              <button id="clearAdminUser" type="button"><span class="mui-icon" aria-hidden="true">backspace</span><span>Clear</span></button>
+              <button id="saveAdminUser" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu user</span></button>
+              <button id="assignAdminUserRoles" type="button"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Lưu roles</span></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel admin-users-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Users</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">group</span><span>Danh sách người dùng</span></h2>
+            </div>
+            <span id="adminUserCount" class="count-badge">0 user</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Danh sách người dùng">
+              <colgroup>
+                <col class="admin-student-col" />
+                <col class="admin-class-col" />
+                <col class="admin-status-col" />
+                <col class="admin-class-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Tên</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Roles</th>
+                </tr>
+              </thead>
+              <tbody id="adminUserRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel admin-roles-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Roles and permissions</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Role matrix</span></h2>
+            </div>
+            <span id="adminRoleCount" class="count-badge">0 role</span>
+          </div>
+          <div id="adminRoleList" class="admin-role-list">Chưa có role</div>
+        </section>
+      </div>
+    </section>
+
+    <section id="masterDataTab" class="tab-panel" role="tabpanel" hidden>
       <div class="master-wrap">
         <section class="panel master-controls">
           <div class="panel-head">

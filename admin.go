@@ -1,0 +1,901 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+	"time"
+)
+
+const adminPermissionHeader = "X-ABC-Admin-Permission"
+
+type adminFilters struct {
+	SchoolYearID string
+	ClassID      string
+	Grade        string
+	PeriodCode   string
+	Month        int
+	Status       string
+}
+
+type adminDashboardResponse struct {
+	Options           masterDataOptions       `json:"options"`
+	Filters           adminFiltersPublic      `json:"filters"`
+	Summary           adminDashboardSummary   `json:"summary"`
+	TopClasses        []adminClassReportRow   `json:"topClasses"`
+	AttentionInvoices []adminInvoiceReportRow `json:"attentionInvoices"`
+}
+
+type adminReportsResponse struct {
+	Options        masterDataOptions       `json:"options"`
+	Filters        adminFiltersPublic      `json:"filters"`
+	Summary        adminDashboardSummary   `json:"summary"`
+	ClassRows      []adminClassReportRow   `json:"classRows"`
+	InvoiceRows    []adminInvoiceReportRow `json:"invoiceRows"`
+	TransactionRow []adminTransactionRow   `json:"transactionRows"`
+}
+
+type adminFiltersPublic struct {
+	SchoolYearID string `json:"schoolYearId,omitempty"`
+	ClassID      string `json:"classId,omitempty"`
+	Grade        string `json:"grade,omitempty"`
+	PeriodCode   string `json:"periodCode,omitempty"`
+	Month        int    `json:"month,omitempty"`
+	Status       string `json:"status,omitempty"`
+}
+
+type adminDashboardSummary struct {
+	InvoiceCount              int     `json:"invoiceCount"`
+	StudentCount              int     `json:"studentCount"`
+	TotalReceivable           int     `json:"totalReceivable"`
+	TotalCollected            int     `json:"totalCollected"`
+	OutstandingAmount         int     `json:"outstandingAmount"`
+	CollectionRate            float64 `json:"collectionRate"`
+	UnpaidStudentCount        int     `json:"unpaidStudentCount"`
+	PartialPaymentCount       int     `json:"partialPaymentCount"`
+	PaidInvoiceCount          int     `json:"paidInvoiceCount"`
+	OverpaidManualReviewCount int     `json:"overpaidManualReviewCount"`
+	UnmatchedTransactionCount int     `json:"unmatchedTransactionCount"`
+	ManualReviewCount         int     `json:"manualReviewCount"`
+}
+
+type adminClassReportRow struct {
+	SchoolYearCode string  `json:"schoolYearCode"`
+	Grade          string  `json:"grade"`
+	ClassName      string  `json:"className"`
+	InvoiceCount   int     `json:"invoiceCount"`
+	StudentCount   int     `json:"studentCount"`
+	TotalAmount    int     `json:"totalAmount"`
+	PaidAmount     int     `json:"paidAmount"`
+	Outstanding    int     `json:"outstandingAmount"`
+	CollectionRate float64 `json:"collectionRate"`
+	UnpaidCount    int     `json:"unpaidCount"`
+	PartialCount   int     `json:"partialCount"`
+	PaidCount      int     `json:"paidCount"`
+	OverpaidCount  int     `json:"overpaidCount"`
+	ReviewCount    int     `json:"manualReviewCount"`
+}
+
+type adminInvoiceReportRow struct {
+	invoiceSummary
+	OutstandingAmount int `json:"outstandingAmount"`
+}
+
+type adminTransactionRow struct {
+	Provider       string `json:"provider"`
+	Status         string `json:"status"`
+	Count          int    `json:"count"`
+	TotalAmount    int    `json:"totalAmount"`
+	MatchedCount   int    `json:"matchedCount"`
+	UnmatchedCount int    `json:"unmatchedCount"`
+	ReviewCount    int    `json:"manualReviewCount"`
+}
+
+type adminUsersResponse struct {
+	Users       []adminUserSummary       `json:"users"`
+	Roles       []adminRoleSummary       `json:"roles"`
+	Permissions []adminPermissionSummary `json:"permissions"`
+}
+
+type adminUserSummary struct {
+	ID          string             `json:"id"`
+	Email       string             `json:"email"`
+	DisplayName string             `json:"displayName"`
+	Status      string             `json:"status"`
+	LastLoginAt string             `json:"lastLoginAt,omitempty"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	UpdatedAt   time.Time          `json:"updatedAt"`
+	Roles       []adminRoleSummary `json:"roles"`
+}
+
+type adminRoleSummary struct {
+	ID          string                   `json:"id"`
+	Code        string                   `json:"code"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	IsSystem    bool                     `json:"isSystem"`
+	Permissions []adminPermissionSummary `json:"permissions,omitempty"`
+}
+
+type adminPermissionSummary struct {
+	ID          string `json:"id"`
+	Code        string `json:"code"`
+	Description string `json:"description"`
+}
+
+type adminUserSaveInput struct {
+	ID          string `json:"id,omitempty"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	Status      string `json:"status"`
+}
+
+type adminUserRoleInput struct {
+	UserID    string   `json:"userId"`
+	RoleCodes []string `json:"roleCodes"`
+}
+
+func handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	options, err := listMasterDataOptions(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load admin options", http.StatusInternalServerError)
+		return
+	}
+	filters := parseAdminFilters(r)
+	invoices, err := listAdminInvoiceRows(r.Context(), db, filters, 5000)
+	if err != nil {
+		http.Error(w, "cannot load dashboard invoices", http.StatusInternalServerError)
+		return
+	}
+	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{Limit: 1000})
+	if err != nil {
+		http.Error(w, "cannot load dashboard transactions", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, adminDashboardResponse{
+		Options:           options,
+		Filters:           filters.public(),
+		Summary:           buildAdminDashboardSummary(invoices, transactions),
+		TopClasses:        topAdminClasses(buildAdminClassReportRows(invoices), 8),
+		AttentionInvoices: adminAttentionInvoices(invoices, 12),
+	})
+}
+
+func handleAdminReports(w http.ResponseWriter, r *http.Request) {
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	options, err := listMasterDataOptions(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load admin options", http.StatusInternalServerError)
+		return
+	}
+	filters := parseAdminFilters(r)
+	invoices, err := listAdminInvoiceRows(r.Context(), db, filters, 1000)
+	if err != nil {
+		http.Error(w, "cannot load report invoices", http.StatusInternalServerError)
+		return
+	}
+	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{Limit: 1000})
+	if err != nil {
+		http.Error(w, "cannot load report transactions", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, adminReportsResponse{
+		Options:        options,
+		Filters:        filters.public(),
+		Summary:        buildAdminDashboardSummary(invoices, transactions),
+		ClassRows:      buildAdminClassReportRows(invoices),
+		InvoiceRows:    invoices,
+		TransactionRow: buildAdminTransactionRows(transactions),
+	})
+}
+
+func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	users, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load users and roles", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, adminUsersResponse{
+		Users:       users,
+		Roles:       roles,
+		Permissions: permissions,
+	})
+}
+
+func handleAdminRoles(w http.ResponseWriter, r *http.Request) {
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	_, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load roles", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"roles": roles, "permissions": permissions})
+}
+
+func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAPIPermission(w, r, "system.users.write") {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input adminUserSaveInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	if err := validateAdminUserSaveInput(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	user, err := saveAdminUser(r.Context(), db, input)
+	if err != nil {
+		http.Error(w, "cannot save user", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAPIPermission(w, r, "system.users.assign_roles") {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input adminUserRoleInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input.UserID = strings.TrimSpace(input.UserID)
+	input.RoleCodes = normalizeAdminRoleCodes(input.RoleCodes)
+	if input.UserID == "" {
+		http.Error(w, "userId is required", http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	if err := assignAdminUserRoles(r.Context(), db, input); err != nil {
+		http.Error(w, "cannot assign user roles", http.StatusInternalServerError)
+		return
+	}
+	users, _, _, err := loadAdminUsersAndRoles(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot reload users", http.StatusInternalServerError)
+		return
+	}
+	for _, user := range users {
+		if user.ID == input.UserID {
+			writeJSON(w, http.StatusOK, map[string]any{"user": user})
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"userId": input.UserID})
+}
+
+func requireAdminAPIPermission(w http.ResponseWriter, r *http.Request, permission string) bool {
+	for _, value := range strings.Split(r.Header.Get(adminPermissionHeader), ",") {
+		if strings.TrimSpace(value) == permission {
+			return true
+		}
+	}
+	http.Error(w, "missing required API permission: "+permission, http.StatusForbidden)
+	return false
+}
+
+func parseAdminFilters(r *http.Request) adminFilters {
+	query := r.URL.Query()
+	return adminFilters{
+		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
+		ClassID:      strings.TrimSpace(query.Get("classId")),
+		Grade:        normalizeGrade(query.Get("grade")),
+		PeriodCode:   strings.TrimSpace(query.Get("periodCode")),
+		Month:        parsePositiveInt(query.Get("month"), 0),
+		Status:       headerKey(query.Get("status")),
+	}
+}
+
+func (filters adminFilters) public() adminFiltersPublic {
+	return adminFiltersPublic{
+		SchoolYearID: filters.SchoolYearID,
+		ClassID:      filters.ClassID,
+		Grade:        filters.Grade,
+		PeriodCode:   filters.PeriodCode,
+		Month:        filters.Month,
+		Status:       filters.Status,
+	}
+}
+
+func listAdminInvoiceRows(ctx context.Context, db *sql.DB, filters adminFilters, limit int) ([]adminInvoiceReportRow, error) {
+	conditions := []string{"i.status <> 'void'"}
+	args := []any{}
+	addArg := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	if filters.SchoolYearID != "" {
+		conditions = append(conditions, "i.school_year_id = "+addArg(filters.SchoolYearID)+"::uuid")
+	}
+	if filters.ClassID != "" {
+		conditions = append(conditions, "i.class_id = "+addArg(filters.ClassID)+"::uuid")
+	}
+	if filters.Grade != "" {
+		conditions = append(conditions, "i.grade = "+addArg(filters.Grade))
+	}
+	if filters.PeriodCode != "" {
+		conditions = append(conditions, "i.period_code = "+addArg(filters.PeriodCode))
+	}
+	if filters.Month > 0 {
+		conditions = append(conditions, "i.month = "+addArg(filters.Month))
+	}
+	if filters.Status != "" {
+		conditions = append(conditions, "i.status = "+addArg(filters.Status))
+	}
+	if limit <= 0 || limit > 5000 {
+		limit = 1000
+	}
+	limitArg := addArg(limit)
+
+	query := `
+SELECT i.id::text,
+	i.invoice_code,
+	i.student_code,
+	i.student_name,
+	i.class_name,
+	i.grade,
+	i.school_year_id::text,
+	i.school_year_code,
+	i.fee_schedule_id::text,
+	i.period_code,
+	i.month,
+	i.issued_at,
+	i.due_date,
+	i.status,
+	i.total_amount,
+	i.paid_amount,
+	i.collection_bank_bin,
+	i.collection_bank_account,
+	i.qr_bill_number,
+	i.qr_note
+FROM invoices i
+WHERE ` + strings.Join(conditions, " AND ") + `
+ORDER BY i.period_code DESC, i.class_name, i.student_code
+LIMIT ` + limitArg
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	invoices := []adminInvoiceReportRow{}
+	for rows.Next() {
+		var invoice adminInvoiceReportRow
+		var month sql.NullInt64
+		var dueDate sql.NullTime
+		if err := rows.Scan(
+			&invoice.ID,
+			&invoice.InvoiceCode,
+			&invoice.StudentCode,
+			&invoice.StudentName,
+			&invoice.ClassName,
+			&invoice.Grade,
+			&invoice.SchoolYearID,
+			&invoice.SchoolYearCode,
+			&invoice.FeeScheduleID,
+			&invoice.PeriodCode,
+			&month,
+			&invoice.IssuedAt,
+			&dueDate,
+			&invoice.Status,
+			&invoice.TotalAmount,
+			&invoice.PaidAmount,
+			&invoice.CollectionBankBIN,
+			&invoice.CollectionBankAccount,
+			&invoice.QRBillNumber,
+			&invoice.QRNote,
+		); err != nil {
+			return nil, err
+		}
+		if month.Valid {
+			invoice.Month = int(month.Int64)
+		}
+		if dueDate.Valid {
+			invoice.DueDate = dueDate.Time.Format("2006-01-02")
+		}
+		invoice.OutstandingAmount = outstandingAmount(invoice.TotalAmount, invoice.PaidAmount)
+		invoices = append(invoices, invoice)
+	}
+	return invoices, rows.Err()
+}
+
+func buildAdminDashboardSummary(invoices []adminInvoiceReportRow, transactions []paymentTransactionSummary) adminDashboardSummary {
+	summary := adminDashboardSummary{InvoiceCount: len(invoices)}
+	studentCodes := map[string]bool{}
+	unpaidStudents := map[string]bool{}
+	for _, invoice := range invoices {
+		if invoice.StudentCode != "" {
+			studentCodes[invoice.StudentCode] = true
+		}
+		summary.TotalReceivable += invoice.TotalAmount
+		summary.TotalCollected += invoice.PaidAmount
+		summary.OutstandingAmount += outstandingAmount(invoice.TotalAmount, invoice.PaidAmount)
+		switch invoice.Status {
+		case invoiceStatusUnpaid:
+			if invoice.StudentCode != "" {
+				unpaidStudents[invoice.StudentCode] = true
+			}
+		case invoiceStatusPartial:
+			summary.PartialPaymentCount++
+		case invoiceStatusPaid:
+			summary.PaidInvoiceCount++
+		case invoiceStatusOverpaid, invoiceStatusManualReview:
+			summary.OverpaidManualReviewCount++
+		}
+	}
+	summary.StudentCount = len(studentCodes)
+	summary.UnpaidStudentCount = len(unpaidStudents)
+	if summary.TotalReceivable > 0 {
+		summary.CollectionRate = float64(summary.TotalCollected) / float64(summary.TotalReceivable)
+	}
+	for _, transaction := range transactions {
+		switch transaction.Status {
+		case paymentTransactionStatusUnmatched:
+			summary.UnmatchedTransactionCount++
+		case paymentTransactionStatusManualReview:
+			summary.ManualReviewCount++
+		}
+	}
+	return summary
+}
+
+func buildAdminClassReportRows(invoices []adminInvoiceReportRow) []adminClassReportRow {
+	type classAccumulator struct {
+		row      adminClassReportRow
+		students map[string]bool
+	}
+	classes := map[string]*classAccumulator{}
+	for _, invoice := range invoices {
+		key := strings.Join([]string{invoice.SchoolYearCode, invoice.Grade, invoice.ClassName}, "\x00")
+		acc, ok := classes[key]
+		if !ok {
+			acc = &classAccumulator{
+				row: adminClassReportRow{
+					SchoolYearCode: invoice.SchoolYearCode,
+					Grade:          invoice.Grade,
+					ClassName:      invoice.ClassName,
+				},
+				students: map[string]bool{},
+			}
+			classes[key] = acc
+		}
+		acc.row.InvoiceCount++
+		acc.row.TotalAmount += invoice.TotalAmount
+		acc.row.PaidAmount += invoice.PaidAmount
+		acc.row.Outstanding += outstandingAmount(invoice.TotalAmount, invoice.PaidAmount)
+		if invoice.StudentCode != "" {
+			acc.students[invoice.StudentCode] = true
+		}
+		switch invoice.Status {
+		case invoiceStatusUnpaid:
+			acc.row.UnpaidCount++
+		case invoiceStatusPartial:
+			acc.row.PartialCount++
+		case invoiceStatusPaid:
+			acc.row.PaidCount++
+		case invoiceStatusOverpaid:
+			acc.row.OverpaidCount++
+		case invoiceStatusManualReview:
+			acc.row.ReviewCount++
+		}
+	}
+	rows := make([]adminClassReportRow, 0, len(classes))
+	for _, acc := range classes {
+		acc.row.StudentCount = len(acc.students)
+		if acc.row.TotalAmount > 0 {
+			acc.row.CollectionRate = float64(acc.row.PaidAmount) / float64(acc.row.TotalAmount)
+		}
+		rows = append(rows, acc.row)
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].Outstanding != rows[j].Outstanding {
+			return rows[i].Outstanding > rows[j].Outstanding
+		}
+		if rows[i].SchoolYearCode != rows[j].SchoolYearCode {
+			return rows[i].SchoolYearCode > rows[j].SchoolYearCode
+		}
+		if rows[i].Grade != rows[j].Grade {
+			return rows[i].Grade < rows[j].Grade
+		}
+		return rows[i].ClassName < rows[j].ClassName
+	})
+	return rows
+}
+
+func topAdminClasses(rows []adminClassReportRow, limit int) []adminClassReportRow {
+	if limit <= 0 || len(rows) <= limit {
+		return rows
+	}
+	return rows[:limit]
+}
+
+func adminAttentionInvoices(invoices []adminInvoiceReportRow, limit int) []adminInvoiceReportRow {
+	rows := make([]adminInvoiceReportRow, 0, len(invoices))
+	for _, invoice := range invoices {
+		if invoice.Status == invoiceStatusUnpaid ||
+			invoice.Status == invoiceStatusPartial ||
+			invoice.Status == invoiceStatusOverpaid ||
+			invoice.Status == invoiceStatusManualReview {
+			rows = append(rows, invoice)
+		}
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].OutstandingAmount != rows[j].OutstandingAmount {
+			return rows[i].OutstandingAmount > rows[j].OutstandingAmount
+		}
+		return rows[i].InvoiceCode < rows[j].InvoiceCode
+	})
+	if limit > 0 && len(rows) > limit {
+		return rows[:limit]
+	}
+	return rows
+}
+
+func buildAdminTransactionRows(transactions []paymentTransactionSummary) []adminTransactionRow {
+	rowsByKey := map[string]*adminTransactionRow{}
+	for _, transaction := range transactions {
+		key := transaction.ProviderCode + "\x00" + transaction.Status
+		row, ok := rowsByKey[key]
+		if !ok {
+			row = &adminTransactionRow{Provider: transaction.ProviderCode, Status: transaction.Status}
+			rowsByKey[key] = row
+		}
+		row.Count++
+		if transaction.Direction == paymentDirectionIn {
+			row.TotalAmount += transaction.Amount
+		}
+		switch transaction.Status {
+		case paymentTransactionStatusMatched:
+			row.MatchedCount++
+		case paymentTransactionStatusUnmatched:
+			row.UnmatchedCount++
+		case paymentTransactionStatusManualReview:
+			row.ReviewCount++
+		}
+	}
+	rows := make([]adminTransactionRow, 0, len(rowsByKey))
+	for _, row := range rowsByKey {
+		rows = append(rows, *row)
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].Provider != rows[j].Provider {
+			return rows[i].Provider < rows[j].Provider
+		}
+		return rows[i].Status < rows[j].Status
+	})
+	return rows
+}
+
+func outstandingAmount(total int, paid int) int {
+	if total <= paid {
+		return 0
+	}
+	return total - paid
+}
+
+func loadAdminUsersAndRoles(ctx context.Context, db *sql.DB) ([]adminUserSummary, []adminRoleSummary, []adminPermissionSummary, error) {
+	permissions, err := listAdminPermissions(ctx, db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	roles, err := listAdminRoles(ctx, db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	users, err := listAdminUsers(ctx, db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return users, roles, permissions, nil
+}
+
+func listAdminPermissions(ctx context.Context, db *sql.DB) ([]adminPermissionSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT id::text, code, description
+FROM app_permissions
+ORDER BY code`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	permissions := []adminPermissionSummary{}
+	for rows.Next() {
+		var item adminPermissionSummary
+		if err := rows.Scan(&item.ID, &item.Code, &item.Description); err != nil {
+			return nil, err
+		}
+		permissions = append(permissions, item)
+	}
+	return permissions, rows.Err()
+}
+
+func listAdminRoles(ctx context.Context, db *sql.DB) ([]adminRoleSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT r.id::text,
+	r.code,
+	r.name,
+	r.description,
+	r.is_system,
+	COALESCE(p.id::text, ''),
+	COALESCE(p.code, ''),
+	COALESCE(p.description, '')
+FROM app_roles r
+LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
+LEFT JOIN app_permissions p ON p.id = rp.permission_id
+ORDER BY r.code, p.code`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	roleOrder := []string{}
+	roleByID := map[string]*adminRoleSummary{}
+	for rows.Next() {
+		var roleID string
+		var role adminRoleSummary
+		var permission adminPermissionSummary
+		if err := rows.Scan(
+			&roleID,
+			&role.Code,
+			&role.Name,
+			&role.Description,
+			&role.IsSystem,
+			&permission.ID,
+			&permission.Code,
+			&permission.Description,
+		); err != nil {
+			return nil, err
+		}
+		existing, ok := roleByID[roleID]
+		if !ok {
+			role.ID = roleID
+			role.Permissions = []adminPermissionSummary{}
+			existing = &role
+			roleByID[roleID] = existing
+			roleOrder = append(roleOrder, roleID)
+		}
+		if permission.Code != "" {
+			existing.Permissions = append(existing.Permissions, permission)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	roles := make([]adminRoleSummary, 0, len(roleOrder))
+	for _, roleID := range roleOrder {
+		roles = append(roles, *roleByID[roleID])
+	}
+	return roles, nil
+}
+
+func listAdminUsers(ctx context.Context, db *sql.DB) ([]adminUserSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT u.id::text,
+	u.email,
+	u.display_name,
+	u.status,
+	u.last_login_at,
+	u.created_at,
+	u.updated_at,
+	COALESCE(r.id::text, ''),
+	COALESCE(r.code, ''),
+	COALESCE(r.name, ''),
+	COALESCE(r.description, ''),
+	COALESCE(r.is_system, false)
+FROM app_users u
+LEFT JOIN app_user_roles ur ON ur.user_id = u.id
+LEFT JOIN app_roles r ON r.id = ur.role_id
+ORDER BY lower(u.email), r.code`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	userOrder := []string{}
+	userByID := map[string]*adminUserSummary{}
+	for rows.Next() {
+		var userID string
+		var user adminUserSummary
+		var lastLogin sql.NullTime
+		var role adminRoleSummary
+		if err := rows.Scan(
+			&userID,
+			&user.Email,
+			&user.DisplayName,
+			&user.Status,
+			&lastLogin,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&role.ID,
+			&role.Code,
+			&role.Name,
+			&role.Description,
+			&role.IsSystem,
+		); err != nil {
+			return nil, err
+		}
+		existing, ok := userByID[userID]
+		if !ok {
+			user.ID = userID
+			user.Roles = []adminRoleSummary{}
+			if lastLogin.Valid {
+				user.LastLoginAt = lastLogin.Time.Format(time.RFC3339)
+			}
+			existing = &user
+			userByID[userID] = existing
+			userOrder = append(userOrder, userID)
+		}
+		if role.Code != "" {
+			existing.Roles = append(existing.Roles, role)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	users := make([]adminUserSummary, 0, len(userOrder))
+	for _, userID := range userOrder {
+		users = append(users, *userByID[userID])
+	}
+	return users, nil
+}
+
+func validateAdminUserSaveInput(input *adminUserSaveInput) error {
+	input.ID = strings.TrimSpace(input.ID)
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	input.DisplayName = strings.TrimSpace(input.DisplayName)
+	input.Status = headerKey(input.Status)
+	if input.Status == "" {
+		input.Status = "active"
+	}
+	if input.Email == "" || !strings.Contains(input.Email, "@") {
+		return fmt.Errorf("valid email is required")
+	}
+	if input.DisplayName == "" {
+		input.DisplayName = input.Email
+	}
+	switch input.Status {
+	case "active", "inactive", "suspended":
+		return nil
+	default:
+		return fmt.Errorf("unsupported user status %q", input.Status)
+	}
+}
+
+func saveAdminUser(ctx context.Context, db *sql.DB, input adminUserSaveInput) (adminUserSummary, error) {
+	if input.ID == "" {
+		var existingID string
+		err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM app_users
+WHERE lower(email) = lower($1)
+LIMIT 1`, input.Email).Scan(&existingID)
+		if err == nil && existingID != "" {
+			input.ID = existingID
+			return saveAdminUser(ctx, db, input)
+		}
+		if err != nil && err != sql.ErrNoRows {
+			return adminUserSummary{}, err
+		}
+		var user adminUserSummary
+		err = db.QueryRowContext(ctx, `
+INSERT INTO app_users (email, display_name, status)
+VALUES ($1, $2, $3)
+RETURNING id::text, email, display_name, status, created_at, updated_at`,
+			input.Email,
+			input.DisplayName,
+			input.Status,
+		).Scan(&user.ID, &user.Email, &user.DisplayName, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+		user.Roles = []adminRoleSummary{}
+		return user, err
+	}
+	var user adminUserSummary
+	err := db.QueryRowContext(ctx, `
+UPDATE app_users
+SET email = $2,
+	display_name = $3,
+	status = $4
+WHERE id = $1::uuid
+RETURNING id::text, email, display_name, status, created_at, updated_at`,
+		input.ID,
+		input.Email,
+		input.DisplayName,
+		input.Status,
+	).Scan(&user.ID, &user.Email, &user.DisplayName, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+	user.Roles = []adminRoleSummary{}
+	return user, err
+}
+
+func assignAdminUserRoles(ctx context.Context, db *sql.DB, input adminUserRoleInput) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM app_user_roles WHERE user_id = $1::uuid`, input.UserID); err != nil {
+		return err
+	}
+	for _, roleCode := range input.RoleCodes {
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO app_user_roles (user_id, role_id)
+SELECT $1::uuid, id
+FROM app_roles
+WHERE code = $2
+ON CONFLICT (user_id, role_id) DO NOTHING`,
+			input.UserID,
+			roleCode,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func normalizeAdminRoleCodes(values []string) []string {
+	seen := map[string]bool{}
+	normalized := []string{}
+	for _, value := range values {
+		code := headerKey(value)
+		if code == "" || seen[code] {
+			continue
+		}
+		seen[code] = true
+		normalized = append(normalized, code)
+	}
+	sort.Strings(normalized)
+	return normalized
+}

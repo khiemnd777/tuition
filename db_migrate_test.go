@@ -214,6 +214,37 @@ func TestLoadEmbeddedMigrationsIncludesNotificationSchema(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesWebAdminPermissions(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var admin migration
+	for _, item := range migrations {
+		if item.Version == "0007" {
+			admin = item
+			break
+		}
+	}
+	if admin.Name != "web_admin" {
+		t.Fatalf("expected web admin migration 0007, got %+v", admin)
+	}
+
+	for _, want := range []string{
+		"admin.dashboard.read",
+		"admin.reports.read",
+		"system.users.assign_roles",
+		"super_admin",
+		"billing_admin",
+		"viewer",
+	} {
+		if !strings.Contains(admin.SQL, want) {
+			t.Fatalf("expected web admin migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

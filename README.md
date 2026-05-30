@@ -149,7 +149,7 @@ Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong
 }
 ```
 
-Trong UI, workflow được tách thành các tab: `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Tab `Học sinh`, `Bảng phí`, `Hóa đơn`, và `Đối soát` dùng PostgreSQL đã cấu hình.
+Trong UI, workflow được tách thành các tab: `Dashboard`, `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, `Thông báo`, `Báo cáo`, `Người dùng`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Các tab production và admin dùng PostgreSQL đã cấu hình.
 
 ## Excel/CSV master data
 
@@ -240,6 +240,12 @@ Template mặc định:
 
 Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải thu và số tiền còn phải thu trước khi gửi. Khi gửi thật, app dùng lại email provider hiện tại, render email học phí với QR inline CID, ghi `notification_logs` theo campaign/template/invoice/recipient, và bỏ qua recipient đã gửi trong cùng campaign/template/invoice/email nếu không bật resend rõ ràng. Email gửi từ campaign cũng tính vào quota rolling 24 giờ giống gửi thủ công và cron.
 
+## Web Admin
+
+Tab `Dashboard` tổng hợp công nợ production từ hóa đơn và ledger thanh toán: tổng cần thu, đã thu, còn thiếu, tỷ lệ thu, số học sinh unpaid, partial, overpaid/manual review, giao dịch chưa match và top lớp còn phải thu. Bộ lọc hỗ trợ năm học, khối, lớp, kỳ thu, tháng và trạng thái invoice.
+
+Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp và chi tiết hóa đơn export-ready. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user và gán role qua API. Các write endpoint user admin yêu cầu header quyền nội bộ `X-ABC-Admin-Permission` tương ứng với permission seed trong migration; đây là lớp contract API hiện tại, chưa thay thế hệ thống đăng nhập production đầy đủ.
+
 ## API
 
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
@@ -274,6 +280,12 @@ Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải t
 - `POST /api/v1/notifications/campaigns/save`: lưu campaign và snapshot recipient hiện tại.
 - `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật.
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
+- `GET /api/v1/admin/dashboard`: dashboard công nợ, hỗ trợ `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
+- `GET /api/v1/admin/reports`: báo cáo theo lớp và hóa đơn, hỗ trợ cùng bộ lọc dashboard.
+- `GET /api/v1/admin/users`: danh sách user, role, permission.
+- `POST /api/v1/admin/users/save`: tạo/cập nhật user; yêu cầu `X-ABC-Admin-Permission: system.users.write`.
+- `POST /api/v1/admin/users/roles`: gán role cho user; yêu cầu `X-ABC-Admin-Permission: system.users.assign_roles`.
+- `GET /api/v1/admin/roles`: danh sách role và permission.
 - `POST /api/v1/vietqr/batch`: sinh QR theo danh sách rows.
 - `GET/POST /api/v1/email/config`: đọc/lưu cấu hình email local.
 - `POST /api/v1/email/preview`: render HTML email theo dòng đầu tiên.
