@@ -49,6 +49,8 @@ Before risky production changes, take a fresh backup and verify that the file ex
 
 ```sh
 ls -lh backups/*.dump
+pg_restore --list backups/abcsun-YYYYMMDD-HHMMSS.dump >/tmp/abcsun-backup-list.txt
+test -s /tmp/abcsun-backup-list.txt
 ```
 
 ## Restore Drill
@@ -72,6 +74,15 @@ Point a local shell at the restored database and verify migrations:
 export ABC_ENV=local
 export ABC_DATABASE_URL_LOCAL='postgres://user:password@host:5432/abcsun_restore_check?sslmode=require'
 go run . migrate status
+```
+
+Also verify that core accounting tables are readable in the restored database:
+
+```sh
+psql "$ABC_DATABASE_URL_LOCAL" -c "select count(*) from invoices;"
+psql "$ABC_DATABASE_URL_LOCAL" -c "select count(*) from payment_transactions;"
+psql "$ABC_DATABASE_URL_LOCAL" -c "select count(*) from audit_logs;"
+psql "$ABC_DATABASE_URL_LOCAL" -c "select count(*) from operation_logs;"
 ```
 
 ## Restore Incident Procedure

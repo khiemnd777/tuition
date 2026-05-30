@@ -86,9 +86,13 @@ func startEmailCronScheduler(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if _, err := runEmailCronBatch(ctx, false); err != nil {
+			state, err := runEmailCronBatch(ctx, false)
+			if err != nil {
 				fmt.Printf("email cron: %v\n", err)
+				recordEmailCronRunError(ctx, "scheduler", err)
+				continue
 			}
+			recordEmailCronResultErrors(ctx, state, "scheduler")
 		}
 	}
 }
@@ -159,10 +163,49 @@ func handleEmailCron(w http.ResponseWriter, r *http.Request) {
 func handleEmailCronRun(w http.ResponseWriter, r *http.Request) {
 	state, err := runEmailCronBatch(r.Context(), true)
 	if err != nil {
+		recordEmailCronRunError(r.Context(), "manual", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	recordEmailCronResultErrors(r.Context(), state, "manual")
 	writeJSON(w, http.StatusOK, emailCronPublic(state, time.Now()))
+}
+
+func recordEmailCronRunError(ctx context.Context, trigger string, err error) {
+	if err == nil {
+		return
+	}
+	recordOperationLogBestEffort(ctx, operationLogInput{
+		Source:    "background_job",
+		Level:     "error",
+		Operation: "email.cron.run",
+		Status:    "error",
+		Message:   err.Error(),
+		Metadata: map[string]any{
+			"trigger": trigger,
+		},
+	})
+}
+
+func recordEmailCronResultErrors(ctx context.Context, state emailCronState, trigger string) {
+	for _, result := range state.LastResults {
+		if result.Status != "error" {
+			continue
+		}
+		recordOperationLogBestEffort(ctx, operationLogInput{
+			Source:    "background_job",
+			Level:     "error",
+			Operation: "email.cron.send",
+			Status:    "error",
+			Message:   result.Error,
+			Metadata: map[string]any{
+				"trigger":   trigger,
+				"rowId":     result.ID,
+				"recipient": result.Email,
+				"transient": result.Transient,
+			},
+		})
+	}
 }
 
 func runEmailCronBatch(ctx context.Context, force bool) (emailCronState, error) {

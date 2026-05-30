@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+)
 
 func TestBuildAdminDashboardSummarySeparatesReceivablesAndReviewWork(t *testing.T) {
 	invoices := []adminInvoiceReportRow{
@@ -95,5 +99,60 @@ func TestNormalizeAdminRoleCodesDeduplicatesAndSorts(t *testing.T) {
 		if got[idx] != want[idx] {
 			t.Fatalf("expected %v, got %v", want, got)
 		}
+	}
+}
+
+func TestAdminInvoiceReportCSVIncludesAccountingAmounts(t *testing.T) {
+	records := adminInvoiceReportCSVRecords([]adminInvoiceReportRow{{
+		invoiceSummary: invoiceSummary{
+			InvoiceCode:           "INV-001",
+			StudentCode:           "S001",
+			StudentName:           "Nguyen Van A",
+			ClassName:             "3.02",
+			Grade:                 "3",
+			SchoolYearCode:        "2025-2026",
+			PeriodCode:            "2026-04",
+			Month:                 4,
+			IssuedAt:              time.Date(2026, 4, 1, 8, 0, 0, 0, time.UTC),
+			DueDate:               "2026-04-15",
+			Status:                invoiceStatusPartial,
+			TotalAmount:           1000,
+			PaidAmount:            750,
+			CollectionBankBIN:     "970441",
+			CollectionBankAccount: "123456789",
+			QRBillNumber:          "INV-001",
+		},
+		OutstandingAmount: 250,
+	}})
+
+	if records[0][0] != "invoice_code" {
+		t.Fatalf("expected csv header, got %v", records[0])
+	}
+	row := strings.Join(records[1], "|")
+	for _, want := range []string{"INV-001", "S001", "2026-04", "partial", "1000", "750", "250", "970441"} {
+		if !strings.Contains(row, want) {
+			t.Fatalf("expected csv row to contain %q, got %s", want, row)
+		}
+	}
+}
+
+func TestFilterAdminReportTransactionsUsesFilteredInvoiceScope(t *testing.T) {
+	invoices := []adminInvoiceReportRow{
+		{invoiceSummary: invoiceSummary{ID: "invoice-1"}},
+	}
+	transactions := []paymentTransactionSummary{
+		{ID: "txn-1", InvoiceID: "invoice-1"},
+		{ID: "txn-2", InvoiceID: "invoice-2"},
+		{ID: "txn-unmatched"},
+	}
+
+	filtered := filterAdminReportTransactions(invoices, transactions, adminFilters{PeriodCode: "2026-04"})
+
+	if len(filtered) != 1 || filtered[0].ID != "txn-1" {
+		t.Fatalf("expected only transactions matched to filtered invoices, got %+v", filtered)
+	}
+	all := filterAdminReportTransactions(invoices, transactions, adminFilters{})
+	if len(all) != 3 {
+		t.Fatalf("expected unconstrained filters to keep all transactions, got %+v", all)
 	}
 }

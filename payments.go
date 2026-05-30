@@ -178,6 +178,7 @@ type manualCashReceiptRequest struct {
 	CollectorName    string `json:"collectorName"`
 	ReceiptReference string `json:"receiptReference"`
 	PaidAt           string `json:"paidAt,omitempty"`
+	Reason           string `json:"reason"`
 	Note             string `json:"note,omitempty"`
 }
 
@@ -385,6 +386,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	normalized, err := normalizeProviderWebhook(provider.Code, rawPayload)
 	if err != nil {
 		_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", "", nil, err.Error())
+		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "normalize_failed", err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -394,6 +396,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	if provider.Code == paymentProviderPayOS {
 		if err := verifyPayOSWebhookSignature(rawPayload); err != nil {
 			_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", normalized.ProviderTransactionID, normalized.RawPayload, err.Error())
+			_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "invalid_signature", err))
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -402,6 +405,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	inserted, match, err := recordAndReconcilePaymentTransaction(r.Context(), db, provider, normalized)
 	if err != nil {
 		_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", normalized.ProviderTransactionID, normalized.RawPayload, err.Error())
+		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "reconcile_failed", err))
 		http.Error(w, "cannot reconcile payment transaction", http.StatusInternalServerError)
 		return
 	}
@@ -421,6 +425,26 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func paymentWebhookOperationLog(r *http.Request, providerCode string, eventID string, status string, err error) operationLogInput {
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	return operationLogInput{
+		RequestID:  strings.TrimSpace(r.Header.Get(requestIDHeader)),
+		Source:     "webhook",
+		Level:      "error",
+		Operation:  "payment.webhook",
+		Status:     status,
+		Message:    message,
+		EntityType: "provider_event",
+		EntityID:   eventID,
+		Metadata: map[string]any{
+			"provider": providerCode,
+		},
+	}
+}
+
 func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input manualCashReceiptRequest
@@ -432,7 +456,11 @@ func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
 	input.CollectorUserID = strings.TrimSpace(input.CollectorUserID)
 	input.CollectorName = strings.TrimSpace(input.CollectorName)
 	input.ReceiptReference = normalizeReceiptReference(input.ReceiptReference)
+	input.Reason = strings.TrimSpace(input.Reason)
 	input.Note = strings.TrimSpace(input.Note)
+	if input.Reason == "" && input.Note != "" {
+		input.Reason = input.Note
+	}
 	if input.InvoiceID == "" {
 		http.Error(w, "invoiceId is required", http.StatusBadRequest)
 		return
@@ -449,6 +477,10 @@ func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "receiptReference is required", http.StatusBadRequest)
 		return
 	}
+	if input.Reason == "" {
+		http.Error(w, "reason is required", http.StatusBadRequest)
+		return
+	}
 
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
@@ -457,7 +489,10 @@ func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	response, err := recordManualCashReceipt(r.Context(), db, input)
+	auditCtx := auditContextFromRequest(r)
+	auditCtx.ActorUserID = firstNonEmpty(input.CollectorUserID, auditCtx.ActorUserID)
+	auditCtx.ActorName = firstNonEmpty(input.CollectorName, auditCtx.ActorName)
+	response, err := recordManualCashReceipt(r.Context(), db, input, auditCtx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -1234,7 +1269,7 @@ WHERE id = $1::uuid`,
 	return nil
 }
 
-func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest) (manualCashReceiptResponse, error) {
+func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest, auditCtx requestAuditContext) (manualCashReceiptResponse, error) {
 	provider, err := loadPaymentProviderByCode(ctx, db, paymentProviderManualVietQR)
 	if err != nil {
 		return manualCashReceiptResponse{}, err
@@ -1272,6 +1307,7 @@ func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashRe
 			"invoiceId":        input.InvoiceID,
 			"receiptReference": input.ReceiptReference,
 			"collectorName":    input.CollectorName,
+			"reason":           input.Reason,
 			"note":             input.Note,
 		},
 	}
@@ -1287,9 +1323,9 @@ func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashRe
 	err = tx.QueryRowContext(ctx, `
 INSERT INTO manual_cash_receipts (
 	invoice_id, payment_transaction_id, collector_user_id, collector_name,
-	amount, currency, paid_at, receipt_reference, note
+	amount, currency, paid_at, receipt_reference, reason, note, created_by_user_id
 )
-VALUES ($1::uuid, $2::uuid, nullif($3, '')::uuid, $4, $5, $6, $7, $8, $9)
+VALUES ($1::uuid, $2::uuid, nullif($3, '')::uuid, $4, $5, $6, $7, $8, $9, $10, nullif($3, '')::uuid)
 RETURNING id::text`,
 		input.InvoiceID,
 		inserted.ID,
@@ -1299,6 +1335,7 @@ RETURNING id::text`,
 		paymentCurrencyVND,
 		paidAt,
 		input.ReceiptReference,
+		input.Reason,
 		input.Note,
 	).Scan(&receiptID)
 	if err != nil {
@@ -1307,6 +1344,7 @@ RETURNING id::text`,
 	metadata, _ := jsonObjectString(map[string]any{
 		"collectorName":    input.CollectorName,
 		"receiptReference": input.ReceiptReference,
+		"reason":           input.Reason,
 	})
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO reconciliation_matches (invoice_id, transaction_id, match_type, status, score, amount_applied, reason, metadata)
@@ -1314,12 +1352,30 @@ VALUES ($1::uuid, $2::uuid, 'cash', 'matched', 100, $3, $4, $5::jsonb)`,
 		input.InvoiceID,
 		inserted.ID,
 		input.Amount,
-		"manual cash receipt",
+		input.Reason,
 		metadata,
 	); err != nil {
 		return manualCashReceiptResponse{}, err
 	}
-	if err := refreshInvoicePaymentStatus(ctx, tx, input.InvoiceID, "manual cash receipt"); err != nil {
+	if err := refreshInvoicePaymentStatus(ctx, tx, input.InvoiceID, input.Reason); err != nil {
+		return manualCashReceiptResponse{}, err
+	}
+	if err := insertAuditLog(ctx, tx, auditLogInput{
+		Context:    auditCtx,
+		Action:     "manual_cash_receipt.created",
+		EntityType: "manual_cash_receipt",
+		EntityID:   receiptID,
+		Reason:     input.Reason,
+		Metadata: map[string]any{
+			"invoiceId":            input.InvoiceID,
+			"invoiceCode":          invoice.InvoiceCode,
+			"paymentTransactionId": inserted.ID,
+			"collectorName":        input.CollectorName,
+			"amount":               input.Amount,
+			"receiptReference":     input.ReceiptReference,
+			"paidAt":               paidAt.Format(time.RFC3339),
+		},
+	}); err != nil {
 		return manualCashReceiptResponse{}, err
 	}
 	if err := tx.Commit(); err != nil {

@@ -70,6 +70,29 @@ func TestBuildFeeSchedulePreviewReportsAdjustmentWithoutReason(t *testing.T) {
 	}
 }
 
+func TestValidateFeeScheduleInputRequiresOperatorForSavedAdjustments(t *testing.T) {
+	input := normalizeFeeScheduleInput(feeScheduleInput{
+		SchoolYearID: "11111111-1111-1111-1111-111111111111",
+		PeriodCode:   "2026-04",
+		Items: []feeScheduleItemInput{
+			{FeeTypeCode: "tuition", LabelVI: "Hoc phi", LabelEN: "Tuition", Amount: 1000},
+		},
+		Adjustments: []studentFeeAdjustmentInput{
+			{StudentCode: "S001", AdjustmentType: "discount", Amount: 100, Reason: "Sibling discount"},
+		},
+	})
+
+	issues := validateFeeScheduleInput(input, true)
+	if !hasFeeScheduleIssue(issues, "missing_operator_name") {
+		t.Fatalf("expected missing operator issue, got %+v", issues)
+	}
+
+	input.OperatorName = "Ke toan"
+	if issues := validateFeeScheduleInput(input, true); hasFeeScheduleIssue(issues, "missing_operator_name") {
+		t.Fatalf("did not expect missing operator issue after operator name, got %+v", issues)
+	}
+}
+
 func hasFeeScheduleIssue(issues []feeSchedulePreviewIssue, issueType string) bool {
 	for _, issue := range issues {
 		if issue.Type == issueType {

@@ -82,6 +82,7 @@ const feeScheduleMonthEl = document.querySelector("#feeScheduleMonth");
 const feeScheduleStatusEl = document.querySelector("#feeScheduleStatus");
 const feeScheduleNameEl = document.querySelector("#feeScheduleName");
 const feeScheduleNotesEl = document.querySelector("#feeScheduleNotes");
+const feeScheduleOperatorEl = document.querySelector("#feeScheduleOperator");
 const feeScheduleItemsEl = document.querySelector("#feeScheduleItems");
 const feeScheduleItemTotalEl = document.querySelector("#feeScheduleItemTotal");
 const feeAdjustmentsCsvEl = document.querySelector("#feeAdjustmentsCsv");
@@ -155,6 +156,9 @@ const adminAttentionCountEl = document.querySelector("#adminAttentionCount");
 const adminAttentionRowsEl = document.querySelector("#adminAttentionRows");
 const adminReportsStatusEl = document.querySelector("#adminReportsStatus");
 const refreshAdminReportsBtn = document.querySelector("#refreshAdminReports");
+const exportAdminReportClassesBtn = document.querySelector("#exportAdminReportClasses");
+const exportAdminReportInvoicesBtn = document.querySelector("#exportAdminReportInvoices");
+const exportAdminReportTransactionsBtn = document.querySelector("#exportAdminReportTransactions");
 const adminReportsYearEl = document.querySelector("#adminReportsYear");
 const adminReportsGradeEl = document.querySelector("#adminReportsGrade");
 const adminReportsClassEl = document.querySelector("#adminReportsClass");
@@ -166,6 +170,15 @@ const adminReportClassCountEl = document.querySelector("#adminReportClassCount")
 const adminReportClassRowsEl = document.querySelector("#adminReportClassRows");
 const adminReportInvoiceCountEl = document.querySelector("#adminReportInvoiceCount");
 const adminReportInvoiceRowsEl = document.querySelector("#adminReportInvoiceRows");
+const operationsStatusEl = document.querySelector("#operationsStatus");
+const refreshOperationsBtn = document.querySelector("#refreshOperations");
+const operationSourceFilterEl = document.querySelector("#operationSourceFilter");
+const operationLevelFilterEl = document.querySelector("#operationLevelFilter");
+const operationLimitEl = document.querySelector("#operationLimit");
+const operationLogCountEl = document.querySelector("#operationLogCount");
+const operationLogRowsEl = document.querySelector("#operationLogRows");
+const auditLogCountEl = document.querySelector("#auditLogCount");
+const auditLogRowsEl = document.querySelector("#auditLogRows");
 const adminUsersStatusEl = document.querySelector("#adminUsersStatus");
 const refreshAdminUsersBtn = document.querySelector("#refreshAdminUsers");
 const adminUserIdEl = document.querySelector("#adminUserId");
@@ -205,6 +218,7 @@ let currentNotificationCampaignId = "";
 let adminOptions = { schoolYears: [], classes: [] };
 let adminDashboardLoaded = false;
 let adminReportsLoaded = false;
+let operationsLoaded = false;
 let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
 
@@ -287,6 +301,7 @@ async function init() {
   renderAdminFilters("reports");
   renderAdminDashboard(null);
   renderAdminReports(null);
+  renderOperations(null);
   renderAdminUsers(null);
   renderFeeTemplate(defaultPaymentItems);
   renderRows(sampleRows);
@@ -340,6 +355,9 @@ async function activateTab(targetId) {
   }
   if (targetId === "reportsTab") {
     await loadAdminReports();
+  }
+  if (targetId === "operationsTab") {
+    await loadOperations();
   }
   if (targetId === "usersTab") {
     await loadAdminUsers();
@@ -1042,6 +1060,96 @@ function renderAdminReportInvoices(rows) {
   }
 }
 
+function exportAdminReport(dataset) {
+  const params = adminFilterParams("reports");
+  params.set("dataset", dataset);
+  const link = document.createElement("a");
+  link.href = `/api/v1/admin/reports/export?${params.toString()}`;
+  link.download = "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function loadOperations(force = false) {
+  if (!force && operationsLoaded) {
+    return;
+  }
+  setAdminStatus(operationsStatusEl, "Đang tải", "busy");
+  const limit = Math.min(Math.max(Number(operationLimitEl.value || 100), 10), 500);
+  const operationParams = new URLSearchParams();
+  if (operationSourceFilterEl.value) operationParams.set("source", operationSourceFilterEl.value);
+  if (operationLevelFilterEl.value) operationParams.set("level", operationLevelFilterEl.value);
+  operationParams.set("limit", String(limit));
+  const auditParams = new URLSearchParams({ limit: String(limit) });
+  const [operationRes, auditRes] = await Promise.all([
+    fetch(`/api/v1/admin/operation-logs?${operationParams.toString()}`),
+    fetch(`/api/v1/admin/audit-logs?${auditParams.toString()}`),
+  ]);
+  const [operationText, auditText] = await Promise.all([operationRes.text(), auditRes.text()]);
+  if (!operationRes.ok || !auditRes.ok) {
+    operationsLoaded = false;
+    renderOperations(null);
+    setAdminStatus(operationsStatusEl, operationText || auditText || "Chưa cấu hình DB", "error");
+    return;
+  }
+  const operationData = JSON.parse(operationText);
+  const auditData = JSON.parse(auditText);
+  operationsLoaded = true;
+  renderOperations({ operationLogs: operationData.logs || [], auditLogs: auditData.logs || [] });
+  setAdminStatus(operationsStatusEl, "Sẵn sàng", "ready");
+}
+
+function renderOperations(data) {
+  renderOperationLogs(data?.operationLogs || []);
+  renderAuditLogs(data?.auditLogs || []);
+}
+
+function renderOperationLogs(rows) {
+  operationLogCountEl.textContent = `${rows.length} log`;
+  operationLogRowsEl.innerHTML = rows
+    .map(
+      (row) => `
+        <tr>
+          <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml(row.operation || "")}</small></td>
+          <td><span class="tag">${escapeHtml(row.source || "")}</span><small>${escapeHtml(row.level || "")}</small></td>
+          <td><span class="tag">${escapeHtml(row.status || "")}</span></td>
+          <td>${escapeHtml(row.message || "")}</td>
+          <td>${escapeHtml(row.entityType || "-")}<small>${escapeHtml(row.entityId || "")}</small></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    operationLogRowsEl.innerHTML = `<tr><td colspan="5" class="empty-cell">Chưa có operational log</td></tr>`;
+  }
+}
+
+function renderAuditLogs(rows) {
+  auditLogCountEl.textContent = `${rows.length} log`;
+  auditLogRowsEl.innerHTML = rows
+    .map(
+      (row) => `
+        <tr>
+          <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml(row.requestId || "")}</small></td>
+          <td>${escapeHtml(row.actorName || row.actorUserId || "-")}<small>${escapeHtml(row.ipAddress || "")}</small></td>
+          <td><span class="tag">${escapeHtml(row.action || "")}</span></td>
+          <td>${escapeHtml(row.reason || metadataReason(row.metadata) || "")}</td>
+          <td>${escapeHtml(row.entityType || "-")}<small>${escapeHtml(row.entityId || "")}</small></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    auditLogRowsEl.innerHTML = `<tr><td colspan="5" class="empty-cell">Chưa có audit log</td></tr>`;
+  }
+}
+
+function metadataReason(metadata) {
+  if (!metadata || typeof metadata !== "object") return "";
+  return String(metadata.reason || "");
+}
+
 async function loadAdminUsers(force = false) {
   if (!force && adminUsersLoaded) {
     return;
@@ -1495,6 +1603,7 @@ function collectFeeScheduleDraft() {
     name: feeScheduleNameEl.value.trim(),
     notes: feeScheduleNotesEl.value.trim(),
     status: feeScheduleStatusEl.value || "draft",
+    operatorName: feeScheduleOperatorEl.value.trim(),
     items: collectFeeScheduleItems(),
     adjustments: parseFeeAdjustmentsCsv(),
   };
@@ -2094,6 +2203,8 @@ async function recordManualCashReceipt(invoiceId, defaultAmount) {
   if (collectorName === null) return;
   const receiptReference = window.prompt("Mã phiếu thu", `CASH${Date.now()}`);
   if (receiptReference === null) return;
+  const reason = window.prompt("Lý do ghi nhận", "Thu tiền mặt học phí");
+  if (reason === null) return;
   if (!window.confirm("Ghi nhận khoản thu tiền mặt vào ledger đối soát?")) {
     return;
   }
@@ -2101,7 +2212,7 @@ async function recordManualCashReceipt(invoiceId, defaultAmount) {
   const res = await fetch("/api/v1/payments/cash-receipts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ invoiceId, amount, collectorName, receiptReference }),
+    body: JSON.stringify({ invoiceId, amount, collectorName, receiptReference, reason }),
   });
   const text = await res.text();
   let data = null;
@@ -2914,6 +3025,9 @@ adminDashboardMonthEl.addEventListener("change", () => loadAdminDashboard(true))
 adminDashboardInvoiceStatusEl.addEventListener("change", () => loadAdminDashboard(true));
 
 refreshAdminReportsBtn.addEventListener("click", () => loadAdminReports(true));
+exportAdminReportClassesBtn.addEventListener("click", () => exportAdminReport("classes"));
+exportAdminReportInvoicesBtn.addEventListener("click", () => exportAdminReport("invoices"));
+exportAdminReportTransactionsBtn.addEventListener("click", () => exportAdminReport("transactions"));
 adminReportsYearEl.addEventListener("change", async () => {
   renderAdminFilters("reports");
   await loadAdminReports(true);
@@ -2926,6 +3040,10 @@ adminReportsClassEl.addEventListener("change", () => loadAdminReports(true));
 adminReportsPeriodEl.addEventListener("change", () => loadAdminReports(true));
 adminReportsMonthEl.addEventListener("change", () => loadAdminReports(true));
 adminReportsInvoiceStatusEl.addEventListener("change", () => loadAdminReports(true));
+refreshOperationsBtn.addEventListener("click", () => loadOperations(true));
+operationSourceFilterEl.addEventListener("change", () => loadOperations(true));
+operationLevelFilterEl.addEventListener("change", () => loadOperations(true));
+operationLimitEl.addEventListener("change", () => loadOperations(true));
 
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
 clearAdminUserBtn.addEventListener("click", clearAdminUserForm);

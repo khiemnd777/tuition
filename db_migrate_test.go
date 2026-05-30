@@ -245,6 +245,36 @@ func TestLoadEmbeddedMigrationsIncludesWebAdminPermissions(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesReportsAuditOperations(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var operations migration
+	for _, item := range migrations {
+		if item.Version == "0008" {
+			operations = item
+			break
+		}
+	}
+	if operations.Name != "reports_audit_operations" {
+		t.Fatalf("expected operations migration 0008, got %+v", operations)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS operation_logs",
+		"manual_cash_receipts_reason_not_blank",
+		"admin.reports.export",
+		"operations.read",
+		"operation_logs_metadata_object",
+	} {
+		if !strings.Contains(operations.SQL, want) {
+			t.Fatalf("expected reports/audit/operations migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

@@ -76,6 +76,7 @@ type feeScheduleInput struct {
 	Name         string                      `json:"name"`
 	Notes        string                      `json:"notes,omitempty"`
 	Status       string                      `json:"status"`
+	OperatorName string                      `json:"operatorName,omitempty"`
 	Items        []feeScheduleItemInput      `json:"items"`
 	Adjustments  []studentFeeAdjustmentInput `json:"adjustments,omitempty"`
 }
@@ -278,7 +279,9 @@ func handleFeeScheduleSave(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	savedID, err := saveFeeSchedule(r.Context(), db, input)
+	auditCtx := auditContextFromRequest(r)
+	auditCtx.ActorName = firstNonEmpty(input.OperatorName, auditCtx.ActorName)
+	savedID, err := saveFeeSchedule(r.Context(), db, input, auditCtx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -442,6 +445,9 @@ func validateFeeScheduleInput(input feeScheduleInput, requireScope bool) []feeSc
 	}
 	if len(input.Adjustments) > maxStudentFeeAdjustments {
 		issues = append(issues, feeSchedulePreviewIssue{Type: "too_many_adjustments", Field: "adjustments", Message: fmt.Sprintf("at most %d student adjustments are allowed", maxStudentFeeAdjustments)})
+	}
+	if requireScope && len(input.Adjustments) > 0 && input.OperatorName == "" {
+		issues = append(issues, feeSchedulePreviewIssue{Type: "missing_operator_name", Field: "operatorName", Message: "operatorName is required when saving student fee adjustments"})
 	}
 	for _, item := range input.Items {
 		if item.Amount < 0 {
@@ -656,6 +662,7 @@ func normalizeFeeScheduleInput(input feeScheduleInput) feeScheduleInput {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Notes = strings.TrimSpace(input.Notes)
 	input.Status = feeScheduleStatus(input.Status)
+	input.OperatorName = strings.TrimSpace(input.OperatorName)
 	if input.ClassID != "" {
 		input.Grade = ""
 	}
@@ -869,7 +876,7 @@ LIMIT 2000`
 	return students, nil
 }
 
-func saveFeeSchedule(ctx context.Context, db *sql.DB, input feeScheduleInput) (string, error) {
+func saveFeeSchedule(ctx context.Context, db *sql.DB, input feeScheduleInput, auditCtx requestAuditContext) (string, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", err
@@ -894,8 +901,8 @@ func saveFeeSchedule(ctx context.Context, db *sql.DB, input feeScheduleInput) (s
 	var scheduleID string
 	if input.ID == "" {
 		err = tx.QueryRowContext(ctx, `
-INSERT INTO fee_schedules (school_year_id, scope_type, class_id, grade, period_code, month, name, notes, status)
-VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, $9)
+INSERT INTO fee_schedules (school_year_id, scope_type, class_id, grade, period_code, month, name, notes, status, created_by_user_id, updated_by_user_id)
+VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, $9, nullif($10, '')::uuid, nullif($10, '')::uuid)
 RETURNING id::text`,
 			input.SchoolYearID,
 			scopeType,
@@ -906,6 +913,7 @@ RETURNING id::text`,
 			input.Name,
 			input.Notes,
 			input.Status,
+			auditCtx.ActorUserID,
 		).Scan(&scheduleID)
 	} else {
 		err = tx.QueryRowContext(ctx, `
@@ -918,7 +926,8 @@ SET school_year_id = $2::uuid,
 	month = $7,
 	name = $8,
 	notes = $9,
-	status = $10
+	status = $10,
+	updated_by_user_id = nullif($11, '')::uuid
 WHERE id = $1::uuid
 RETURNING id::text`,
 			input.ID,
@@ -931,6 +940,7 @@ RETURNING id::text`,
 			input.Name,
 			input.Notes,
 			input.Status,
+			auditCtx.ActorUserID,
 		).Scan(&scheduleID)
 	}
 	if err != nil {
@@ -946,14 +956,15 @@ RETURNING id::text`,
 
 	for _, line := range lines {
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO fee_schedule_items (schedule_id, fee_type_id, label_vi, label_en, amount, display_order)
-VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`,
+INSERT INTO fee_schedule_items (schedule_id, fee_type_id, label_vi, label_en, amount, display_order, created_by_user_id, updated_by_user_id)
+VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, nullif($7, '')::uuid, nullif($7, '')::uuid)`,
 			scheduleID,
 			line.FeeTypeID,
 			line.LabelVI,
 			line.LabelEN,
 			line.Amount,
 			line.DisplayOrder,
+			auditCtx.ActorUserID,
 		); err != nil {
 			return "", err
 		}
@@ -975,9 +986,11 @@ VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`,
 		if labelEN == "" && feeType.Code != "" {
 			labelEN = feeType.LabelEN
 		}
-		if _, err := tx.ExecContext(ctx, `
-INSERT INTO student_fee_adjustments (schedule_id, student_id, fee_type_id, adjustment_type, label_vi, label_en, amount, reason)
-VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8)`,
+		var adjustmentID string
+		if err := tx.QueryRowContext(ctx, `
+INSERT INTO student_fee_adjustments (schedule_id, student_id, fee_type_id, adjustment_type, label_vi, label_en, amount, reason, created_by_user_id, updated_by_user_id)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, nullif($9, '')::uuid, nullif($9, '')::uuid)
+RETURNING id::text`,
 			scheduleID,
 			studentID,
 			nullableString(feeTypeID),
@@ -986,9 +999,50 @@ VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8)`,
 			labelEN,
 			adjustment.Amount,
 			adjustment.Reason,
-		); err != nil {
+			auditCtx.ActorUserID,
+		).Scan(&adjustmentID); err != nil {
 			return "", err
 		}
+		if err := insertAuditLog(ctx, tx, auditLogInput{
+			Context:    auditCtx,
+			Action:     "student_fee_adjustment.created",
+			EntityType: "student_fee_adjustment",
+			EntityID:   adjustmentID,
+			Reason:     adjustment.Reason,
+			Metadata: map[string]any{
+				"scheduleId":     scheduleID,
+				"studentId":      studentID,
+				"studentCode":    adjustment.StudentCode,
+				"adjustmentType": adjustment.AdjustmentType,
+				"feeTypeCode":    firstNonEmpty(adjustment.FeeTypeCode, feeType.Code),
+				"amount":         adjustment.Amount,
+				"scheduleName":   input.Name,
+				"operatorName":   input.OperatorName,
+			},
+		}); err != nil {
+			return "", err
+		}
+	}
+
+	if err := insertAuditLog(ctx, tx, auditLogInput{
+		Context:    auditCtx,
+		Action:     "fee_schedule.saved",
+		EntityType: "fee_schedule",
+		EntityID:   scheduleID,
+		Reason:     firstNonEmpty(input.Notes, "fee schedule saved"),
+		Metadata: map[string]any{
+			"schoolYearId":    input.SchoolYearID,
+			"classId":         input.ClassID,
+			"grade":           input.Grade,
+			"periodCode":      input.PeriodCode,
+			"month":           input.Month,
+			"status":          input.Status,
+			"itemCount":       len(lines),
+			"adjustmentCount": len(input.Adjustments),
+			"operatorName":    input.OperatorName,
+		},
+	}); err != nil {
+		return "", err
 	}
 
 	if err := tx.Commit(); err != nil {

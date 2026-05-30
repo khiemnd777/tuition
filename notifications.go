@@ -984,6 +984,7 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 			result.Status = "error"
 			results = append(results, result)
 			_ = insertNotificationLog(ctx, db, template, recipient, input.CampaignID, result, input.DryRun)
+			_ = recordNotificationOperationLog(ctx, db, template, recipient, input, result)
 			_ = updateNotificationRecipientStatus(ctx, db, recipient.ID, result.Status, result.Error)
 			continue
 		}
@@ -993,6 +994,7 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 		result.ID = recipient.ID
 		results = append(results, result)
 		_ = insertNotificationLog(ctx, db, template, recipient, input.CampaignID, result, input.DryRun)
+		_ = recordNotificationOperationLog(ctx, db, template, recipient, input, result)
 		_ = updateNotificationRecipientStatus(ctx, db, recipient.ID, result.Status, result.Error)
 		if result.Status == "sent" {
 			sent++
@@ -1033,6 +1035,31 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 		Results:  results,
 		Logs:     logs,
 	}, nil
+}
+
+func recordNotificationOperationLog(ctx context.Context, db *sql.DB, template notificationTemplate, recipient notificationRecipientCandidate, input notificationCampaignInput, result emailSendResult) error {
+	if result.Status != "error" {
+		return nil
+	}
+	return recordOperationLog(ctx, db, operationLogInput{
+		Source:     "email",
+		Level:      "error",
+		Operation:  "notification.campaign.send",
+		Status:     "error",
+		Message:    result.Error,
+		EntityType: "notification_recipient",
+		EntityID:   recipient.ID,
+		Metadata: map[string]any{
+			"campaignId":      input.CampaignID,
+			"templateCode":    template.Code,
+			"templateVersion": template.Version,
+			"invoiceId":       recipient.InvoiceID,
+			"invoiceCode":     recipient.InvoiceCode,
+			"recipientEmail":  recipient.RecipientEmail,
+			"dryRun":          input.DryRun,
+			"transient":       result.Transient,
+		},
+	})
 }
 
 func notificationPaymentRow(invoice invoiceDocument, recipient notificationRecipientCandidate) paymentRow {

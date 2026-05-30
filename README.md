@@ -104,14 +104,16 @@ go run . migrate up
 
 `ABC_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `ABC_DATABASE_URL_LOCAL`, `ABC_DATABASE_URL_STAGING`, `ABC_DATABASE_URL_PRODUCTION`; sau đó fallback sang `ABC_DATABASE_URL` và `DATABASE_URL`.
 
-Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice.
+Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice. Schema vận hành tạo `operation_logs` để giữ lỗi webhook, email và background job cho production review.
 
 Quy ước production hiện tại:
 
 - Primary key dùng UUID do PostgreSQL sinh bằng `gen_random_uuid()`.
 - Bảng vận hành có `created_at`, `updated_at`, `created_by_user_id`, `updated_by_user_id` khi cần audit actor.
+- Phiếu thu tiền mặt và điều chỉnh phí cần lý do; app ghi thêm audit log bất biến cho các thay đổi này.
 - Secret chỉ đi qua environment hoặc secret manager, không commit vào file tracked.
 - Runbook backup/restore: `docs/runbooks/backup-restore.md`.
+- Runbook deployment, incident, staging smoke test và readiness checklist: `docs/runbooks/production-operations.md`.
 
 Endpoint PNG test nhanh:
 
@@ -244,7 +246,7 @@ Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải t
 
 Tab `Dashboard` tổng hợp công nợ production từ hóa đơn và ledger thanh toán: tổng cần thu, đã thu, còn thiếu, tỷ lệ thu, số học sinh unpaid, partial, overpaid/manual review, giao dịch chưa match và top lớp còn phải thu. Bộ lọc hỗ trợ năm học, khối, lớp, kỳ thu, tháng và trạng thái invoice.
 
-Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp và chi tiết hóa đơn export-ready. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user và gán role qua API. Các write endpoint user admin yêu cầu header quyền nội bộ `X-ABC-Admin-Permission` tương ứng với permission seed trong migration; đây là lớp contract API hiện tại, chưa thay thế hệ thống đăng nhập production đầy đủ.
+Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi tiết hóa đơn, và export CSV cho lớp, hóa đơn, giao dịch. Tab `Vận hành` đọc `operation_logs` và `audit_logs` để kiểm tra lỗi webhook/email/background job và audit thay đổi tiền/phí. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user và gán role qua API. Các write endpoint user admin yêu cầu header quyền nội bộ `X-ABC-Admin-Permission` tương ứng với permission seed trong migration; đây là lớp contract API hiện tại, chưa thay thế hệ thống đăng nhập production đầy đủ.
 
 ## API
 
@@ -272,7 +274,7 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp và chi
 - `GET /api/v1/payments/transactions`: danh sách giao dịch ledger, hỗ trợ `provider`, `status`, `limit`.
 - `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, summary, invoices, transactions, intents.
 - `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos`, lưu raw event, parse transaction và đối soát.
-- `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice.
+- `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice; yêu cầu lý do audit qua `reason`.
 - `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
 - `GET /api/v1/notifications/templates`: danh sách notification template/version.
 - `GET /api/v1/notifications/campaigns`: danh sách campaign đã lưu.
@@ -282,6 +284,9 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp và chi
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
 - `GET /api/v1/admin/dashboard`: dashboard công nợ, hỗ trợ `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
 - `GET /api/v1/admin/reports`: báo cáo theo lớp và hóa đơn, hỗ trợ cùng bộ lọc dashboard.
+- `GET /api/v1/admin/reports/export?dataset=classes|invoices|transactions`: export CSV theo bộ lọc báo cáo.
+- `GET /api/v1/admin/audit-logs`: đọc audit log bất biến, hỗ trợ `action`, `entityType`, `limit`.
+- `GET /api/v1/admin/operation-logs`: đọc operational log, hỗ trợ `source`, `level`, `limit`.
 - `GET /api/v1/admin/users`: danh sách user, role, permission.
 - `POST /api/v1/admin/users/save`: tạo/cập nhật user; yêu cầu `X-ABC-Admin-Permission: system.users.write`.
 - `POST /api/v1/admin/users/roles`: gán role cho user; yêu cầu `X-ABC-Admin-Permission: system.users.assign_roles`.

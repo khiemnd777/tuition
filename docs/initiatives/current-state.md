@@ -4,13 +4,13 @@ Last updated: 2026-05-30
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, notification campaigns, and production Web Admin screens complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, notification campaigns, production Web Admin screens, reports/export, audit review, and operational readiness complete.
 
-Current phase: `initiative_7_complete`
+Current phase: `initiative_8_complete`
 
 Current initiative: none
 
-Next recommended initiative: `Initiative 8: Reports, Audit, And Operations`
+Next recommended initiative: none; production module roadmap is complete. A future initiative should focus on full authentication/RBAC enforcement, production provider hardening, or deployment automation if requested.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md`
 
@@ -99,10 +99,16 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md`
   - Added the `Dashboard`, `Báo cáo`, and `Người dùng` UI workflows while preserving existing `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, and `Thông báo` workflows.
   - Added focused tests for dashboard/report aggregation, attention invoice ordering, user input normalization, and migration permission seeds.
   - Updated README docs and glossary terms.
+- Initiative 8: Reports, Audit, And Operations is complete:
+  - Added report CSV exports for class summaries, invoice detail, and payment transactions using the existing admin report filters.
+  - Added immutable audit capture for fee schedule saves, student fee adjustments, and manual cash receipts with actor/reason metadata.
+  - Added `operation_logs` and the `Vận hành` UI for webhook, notification email, and email cron/background job failure review.
+  - Required manual cash receipt reasons and UI operator names for saved fee adjustments.
+  - Added operation/audit APIs, report export permissions, tests, README/API docs, glossary terms, backup verification notes, and production operations runbook.
 
 ## Not Started
 
-- Production operations exports, immutable audit review screens, webhook/email/background-job operational logs, deployment readiness checklist, and staging smoke tests have not been implemented.
+- No production roadmap initiative remains. Full login/authentication and production deployment automation are outside the completed roadmap and should be scoped separately.
 
 ## Agent Protocol
 
@@ -123,7 +129,7 @@ The agent must:
    - completed work
    - next recommended initiative
    - any known blockers
-4. If the user asked to continue, start the next recommended initiative unless the user specifies a different initiative.
+4. If the user asked to continue, report that the roadmap is complete unless they specify a new initiative.
 5. Use repo skills before implementation:
    - `$abcsun-change-workflow` by default
    - `$abcsun-vietqr-payments` for QR/payment/invoice amount behavior
@@ -136,7 +142,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Start Initiative 8 from docs/initiatives/production-module-roadmap.md. Build reporting, audit, exports, and operational readiness for production. Preserve current VietQR/payment reconciliation, notification campaign, and Web Admin behavior, and update docs/initiatives/current-state.md when finished.
+The production module roadmap is complete through Initiative 8. If continuing, propose the next separately scoped production-hardening initiative, such as full authentication/RBAC enforcement, deployment automation, or production payment-provider hardening.
 ```
 
 ## Known Safety Constraints

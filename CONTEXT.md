@@ -84,7 +84,7 @@ A ledger entry for money movement from a provider webhook or manual cash receipt
 The auditable link between a payment transaction and an invoice. It records match type, score, applied amount, and reason.
 
 **Manual cash receipt**:
-A staff-entered cash collection record for an invoice. It creates a payment transaction and a reconciliation match with collector, timestamp, amount, and receipt reference.
+A staff-entered cash collection record for an invoice. It creates a payment transaction and a reconciliation match with collector, timestamp, amount, receipt reference, and audit reason.
 
 **Notification template**:
 A versioned invoice-email template used by notification campaigns. Baseline templates are first payment notice and payment reminder.
@@ -102,7 +102,16 @@ The auditable delivery record for a campaign/template/invoice/recipient. It stor
 The production overview built from invoices and payment transactions. It reports receivable, collected, outstanding, collection rate, unpaid/partial/review counts, and top classes by outstanding amount.
 
 **Admin report**:
-A filterable production report over durable invoice and payment data, grouped by class or listed by invoice for accounting review and export preparation.
+A filterable production report over durable invoice and payment data, grouped by class or listed by invoice for accounting review and CSV export preparation.
+
+**Report export**:
+A CSV output generated from the current admin report filter. Current export datasets are class summaries, invoice detail, and payment transactions.
+
+**Audit log**:
+An immutable append-only record in `audit_logs` for money and fee changes. It stores actor context when available, action, entity, reason, and metadata.
+
+**Operation log**:
+A production failure log in `operation_logs` for webhook, email, and background-job issues. It is used for incident review and does not replace the immutable money/fee audit log.
 
 **App user**:
 An administrative user stored in `app_users`. This is separate from students and parents.
@@ -131,11 +140,13 @@ A code seeded in `app_permissions` and attached to roles. Admin write APIs decla
 - An invoice can have payment intents through multiple providers.
 - A provider event can create at most one idempotent payment transaction per provider transaction reference.
 - A payment transaction can match one invoice through reconciliation.
-- Manual cash receipts create payment transactions and reconciliation matches.
+- Manual cash receipts create payment transactions, reconciliation matches, and audit logs.
 - A notification campaign targets many invoices and many notification recipients.
 - A notification recipient belongs to one invoice and one parent billing contact.
 - A notification log records one dry-run, send, skip, or error outcome for one campaign/template/invoice/recipient.
 - An admin dashboard summarizes many invoices and payment transactions.
+- An admin report can export class, invoice, or payment transaction CSV.
+- An operation log can reference a provider event, notification recipient, or background job result.
 - An app user can have many app roles.
 - An app role can have many app permissions.
 
@@ -145,4 +156,5 @@ A code seeded in `app_permissions` and attached to roles. Admin write APIs decla
 - "Amount" can mean raw CSV/JSON amount or payment-item total. In this app, payment-item total wins when payment items exist.
 - "Payment" can mean a payment intent, a provider transaction, a reconciliation match, or an invoice status. Use the precise term above.
 - "Notification" can mean a template, campaign, recipient, or delivery log. Use the precise term above.
+- "Log" can mean audit log, operation log, notification log, provider event, or local cron state. Use the precise term above.
 - "User" can mean an app user, student, parent contact, or operator. Use the precise term above.

@@ -35,6 +35,7 @@
       <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
       <button class="tab-button" type="button" data-tab-target="notificationTab" aria-controls="notificationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">campaign</span><span>Thông báo</span></button>
       <button class="tab-button" type="button" data-tab-target="reportsTab" aria-controls="reportsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo</span></button>
+      <button class="tab-button" type="button" data-tab-target="operationsTab" aria-controls="operationsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Vận hành</span></button>
       <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng</span></button>
       <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
       <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
@@ -313,6 +314,10 @@
             <label class="fee-schedule-notes">
               <span>Ghi chú</span>
               <input id="feeScheduleNotes" />
+            </label>
+            <label class="fee-schedule-operator">
+              <span>Người cập nhật</span>
+              <input id="feeScheduleOperator" placeholder="Tên nhân sự" />
             </label>
           </div>
 
@@ -818,6 +823,9 @@
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo công nợ</span></h2>
             </div>
             <div class="panel-actions">
+              <button id="exportAdminReportClasses" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Lớp CSV</span></button>
+              <button id="exportAdminReportInvoices" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Hóa đơn CSV</span></button>
+              <button id="exportAdminReportTransactions" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Giao dịch CSV</span></button>
               <button id="refreshAdminReports" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
               <span id="adminReportsStatus" class="status-pill">Chưa tải</span>
             </div>
@@ -920,6 +928,109 @@
                 </tr>
               </thead>
               <tbody id="adminReportInvoiceRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="operationsTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace operations-workspace">
+        <section class="panel admin-control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Audit and operations</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Nhật ký vận hành</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshOperations" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="operationsStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="admin-filter-grid">
+            <label>
+              <span>Nguồn</span>
+              <select id="operationSourceFilter">
+                <option value="">Tất cả</option>
+                <option value="webhook">Webhook</option>
+                <option value="email">Email</option>
+                <option value="background_job">Background job</option>
+              </select>
+            </label>
+            <label>
+              <span>Mức</span>
+              <select id="operationLevelFilter">
+                <option value="">Tất cả</option>
+                <option value="error">Error</option>
+                <option value="warn">Warn</option>
+                <option value="info">Info</option>
+              </select>
+            </label>
+            <label>
+              <span>Limit</span>
+              <input id="operationLimit" type="number" min="10" max="500" step="10" value="100" />
+            </label>
+          </div>
+        </section>
+
+        <section class="panel operation-log-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Failure log</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">running_with_errors</span><span>Webhook, email, background job</span></h2>
+            </div>
+            <span id="operationLogCount" class="count-badge">0 log</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table operations-table" aria-label="Operational logs">
+              <colgroup>
+                <col class="admin-code-col" />
+                <col class="admin-small-col" />
+                <col class="admin-status-col" />
+                <col class="admin-message-col" />
+                <col class="admin-code-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Thời điểm</th>
+                  <th scope="col">Nguồn</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col">Thông điệp</th>
+                  <th scope="col">Entity</th>
+                </tr>
+              </thead>
+              <tbody id="operationLogRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel audit-log-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Immutable audit</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Audit tiền và phí</span></h2>
+            </div>
+            <span id="auditLogCount" class="count-badge">0 log</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table operations-table" aria-label="Audit logs">
+              <colgroup>
+                <col class="admin-code-col" />
+                <col class="admin-student-col" />
+                <col class="admin-status-col" />
+                <col class="admin-message-col" />
+                <col class="admin-code-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Thời điểm</th>
+                  <th scope="col">Actor</th>
+                  <th scope="col">Action</th>
+                  <th scope="col">Lý do</th>
+                  <th scope="col">Entity</th>
+                </tr>
+              </thead>
+              <tbody id="auditLogRows"></tbody>
             </table>
           </div>
         </section>
