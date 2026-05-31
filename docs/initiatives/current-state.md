@@ -6,13 +6,13 @@ Last updated: 2026-05-31
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, notification campaigns, production Web Admin screens, reports/export, audit review, and operational readiness complete.
 
-Advanced Production planning has started so the project can move into production hardening and usability work one initiative at a time.
+Advanced Production planning now defines the next usability, workflow, data-relationship, reporting, and operations initiatives so the project can continue one initiative at a time.
 
-Current phase: `advanced_4_complete`
+Current phase: `advanced_5_planned`
 
-Current initiative: Advanced 4 - School Tree Management is complete.
+Current initiative: Advanced 5 - Task-Based Workflow And Navigation is planned.
 
-Next recommended initiative: define the next Advanced Production initiative before implementation.
+Next recommended initiative: start Advanced 5 - Task-Based Workflow And Navigation.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -116,10 +116,26 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 | Advanced 2 | Access/Refresh Token Authentication | Add production-grade login with short-lived access tokens, refresh token rotation/revocation, logout, and session expiry. | Complete |
 | Advanced 3 | RBAC Enforcement | Enforce roles and permissions at the API level, map permissions to routes/actions, hide unauthorized UI actions, and preserve authenticated audit actors. | Complete |
 | Advanced 4 | School Tree Management | Manage the hierarchy `school > school year/cohort > class > tuition/fee schedule/surcharges > students/parents`. | Complete |
+| Advanced 5 | Task-Based Workflow And Navigation | Reframe the admin UI around daily school-accounting tasks, production navigation, context selectors, breadcrumbs, and permission-aware quick actions. | Planned |
+| Advanced 6 | School Tree Relationship Workspace | Make `school > school year/cohort > grade > class` visible, navigable, editable, and connected to students, fee schedules, invoices, and readiness counts. | Planned |
+| Advanced 7 | Student And Parent Relationship Workspace | Make student, parent, guardian, sibling, and billing-recipient relationships explicit with a clear list/detail UI and app-dialog editing. | Planned |
+| Advanced 8 | Data Quality And Readiness Center | Surface blocking and warning issues before fee setup, invoice generation, notification sending, and reconciliation. | Planned |
+| Advanced 9 | Tuition Setup Guided Workflow | Guide operators from school-tree scope selection through fee items, adjustments, preview, save, audit reason, and invoice handoff. | Planned |
+| Advanced 10 | Invoice Issuance Workbench | Turn invoice generation into a step-based workbench with preview, blocking issues, idempotency visibility, QR/PDF detail, and bulk actions. | Planned |
+| Advanced 11 | Communication Campaign Workbench | Make campaign targeting, billing-recipient resolution, dry-run preview, real-send confirmation, send logs, retries, and cron queues explicit. | Planned |
+| Advanced 12 | Collection And Reconciliation Workbench | Center collection and reconciliation around invoices, payment intents, cash receipts, transaction matching, and manual-review queues. | Planned |
+| Advanced 13 | Reports, Audit, And Operations Command Center | Consolidate filtered reports, exports, audit trails, provider/email/cron failures, and operational drilldowns. | Planned |
+| Advanced 14 | Responsive, Accessibility, And UI Polish | Verify and harden all production workflows on desktop and mobile with stable layouts, dialogs, states, and accessible controls. | Planned |
+| Advanced 15 | Onboarding And Operator Guardrails | Add first-run/operator guardrails, role clarity, session recovery, risky-action confirmations, and audit-bound action context. | Planned |
 
 Recommended order:
 
-No remaining Advanced Production initiatives are currently defined.
+1. Advanced 5: establish task-based navigation before deeper screen work.
+2. Advanced 6: make the school/year/grade/class tree the primary setup context.
+3. Advanced 7: make student-parent-billing relationships explicit and actionable.
+4. Advanced 8: add readiness checks so missing data is visible before operators run production workflows.
+5. Advanced 9 through Advanced 12: refine the fee, invoice, notification, and reconciliation workbenches in business-flow order.
+6. Advanced 13 through Advanced 15: harden reports, operations, responsive behavior, onboarding, and guardrails.
 
 Advanced 1 progress:
 
@@ -215,6 +231,331 @@ Advanced 4 completion prompt:
 Advanced 4 is complete. Define the next Advanced Production initiative in docs/initiatives/current-state.md before implementation.
 ```
 
+Advanced 5 launch prompt:
+
+```text
+Start Advanced 5 from docs/initiatives/current-state.md. Reframe the ABC SUN admin UI around task-based school-accounting workflows, production navigation groups, context selectors, breadcrumbs, quick actions, legacy QR-tool demotion, and permission-aware menu/action visibility.
+```
+
+Advanced 5 planning:
+
+- Goal: make the app read like a daily operations workflow instead of a collection of independent modules.
+- Navigation groups:
+  - `Tổng quan`: dashboard and work queue.
+  - `Thiết lập`: school tree, students, parents, users, roles, permissions.
+  - `Học phí`: fee schedules, invoice generation, invoice detail, QR/PDF.
+  - `Thu tiền`: reconciliation, incoming transactions, cash receipt entry, manual review.
+  - `Liên lạc`: notification campaigns, email preview, email config, cron queue.
+  - `Báo cáo & vận hành`: reports, exports, audit logs, operation logs.
+- Demote the legacy `Thanh toán` workflow into a secondary QR/import tool so it does not compete with production invoice workflows.
+- Add top-bar context for current school, school year, period/month, and authenticated operator.
+- Add breadcrumbs for deeper screens, such as `Thiết lập / Học sinh & phụ huynh / Lớp 1A`.
+- Add dashboard quick actions for setup, fee schedule creation, invoice generation, notification preview/send, and reconciliation.
+- Keep existing RBAC behavior by hiding inaccessible menus and actions and avoiding unauthorized data loads.
+- Preserve current tab IDs and data contracts where possible to keep the change low risk.
+- Use app dialog and confirm components for all production create/update/real-action workflows.
+- Do not use native browser `alert`, `confirm`, or `prompt`.
+- Mock up as text:
+
+```text
+Tổng quan / Việc cần xử lý
+
+┌───────────────┬────────────────────────────────────────────────────┐
+│ Tổng quan     │ ABC SUN · 2025-2026 · Kỳ 05/2026 · Operator        │
+│  Dashboard    │                                                    │
+│  Việc cần xử lý│ [12 thiếu recipient] [8 giao dịch chưa khớp]       │
+│               │ [5 lớp chưa có bảng phí] [3 email lỗi]             │
+│ Thiết lập     │                                                    │
+│  Trường/lớp   │ Việc cần xử lý                                     │
+│  Học sinh     │ Lớp 1A chưa có bảng phí kỳ hiện tại      [Mở]      │
+│ Học phí       │ HS001 thiếu phụ huynh nhận phí           [Sửa]     │
+│  Bảng phí     │ Giao dịch GD-889 chưa khớp invoice       [Đối soát]│
+│  Hóa đơn      │                                                    │
+│ Thu tiền      │ Bước nhanh                                         │
+│  Đối soát     │ [Lập bảng phí] [Sinh hóa đơn] [Gửi thông báo]      │
+└───────────────┴────────────────────────────────────────────────────┘
+```
+
+Advanced 6 launch prompt:
+
+```text
+Start Advanced 6 from docs/initiatives/current-state.md. Build a clear School Tree Relationship Workspace for school, school year/cohort, grade, and class, with node details, counts, app-dialog editing, student handoff, fee-schedule handoff, and readiness indicators.
+```
+
+Advanced 6 planning:
+
+- Goal: make `school > school year/cohort > grade > class` visible as the primary setup model.
+- Left pane: tree with school, school year/cohort, grade, and class nodes.
+- Tree node labels should show operational counts where available, such as class count, student count, missing-student count, fee-schedule count, invoice count, and issue count.
+- Selecting a school shows school details, active years, class totals, student totals, and setup warnings.
+- Selecting a school year/cohort shows grades, classes, active period context, student totals, fee schedule readiness, and invoice readiness.
+- Selecting a grade shows all classes in that grade and aggregate totals.
+- Selecting a class shows class detail, student roster, billing readiness, related fee schedules, related invoices, and quick actions.
+- Add/edit school, school year/cohort, and class through app dialogs only.
+- Keep inline tree selection fast and compact, but do not use inline upsert panels for production forms.
+- Add empty states for missing school year, missing class, missing students, and missing fee schedule.
+- Add quick action from class detail to filtered student list.
+- Add quick action from class detail to fee schedule setup with scope preselected.
+- Add quick action from class detail to invoice list/generation for the selected period.
+- Preserve CSV compatibility: missing school in legacy imports defaults to the configured/default school.
+- Preserve RBAC: read-only users can inspect, write users can open save dialogs.
+- Mock up as text:
+
+```text
+Thiết lập / Trường & lớp
+
+┌────────────────────┬───────────────────────────────────────────────┐
+│ Cây trường         │ Chi tiết node đang chọn                       │
+│ ABC SUN            │ Lớp 1A                                        │
+│ └─ 2025-2026       │ Năm học: 2025-2026 · Khối 1 · 32 học sinh     │
+│    ├─ Khối 1       │                                               │
+│    │  ├─ Lớp 1A    │ Readiness                                     │
+│    │  └─ Lớp 1B    │ Billing recipients: 30/32 đủ                 │
+│    └─ Khối 2       │ Bảng phí kỳ 05/2026: chưa có                  │
+│                    │ Hóa đơn kỳ 05/2026: chưa sinh                 │
+│ [+ Trường]         │                                               │
+│ [+ Năm học]        │ [Xem học sinh] [Lập bảng phí] [Sinh hóa đơn]  │
+│ [+ Lớp]            │                                               │
+└────────────────────┴───────────────────────────────────────────────┘
+```
+
+Advanced 7 launch prompt:
+
+```text
+Start Advanced 7 from docs/initiatives/current-state.md. Build a Student And Parent Relationship Workspace that makes class membership, guardians, sibling links, billing-recipient rules, contact health, import conflicts, and dialog-based editing explicit.
+```
+
+Advanced 7 planning:
+
+- Goal: make student, parent, guardian, sibling, and billing-recipient relationships understandable at a glance.
+- Layout: school-tree/context pane, student list pane, student detail pane.
+- Student filters: school, school year, grade, class, text search, billing readiness, missing contact, import conflict state.
+- Search should cover student code, student name, parent name, parent email, and parent phone.
+- Student list should show durable student code, student name, class, billing-recipient count, contact warning, invoice attention count where available.
+- Student detail should show student code, name, school, school year, grade, class, and data quality state.
+- Parent relationship table should show parent name, relationship label, email, phone, primary flag, active flag, email active flag, billing-recipient flag, and warning state.
+- Billing-recipient rule must be visible: a recipient is valid only when parent relationship is active, parent email is active, receives-billing flag is true, and email exists.
+- Support one student with many parents/guardians.
+- Support one parent linked to many students, including siblings.
+- Show sibling links when a parent is shared across multiple students.
+- Dialog editing:
+  - Student identity fields: student code, name, class.
+  - Parent rows: name, relationship, email, phone, primary, active, email active, receives billing.
+  - Add/remove parent rows without layout shifts.
+  - Validate at least one contact method where required by backend rules.
+  - Warn when no valid billing recipient remains.
+- Import workflow:
+  - Keep mapping preview before apply.
+  - Show conflicts by student code, parent identity, class mismatch, email mismatch, and duplicate relationship.
+  - Never silently overwrite mismatched student/parent data.
+- Quick actions: edit student, open invoices, open notifications, open class detail.
+- Mock up as text:
+
+```text
+Thiết lập / Học sinh & phụ huynh
+
+┌────────────────────┬──────────────────────────┬──────────────────────┐
+│ Cây trường         │ Danh sách học sinh        │ Chi tiết học sinh     │
+│ ABC SUN            │ [Search] [Khối] [Lớp]     │ HS001 - Nguyễn An     │
+│ └─ 2025-2026       │ [Thiếu contact ▾]         │ Lớp 1A · 2025-2026   │
+│    └─ Khối 1       │ HS001 Nguyễn An      1A   │                      │
+│       └─ Lớp 1A    │ HS002 Trần Bình      1A   │ Phụ huynh             │
+│                    │ HS003 Lê Chi         1A   │ Mẹ · chính · nhận phí │
+│                    │                          │ Bố · phụ · không gửi  │
+│ [+ Học sinh]       │ [+ Học sinh] [Import]     │ [Sửa] [Xem hóa đơn]   │
+└────────────────────┴──────────────────────────┴──────────────────────┘
+```
+
+Advanced 8 launch prompt:
+
+```text
+Start Advanced 8 from docs/initiatives/current-state.md. Add a Data Quality And Readiness Center that surfaces blocking and warning issues before fee setup, invoice generation, notification sending, and reconciliation.
+```
+
+Advanced 8 planning:
+
+- Goal: prevent operators from discovering missing data only after running a workflow.
+- Add a dashboard/work-queue view with severity groups: blocking, warning, informational.
+- Readiness checks:
+  - Student has no class.
+  - Class has no students.
+  - Student has no parent/guardian.
+  - Student has no valid billing recipient.
+  - Billing recipient has no email.
+  - Billing recipient email is marked inactive.
+  - Parent relationship is inactive but selected for billing.
+  - Duplicate student code in import preview.
+  - Parent/student import conflict.
+  - Class has no fee schedule for selected period.
+  - Fee schedule has empty or zero-value required fee items.
+  - Student adjustment lacks reason.
+  - Invoice preview contains blocked students.
+  - Invoice exists but has no QR/payment data.
+  - Invoice is unpaid, partial, overpaid, or manual review.
+  - Incoming transaction is unmatched.
+  - Notification campaign has failed recipients.
+  - Email provider is not configured.
+  - Cron queue has errors or over-limit sends.
+- Each issue should have entity type, entity id, scope, severity, message, and action target.
+- Filters: school, school year, grade, class, period/month, issue type, severity.
+- Each issue row should deep-link to the relevant edit/detail workflow with the right filters preselected.
+- Acceptance: operators can resolve readiness blockers before generating invoices or sending email.
+
+Advanced 9 launch prompt:
+
+```text
+Start Advanced 9 from docs/initiatives/current-state.md. Build a guided Tuition Setup workflow from school-tree scope selection through fee items, adjustments, preview, save, audit reason, and invoice handoff.
+```
+
+Advanced 9 planning:
+
+- Goal: make fee schedule setup deterministic, scoped, previewable, and auditable.
+- Scope selection should come from school, school year, grade, class, period, and month.
+- Fee items should include tuition, lunch, shuttle, uniform, insurance, materials, previous fees, and custom fees.
+- Fee item labels should keep Vietnamese and English labels where supported.
+- Allow per-student adjustments: discount, surcharge, waiver, carry-over.
+- Require reason for adjustments.
+- Preview totals by student before save.
+- Show issues for missing students, empty class, invalid amount, missing adjustment reason, and no valid billing recipient.
+- Saving should preserve `PaymentItems` total-overrides-amount behavior downstream.
+- Saved schedules list should show scope, period, item count, student count, total preview, updated actor, and updated timestamp.
+- Quick action from saved schedule to invoice preview/generation.
+- Acceptance: previewed totals match invoice item totals after generation.
+
+Advanced 10 launch prompt:
+
+```text
+Start Advanced 10 from docs/initiatives/current-state.md. Build an Invoice Issuance Workbench with step-based preview, blocking issues, idempotency visibility, generated invoice list, QR/PDF detail, and bulk actions.
+```
+
+Advanced 10 planning:
+
+- Goal: make invoice generation safe, transparent, and invoice-centered.
+- Step 1: select scope and saved fee schedule.
+- Step 2: preview generated invoice rows.
+- Step 3: show blocking issues and warnings.
+- Step 4: confirm invoice generation.
+- Show idempotency state: not generated, already generated, regenerated only if supported by explicit operator action.
+- Invoice preview rows should show student, class, line-item count, total, billing-recipient state, and issue state.
+- Generated invoice list should show invoice code, student, class, period, total, paid amount, outstanding, status, sent state, QR/payment state, PDF state.
+- Invoice detail should show immutable line-item snapshot, adjustments, QR, bill number, PDF link, payment history, notification history, and status history.
+- Bulk actions: export CSV, open PDF, generate missing QR/payment intent, open notification flow for selected unpaid invoices.
+- Acceptance: no duplicate invoices for the same class/period/default generation path.
+
+Advanced 11 launch prompt:
+
+```text
+Start Advanced 11 from docs/initiatives/current-state.md. Build a Communication Campaign Workbench with recipient resolution, dry-run preview, email preview, send confirmation, logs, retries, cron queues, and paid-invoice safeguards.
+```
+
+Advanced 11 planning:
+
+- Goal: make invoice-based communication safe and inspectable before any real email is sent.
+- Campaign types: first payment notice, reminder, paid receipt/confirmation where supported.
+- Target filters: school, school year, grade, class, period, due date, invoice status, campaign type.
+- Recipient resolver should use active parent relationships with active billing email flags.
+- Dry-run is the default validation path.
+- Preview should show recipient email, parent name, student name, invoice code, amount, status, and QR availability.
+- Email preview should show subject and rendered HTML for selected template and selected recipient/invoice.
+- Real send must use confirm dialog and `confirmSend`.
+- Paid invoices must be excluded from reminder campaigns.
+- Logs should show campaign, template version, invoice, recipient, provider, status, provider message id, error, and timestamp.
+- Retry should be explicit and idempotent unless operator deliberately re-sends.
+- Cron controls should show enabled state, send time, daily limit, queued count, sent count, error count, and recent results.
+- Acceptance: operators know exactly which parent email receives which invoice before sending.
+
+Advanced 12 launch prompt:
+
+```text
+Start Advanced 12 from docs/initiatives/current-state.md. Build a Collection And Reconciliation Workbench centered on invoices, payment intents, cash receipts, transaction matching, underpayment, overpayment, and manual-review queues.
+```
+
+Advanced 12 planning:
+
+- Goal: make every money movement visible from the invoice and every unmatched transaction actionable.
+- Summary should show receivable, collected, outstanding, collection rate, unpaid, partial, overpaid, manual review, and unmatched transaction counts.
+- Invoice ledger filters: school, school year, grade, class, period, provider, invoice status, transaction status.
+- Invoice row actions: view detail, create payment intent/QR, enter cash receipt, open PDF, open notification.
+- Invoice detail should show total, paid amount, outstanding, payment intents, transactions, reconciliation matches, status history, and collection account/reference.
+- Payment intent detail should show provider, provider reference, payment URL when available, QR, expiry/status where available.
+- Cash receipt dialog must require amount, collector/operator, reason, and optional receipt reference.
+- Transaction table should show provider, reference, account, amount, description, received time, matched invoice, match confidence/reason, and status.
+- Matching explanation should show invoice code, amount, provider reference, collection account, and mismatch reasons.
+- Underpayment should mark invoice partial.
+- Exact payment should mark invoice paid.
+- Overpayment should mark invoice overpaid or manual review according to existing policy.
+- Duplicate webhook/event should not duplicate ledger entries.
+- Acceptance: unmatched and manual-review items are easy to find and do not hide among paid invoices.
+
+Advanced 13 launch prompt:
+
+```text
+Start Advanced 13 from docs/initiatives/current-state.md. Build a Reports, Audit, And Operations Command Center with scoped report filters, exports, audit drilldowns, operation logs, and provider/email/cron failure review.
+```
+
+Advanced 13 planning:
+
+- Goal: make end-of-day review and troubleshooting possible from one operations area.
+- Report filters should reuse school, school year, grade, class, period, month, status, and provider context.
+- Class summary report: receivable, collected, outstanding, collection rate, unpaid count, partial count, paid count.
+- Invoice detail report: student, class, invoice code, period, total, paid amount, outstanding, status, sent state, provider state.
+- Payment transaction export: provider, reference, amount, account, matched invoice, received timestamp, status.
+- Export CSV should preserve current filters.
+- Audit log should show actor, action, entity type, entity id, reason, timestamp, and immutable details.
+- Operation logs should group webhook, email, cron, and background job failures.
+- Log detail should avoid secrets and raw credentials.
+- Drilldowns should open the related invoice, student, class, campaign, or transaction when ids are available.
+- Acceptance: operator can explain who changed data, what failed, and what still needs action.
+
+Advanced 14 launch prompt:
+
+```text
+Start Advanced 14 from docs/initiatives/current-state.md. Verify and harden responsive behavior, accessibility, layout stability, dialog behavior, empty/loading/error states, and visual polish across all production workflows.
+```
+
+Advanced 14 planning:
+
+- Goal: make the production UI reliable across desktop and mobile without layout overlap or confusing state changes.
+- Check desktop and mobile layouts for every production workflow.
+- Tables may scroll horizontally but must not expand the page viewport.
+- Detail panels collapse cleanly on mobile.
+- Fixed-format UI such as toolbars, status pills, icon buttons, counters, and table cells should not resize unexpectedly on hover or status update.
+- Text must not overflow buttons, cards, pills, table cells, or dialog actions.
+- Dialogs should manage focus, error display, close behavior, and action loading states consistently.
+- Buttons should use icons where familiar and labels where actions need text.
+- Empty states, loading states, success states, and error states should be consistent.
+- Selected row styling should be consistent across student, invoice, and reconciliation tables.
+- No nested cards for page sections.
+- No native browser `alert`, `confirm`, or `prompt`.
+- Browser verification should cover the changed workflows.
+- Acceptance: no overlapping UI, no major layout shift, and no unusable workflow on mobile.
+
+Advanced 15 launch prompt:
+
+```text
+Start Advanced 15 from docs/initiatives/current-state.md. Add onboarding and operator guardrails for first-run setup, role clarity, session recovery, risky-action confirmations, audit-bound actions, and secret-safe operational UI.
+```
+
+Advanced 15 planning:
+
+- Goal: reduce operator mistakes during setup and production use.
+- First-run checklist after bootstrap admin:
+  - Create or verify school.
+  - Create school year/cohort.
+  - Create classes.
+  - Import students and parents.
+  - Resolve missing billing recipients.
+  - Configure email provider.
+  - Create first fee schedule.
+  - Preview first invoice batch.
+- Role templates should be understandable for Admin, Staff, and Accountant.
+- Permission summaries should show what a user can view, create, update, send, reconcile, export, and administer.
+- Session expiry should return to login cleanly and recover context where practical.
+- Risky actions should have clear confirm dialogs: send real email, run cron now, generate invoices, apply import, save fee adjustments, enter cash receipt, disable cron.
+- Audit-bound actions should show current actor and reason requirements when applicable.
+- Do not show secrets or local config values in UI/logs.
+- Acceptance: first-time operators know the minimum setup path and risky actions remain intentional.
+
 ## Completed Follow-up: User Contact Bootstrap And Canonical RBAC
 
 User request:
@@ -234,7 +575,17 @@ Completed:
 
 ## Not Started
 
-- None.
+- Advanced 5 - Task-Based Workflow And Navigation.
+- Advanced 6 - School Tree Relationship Workspace.
+- Advanced 7 - Student And Parent Relationship Workspace.
+- Advanced 8 - Data Quality And Readiness Center.
+- Advanced 9 - Tuition Setup Guided Workflow.
+- Advanced 10 - Invoice Issuance Workbench.
+- Advanced 11 - Communication Campaign Workbench.
+- Advanced 12 - Collection And Reconciliation Workbench.
+- Advanced 13 - Reports, Audit, And Operations Command Center.
+- Advanced 14 - Responsive, Accessibility, And UI Polish.
+- Advanced 15 - Onboarding And Operator Guardrails.
 
 ## Agent Protocol
 
