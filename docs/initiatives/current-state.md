@@ -1,6 +1,6 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 
 ## Current Status
 
@@ -8,11 +8,11 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production planning has started so the project can move into production hardening and usability work one initiative at a time.
 
-Current phase: `advanced_1_complete`
+Current phase: `advanced_4_complete`
 
-Current initiative: Advanced 1 - Restructure Layout/UI is complete.
+Current initiative: Advanced 4 - School Tree Management is complete.
 
-Next recommended initiative: Advanced 2 - Access/Refresh Token Authentication.
+Next recommended initiative: define the next Advanced Production initiative before implementation.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -113,15 +113,13 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 | Initiative | Name | Goal | Status |
 | --- | --- | --- | --- |
 | Advanced 1 | Restructure Layout/UI | Rework the Web Admin into straightforward main menu, submenu, list screens, and detail pages so users do not have too many workflows on one screen. | Complete |
-| Advanced 2 | Access/Refresh Token Authentication | Add production-grade login with short-lived access tokens, refresh token rotation/revocation, logout, and session expiry. | Not Started |
-| Advanced 3 | RBAC Enforcement | Enforce roles and permissions at the API level, map permissions to routes/actions, hide unauthorized UI actions, and preserve authenticated audit actors. | Not Started |
-| Advanced 4 | School Tree Management | Manage the hierarchy `school > school year/cohort > class > tuition/fee schedule/surcharges > students/parents`. | Not Started |
+| Advanced 2 | Access/Refresh Token Authentication | Add production-grade login with short-lived access tokens, refresh token rotation/revocation, logout, and session expiry. | Complete |
+| Advanced 3 | RBAC Enforcement | Enforce roles and permissions at the API level, map permissions to routes/actions, hide unauthorized UI actions, and preserve authenticated audit actors. | Complete |
+| Advanced 4 | School Tree Management | Manage the hierarchy `school > school year/cohort > class > tuition/fee schedule/surcharges > students/parents`. | Complete |
 
 Recommended order:
 
-1. Advanced 2: Access/Refresh Token Authentication.
-2. Advanced 3: RBAC Enforcement.
-3. Advanced 4: School Tree Management.
+No remaining Advanced Production initiatives are currently defined.
 
 Advanced 1 progress:
 
@@ -152,10 +150,45 @@ Advanced 2 launch prompt:
 Start Advanced 2 from docs/initiatives/current-state.md. Build production-grade login for ABC SUN with access tokens, refresh token rotation and revocation, logout, session expiry, and secure browser session handling.
 ```
 
+Advanced 2 progress:
+
+- Advanced 2 is complete.
+  - Added auth schema with `password_hash` on `app_users`, auth sessions, access tokens, and rotated refresh tokens.
+  - Added login, session, refresh, and logout APIs with HttpOnly SameSite browser cookies.
+  - Stored only token hashes in PostgreSQL; refresh tokens are single-use and session revocation is recorded.
+  - Added bootstrap admin support through `ABC_AUTH_BOOTSTRAP_EMAIL`, `ABC_AUTH_BOOTSTRAP_PASSWORD`, and `ABC_AUTH_BOOTSTRAP_DISPLAY_NAME`.
+  - Protected production API routes with access-token middleware while keeping auth endpoints, provider webhooks, and QR PNG public.
+  - Preserved authenticated audit actor context and added optional password setting in the user admin screen.
+  - Added login/logout UI, session refresh handling, expiry recovery, tests, and docs.
+
+Advanced 2 completion prompt:
+
+```text
+Advanced 2 is complete. Continue with Advanced 3 from docs/initiatives/current-state.md when ready.
+```
+
 Advanced 3 launch prompt:
 
 ```text
 Start Advanced 3 from docs/initiatives/current-state.md. Enforce RBAC at the API level for ABC SUN, map permissions to routes and UI actions, and preserve authenticated audit actors.
+```
+
+Advanced 3 progress:
+
+- Advanced 3 is complete.
+  - Added a central server-side RBAC route map for protected `/api/v1` endpoints.
+  - Enforced permissions from authenticated user roles instead of trusting `X-ABC-Admin-Permission`.
+  - Kept auth endpoints, provider webhooks, and QR PNG public; kept bank options authenticated-only.
+  - Added dynamic permission resolution for shared import-field and email-config endpoints.
+  - Added email config/send/cron permission seeds in migration `0010_rbac_permissions`.
+  - Preserved authenticated audit actor context for audited writes.
+  - Updated the UI to hide unauthorized menus/actions, remove spoofable permission headers, and avoid loading workflows the user cannot access.
+  - Added RBAC tests for route coverage, sensitive route mappings, dynamic resolvers, and header spoof rejection.
+
+Advanced 3 completion prompt:
+
+```text
+Advanced 3 is complete. Continue with Advanced 4 from docs/initiatives/current-state.md when ready.
 ```
 
 Advanced 4 launch prompt:
@@ -164,11 +197,44 @@ Advanced 4 launch prompt:
 Start Advanced 4 from docs/initiatives/current-state.md. Build tree-based management for school, school year/cohort, class, tuition and fee structures, students, and parents.
 ```
 
+Advanced 4 progress:
+
+- Advanced 4 is complete.
+  - Added `schools` and `school_id` on `school_years` through migration `0011_school_tree_management`.
+  - Backfilled existing school-year data into default school `ABC_SUN`.
+  - Added server-side school tree APIs for reading the tree and saving schools, school years/cohorts, and classes.
+  - Kept legacy master-data CSV compatible by making `school` optional and defaulting to `ABC_SUN`.
+  - Extended master-data options/students with school metadata and `schoolId` filtering.
+  - Added route-level RBAC for school tree read/write APIs using `master_data.read` and `master_data.write`.
+  - Added a `Học sinh` school-tree panel with node-driven filters, compact edit forms, and a quick path into related fee schedules.
+  - Added tests for migration coverage, school tree aggregation, input normalization, and RBAC route mapping.
+
+Advanced 4 completion prompt:
+
+```text
+Advanced 4 is complete. Define the next Advanced Production initiative in docs/initiatives/current-state.md before implementation.
+```
+
+## Completed Follow-up: User Contact Bootstrap And Canonical RBAC
+
+User request:
+
+```text
+Add user management with Name, Phone, Email where Phone or Email is required, role dropdown multi-select for Admin/Staff/Accountant, canonical permissions, and first-admin bootstrap UI when app_users is empty.
+```
+
+Completed:
+
+- Added migration `0012_user_contacts_and_roles` to add `app_users.phone`, relax email-only identity, enforce Email-or-SĐT contact, seed roles `admin`, `staff`, `accountant`, and seed canonical `{module}.{action}` permissions.
+- Added public auth bootstrap status/create API at `/api/v1/auth/bootstrap`; when no users exist, the UI shows the first Admin creation form before login.
+- Updated login to accept Email or SĐT, while preserving HttpOnly access/refresh token behavior.
+- Updated user admin API and UI to manage Tên, Email, SĐT, Password, Status, and multi-select role dropdown.
+- Mapped protected routes to canonical permissions such as `user.view`, `student.update`, `invoice.create`, `payment.reconcile`, `report.export`, and kept legacy permission aliases for migrated roles.
+- Updated tests and docs for user contact validation, bootstrap/login identifier behavior, migration coverage, and RBAC route mapping.
+
 ## Not Started
 
-- Advanced 2: Access/Refresh Token Authentication.
-- Advanced 3: RBAC Enforcement.
-- Advanced 4: School Tree Management.
+- None.
 
 ## Agent Protocol
 
@@ -202,7 +268,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-The production module roadmap is complete through Initiative 8. Continue with Advanced 2 from docs/initiatives/current-state.md: build production-grade login for ABC SUN with access tokens, refresh token rotation and revocation, logout, session expiry, and secure browser session handling.
+The production module roadmap is complete through Initiative 8 and Advanced 4 is complete. Review docs/initiatives/current-state.md and define the next Advanced Production initiative before implementation.
 ```
 
 ## Known Safety Constraints

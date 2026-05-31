@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-const adminPermissionHeader = "X-ABC-Admin-Permission"
-
 type adminFilters struct {
 	SchoolYearID string
 	ClassID      string
@@ -104,8 +102,10 @@ type adminUsersResponse struct {
 type adminUserSummary struct {
 	ID          string             `json:"id"`
 	Email       string             `json:"email"`
+	Phone       string             `json:"phone"`
 	DisplayName string             `json:"displayName"`
 	Status      string             `json:"status"`
+	HasPassword bool               `json:"hasPassword"`
 	LastLoginAt string             `json:"lastLoginAt,omitempty"`
 	CreatedAt   time.Time          `json:"createdAt"`
 	UpdatedAt   time.Time          `json:"updatedAt"`
@@ -130,8 +130,10 @@ type adminPermissionSummary struct {
 type adminUserSaveInput struct {
 	ID          string `json:"id,omitempty"`
 	Email       string `json:"email"`
+	Phone       string `json:"phone"`
 	DisplayName string `json:"displayName"`
 	Status      string `json:"status"`
+	Password    string `json:"password,omitempty"`
 }
 
 type adminUserRoleInput struct {
@@ -245,9 +247,6 @@ func handleAdminRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
-	if !requireAdminAPIPermission(w, r, "system.users.write") {
-		return
-	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input adminUserSaveInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -256,6 +255,13 @@ func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := validateAdminUserSaveInput(&input); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	permission := "user.create"
+	if input.ID != "" {
+		permission = "user.update"
+	}
+	if !requireAdminAPIPermission(w, r, permission) {
 		return
 	}
 
@@ -275,7 +281,7 @@ func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
-	if !requireAdminAPIPermission(w, r, "system.users.assign_roles") {
+	if !requireAdminAPIPermission(w, r, "user.assign_role") {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
@@ -317,8 +323,8 @@ func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 func requireAdminAPIPermission(w http.ResponseWriter, r *http.Request, permission string) bool {
-	for _, value := range strings.Split(r.Header.Get(adminPermissionHeader), ",") {
-		if strings.TrimSpace(value) == permission {
+	if user, ok := authenticatedUserFromRequest(r); ok {
+		if authenticatedUserHasPermission(user, permission) {
 			return true
 		}
 	}
@@ -658,6 +664,9 @@ ORDER BY code`)
 		if err := rows.Scan(&item.ID, &item.Code, &item.Description); err != nil {
 			return nil, err
 		}
+		if !isCanonicalAdminPermissionCode(item.Code) {
+			continue
+		}
 		permissions = append(permissions, item)
 	}
 	return permissions, rows.Err()
@@ -676,7 +685,13 @@ SELECT r.id::text,
 FROM app_roles r
 LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
 LEFT JOIN app_permissions p ON p.id = rp.permission_id
-ORDER BY r.code, p.code`)
+WHERE r.code IN ('admin', 'staff', 'accountant')
+ORDER BY CASE r.code
+	WHEN 'admin' THEN 1
+	WHEN 'staff' THEN 2
+	WHEN 'accountant' THEN 3
+	ELSE 99
+END, p.code`)
 	if err != nil {
 		return nil, err
 	}
@@ -708,7 +723,7 @@ ORDER BY r.code, p.code`)
 			roleByID[roleID] = existing
 			roleOrder = append(roleOrder, roleID)
 		}
-		if permission.Code != "" {
+		if permission.Code != "" && isCanonicalAdminPermissionCode(permission.Code) {
 			existing.Permissions = append(existing.Permissions, permission)
 		}
 	}
@@ -725,9 +740,11 @@ ORDER BY r.code, p.code`)
 func listAdminUsers(ctx context.Context, db *sql.DB) ([]adminUserSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT u.id::text,
-	u.email,
+	COALESCE(u.email, ''),
+	u.phone,
 	u.display_name,
 	u.status,
+	u.password_hash <> '',
 	u.last_login_at,
 	u.created_at,
 	u.updated_at,
@@ -755,8 +772,10 @@ ORDER BY lower(u.email), r.code`)
 		if err := rows.Scan(
 			&userID,
 			&user.Email,
+			&user.Phone,
 			&user.DisplayName,
 			&user.Status,
+			&user.HasPassword,
 			&lastLogin,
 			&user.CreatedAt,
 			&user.UpdatedAt,
@@ -796,16 +815,31 @@ ORDER BY lower(u.email), r.code`)
 func validateAdminUserSaveInput(input *adminUserSaveInput) error {
 	input.ID = strings.TrimSpace(input.ID)
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	input.Phone = normalizeAdminPhone(input.Phone)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.Status = headerKey(input.Status)
+	input.Password = strings.TrimSpace(input.Password)
 	if input.Status == "" {
 		input.Status = "active"
 	}
-	if input.Email == "" || !strings.Contains(input.Email, "@") {
+	if input.Email == "" && input.Phone == "" {
+		return fmt.Errorf("email or phone is required")
+	}
+	if input.Email != "" && !strings.Contains(input.Email, "@") {
 		return fmt.Errorf("valid email is required")
 	}
+	if input.Phone != "" {
+		if err := validateAdminPhone(input.Phone); err != nil {
+			return err
+		}
+	}
 	if input.DisplayName == "" {
-		input.DisplayName = input.Email
+		input.DisplayName = firstNonEmpty(input.Email, input.Phone)
+	}
+	if input.Password != "" {
+		if err := validateAuthPassword(input.Password); err != nil {
+			return err
+		}
 	}
 	switch input.Status {
 	case "active", "inactive", "suspended":
@@ -815,14 +849,57 @@ func validateAdminUserSaveInput(input *adminUserSaveInput) error {
 	}
 }
 
+func normalizeAdminPhone(value string) string {
+	value = strings.TrimSpace(value)
+	var builder strings.Builder
+	for idx, char := range value {
+		switch {
+		case char >= '0' && char <= '9':
+			builder.WriteRune(char)
+		case char == '+' && idx == 0:
+			builder.WriteRune(char)
+		case char == ' ' || char == '-' || char == '.' || char == '(' || char == ')':
+			continue
+		default:
+			builder.WriteRune(char)
+		}
+	}
+	return builder.String()
+}
+
+func validateAdminPhone(phone string) error {
+	digits := phone
+	if strings.HasPrefix(digits, "+") {
+		digits = strings.TrimPrefix(digits, "+")
+	}
+	if len(digits) < 8 || len(digits) > 15 {
+		return fmt.Errorf("valid phone is required")
+	}
+	for _, char := range digits {
+		if char < '0' || char > '9' {
+			return fmt.Errorf("valid phone is required")
+		}
+	}
+	return nil
+}
+
 func saveAdminUser(ctx context.Context, db *sql.DB, input adminUserSaveInput) (adminUserSummary, error) {
+	passwordHash := ""
+	if input.Password != "" {
+		var err error
+		passwordHash, err = hashPassword(input.Password)
+		if err != nil {
+			return adminUserSummary{}, err
+		}
+	}
 	if input.ID == "" {
 		var existingID string
 		err := db.QueryRowContext(ctx, `
 SELECT id::text
 FROM app_users
-WHERE lower(email) = lower($1)
-LIMIT 1`, input.Email).Scan(&existingID)
+WHERE ($1 <> '' AND lower(COALESCE(email, '')) = lower($1))
+	OR ($2 <> '' AND phone = $2)
+LIMIT 1`, input.Email, input.Phone).Scan(&existingID)
 		if err == nil && existingID != "" {
 			input.ID = existingID
 			return saveAdminUser(ctx, db, input)
@@ -832,13 +909,15 @@ LIMIT 1`, input.Email).Scan(&existingID)
 		}
 		var user adminUserSummary
 		err = db.QueryRowContext(ctx, `
-INSERT INTO app_users (email, display_name, status)
-VALUES ($1, $2, $3)
-RETURNING id::text, email, display_name, status, created_at, updated_at`,
+INSERT INTO app_users (email, phone, display_name, status, password_hash, password_updated_at)
+VALUES ($1, $2, $3, $4, $5, CASE WHEN $5 <> '' THEN now() ELSE NULL END)
+RETURNING id::text, COALESCE(email, ''), phone, display_name, status, password_hash <> '', created_at, updated_at`,
 			input.Email,
+			input.Phone,
 			input.DisplayName,
 			input.Status,
-		).Scan(&user.ID, &user.Email, &user.DisplayName, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+			passwordHash,
+		).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayName, &user.Status, &user.HasPassword, &user.CreatedAt, &user.UpdatedAt)
 		user.Roles = []adminRoleSummary{}
 		return user, err
 	}
@@ -846,15 +925,20 @@ RETURNING id::text, email, display_name, status, created_at, updated_at`,
 	err := db.QueryRowContext(ctx, `
 UPDATE app_users
 SET email = $2,
-	display_name = $3,
-	status = $4
+	phone = $3,
+	display_name = $4,
+	status = $5,
+	password_hash = CASE WHEN $6 <> '' THEN $6 ELSE password_hash END,
+	password_updated_at = CASE WHEN $6 <> '' THEN now() ELSE password_updated_at END
 WHERE id = $1::uuid
-RETURNING id::text, email, display_name, status, created_at, updated_at`,
+RETURNING id::text, COALESCE(email, ''), phone, display_name, status, password_hash <> '', created_at, updated_at`,
 		input.ID,
 		input.Email,
+		input.Phone,
 		input.DisplayName,
 		input.Status,
-	).Scan(&user.ID, &user.Email, &user.DisplayName, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+		passwordHash,
+	).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayName, &user.Status, &user.HasPassword, &user.CreatedAt, &user.UpdatedAt)
 	user.Roles = []adminRoleSummary{}
 	return user, err
 }
@@ -890,7 +974,7 @@ func normalizeAdminRoleCodes(values []string) []string {
 	normalized := []string{}
 	for _, value := range values {
 		code := headerKey(value)
-		if code == "" || seen[code] {
+		if code == "" || seen[code] || !isCanonicalAdminRoleCode(code) {
 			continue
 		}
 		seen[code] = true
@@ -898,4 +982,53 @@ func normalizeAdminRoleCodes(values []string) []string {
 	}
 	sort.Strings(normalized)
 	return normalized
+}
+
+func isCanonicalAdminRoleCode(code string) bool {
+	switch code {
+	case "admin", "staff", "accountant":
+		return true
+	default:
+		return false
+	}
+}
+
+func isCanonicalAdminPermissionCode(code string) bool {
+	switch code {
+	case "user.view",
+		"user.create",
+		"user.update",
+		"user.assign_role",
+		"role.view",
+		"role.update",
+		"student.view",
+		"student.create",
+		"student.update",
+		"school_tree.view",
+		"school_tree.update",
+		"fee.view",
+		"fee.create",
+		"fee.update",
+		"invoice.view",
+		"invoice.create",
+		"invoice.update",
+		"payment.view",
+		"payment.create",
+		"payment.reconcile",
+		"notification.view",
+		"notification.create",
+		"notification.send",
+		"email_config.view",
+		"email_config.update",
+		"email_cron.view",
+		"email_cron.update",
+		"report.view",
+		"report.export",
+		"dashboard.view",
+		"operation_log.view",
+		"audit_log.view":
+		return true
+	default:
+		return false
+	}
 }

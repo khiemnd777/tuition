@@ -10,7 +10,60 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div id="loginScreen" class="login-screen">
+      <section class="login-panel" aria-labelledby="loginTitle">
+        <div class="brand login-brand">
+          <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
+          <div>
+            <p class="eyebrow">ABC SUN</p>
+            <h1 id="loginTitle">QR Generating System</h1>
+            <p>Đăng nhập quản trị học phí</p>
+          </div>
+        </div>
+        <form id="loginForm" class="login-form">
+          <label>
+            <span>Email hoặc SĐT</span>
+            <input id="loginEmail" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="loginPassword" type="password" autocomplete="current-password" required />
+          </label>
+          <button id="loginSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
+          <div id="loginStatus" class="login-status">Đang kiểm tra phiên</div>
+        </form>
+        <form id="bootstrapForm" class="login-form" hidden>
+          <div class="login-mode-head">
+            <p class="section-kicker">Thiết lập ban đầu</p>
+            <h2>Tạo Admin đầu tiên</h2>
+          </div>
+          <label>
+            <span>Tên hiển thị</span>
+            <input id="bootstrapDisplayName" autocomplete="name" />
+          </label>
+          <label>
+            <span>Email</span>
+            <input id="bootstrapEmail" type="email" autocomplete="username" />
+          </label>
+          <label>
+            <span>SĐT</span>
+            <input id="bootstrapPhone" type="tel" autocomplete="tel" />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="bootstrapPassword" type="password" autocomplete="new-password" required />
+          </label>
+          <label>
+            <span>Xác nhận password</span>
+            <input id="bootstrapPasswordConfirm" type="password" autocomplete="new-password" required />
+          </label>
+          <button id="bootstrapSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Tạo Admin</span></button>
+          <div id="bootstrapStatus" class="login-status"></div>
+        </form>
+      </section>
+    </div>
+
+    <div id="appShell" class="app-shell" hidden>
       <aside class="app-sidebar">
         <div class="brand">
           <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
@@ -61,11 +114,17 @@
             <h1 id="currentSectionTitle">Dashboard thu học phí</h1>
             <p id="currentSectionDescription">Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.</p>
           </div>
-          <div class="actions" aria-label="Tác vụ dữ liệu">
-            <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
-            <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-            <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
-            <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
+          <div class="app-bar-actions">
+            <div class="actions" aria-label="Tác vụ dữ liệu">
+              <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
+              <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
+              <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
+            </div>
+            <div class="session-actions" aria-label="Phiên đăng nhập">
+              <span id="authUserBadge" class="auth-user-badge">Chưa đăng nhập</span>
+              <button id="logoutButton" type="button"><span class="mui-icon" aria-hidden="true">logout</span><span>Đăng xuất</span></button>
+            </div>
           </div>
         </header>
 
@@ -302,13 +361,14 @@
             </div>
             <div class="panel-actions">
               <button id="refreshFeeSchedules" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="openFeeScheduleDialog" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Cấu hình</span></button>
               <button id="previewFeeSchedule" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
               <button id="saveFeeSchedule" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu bảng phí</span></button>
               <span id="feeScheduleLoadStatus" class="status-pill">Chưa tải</span>
             </div>
           </div>
 
-          <div class="fee-schedule-grid">
+          <div class="fee-schedule-grid" hidden>
             <label>
               <span>Năm học</span>
               <select id="feeScheduleYear"></select>
@@ -350,7 +410,7 @@
             </label>
           </div>
 
-          <div class="fee-schedule-body">
+          <div class="fee-schedule-body" hidden>
             <section class="fee-schedule-section">
               <div class="fee-section-head">
                 <strong>Khoản phí mặc định</strong>
@@ -457,12 +517,13 @@
             </div>
             <div class="panel-actions">
               <button id="refreshInvoices" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="openInvoiceDialog" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Cấu hình</span></button>
               <button id="previewInvoices" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
               <button id="generateInvoices" class="primary" type="button"><span class="mui-icon" aria-hidden="true">post_add</span><span>Sinh hóa đơn</span></button>
               <span id="invoiceStatus" class="status-pill">Chưa tải</span>
             </div>
           </div>
-          <div class="invoice-toolbar">
+          <div class="invoice-toolbar" hidden>
             <label class="invoice-schedule-field">
               <span>Bảng phí nguồn</span>
               <select id="invoiceSchedule"></select>
@@ -708,10 +769,11 @@
             </div>
             <div class="panel-actions">
               <button id="refreshNotifications" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="openNotificationDialog" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Cấu hình campaign</span></button>
               <span id="notificationStatus" class="status-pill">Chưa tải</span>
             </div>
           </div>
-          <div class="notification-toolbar">
+          <div class="notification-toolbar" hidden>
             <label>
               <span>Tên campaign</span>
               <input id="notificationCampaignName" placeholder="Thông báo thanh toán 2026-04" />
@@ -1077,14 +1139,19 @@
             </div>
             <div class="panel-actions">
               <button id="refreshAdminUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="newAdminUser" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>User mới</span></button>
               <span id="adminUsersStatus" class="status-pill">Chưa tải</span>
             </div>
           </div>
-          <div class="admin-user-form">
+          <div class="admin-user-form" hidden>
             <input id="adminUserId" type="hidden" />
             <label>
               <span>Email</span>
               <input id="adminUserEmail" type="email" placeholder="billing@example.edu.vn" />
+            </label>
+            <label>
+              <span>SĐT</span>
+              <input id="adminUserPhone" type="tel" placeholder="0901234567" />
             </label>
             <label>
               <span>Tên hiển thị</span>
@@ -1097,6 +1164,10 @@
                 <option value="inactive">Inactive</option>
                 <option value="suspended">Suspended</option>
               </select>
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="adminUserPassword" type="password" autocomplete="new-password" placeholder="Để trống nếu không đổi" />
             </label>
             <label class="admin-user-roles-field">
               <span>Roles</span>
@@ -1123,14 +1194,18 @@
               <colgroup>
                 <col class="admin-student-col" />
                 <col class="admin-class-col" />
+                <col class="admin-class-col" />
+                <col class="admin-status-col" />
                 <col class="admin-status-col" />
                 <col class="admin-class-col" />
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">Email</th>
                   <th scope="col">Tên</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">SĐT</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Password</th>
                   <th scope="col">Roles</th>
                 </tr>
               </thead>
@@ -1164,6 +1239,10 @@
           </div>
           <div class="master-toolbar">
             <label>
+              <span>Trường</span>
+              <select id="masterSchoolFilter"></select>
+            </label>
+            <label>
               <span>Năm học</span>
               <select id="masterSchoolYearFilter"></select>
             </label>
@@ -1180,6 +1259,96 @@
               <input id="masterSearch" placeholder="Mã, tên, phụ huynh, email" />
             </label>
             <button id="refreshMasterData" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+          </div>
+        </section>
+
+        <section class="panel master-tree-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">School tree</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">account_tree</span><span>Cây trường</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="openSchoolTreeSchoolDialog" type="button"><span class="mui-icon" aria-hidden="true">apartment</span><span>Trường</span></button>
+              <button id="openSchoolTreeYearDialog" type="button"><span class="mui-icon" aria-hidden="true">event</span><span>Năm học</span></button>
+              <button id="openSchoolTreeClassDialog" type="button"><span class="mui-icon" aria-hidden="true">school</span><span>Lớp</span></button>
+              <span id="schoolTreeCount" class="count-badge">0 node</span>
+            </div>
+          </div>
+          <div class="school-tree-workspace">
+            <div id="schoolTreeList" class="school-tree-list">Chưa tải cây trường</div>
+            <div id="schoolTreeDetail" class="school-tree-detail detail-panel-body">Chưa chọn node</div>
+            <div class="school-tree-editor" hidden>
+              <div id="schoolTreeSchoolEditor" class="tree-editor-group" hidden>
+                <input id="schoolTreeSchoolId" type="hidden" />
+                <label><span>Code trường</span><input id="schoolTreeSchoolCode" placeholder="ABC_SUN" /></label>
+                <label><span>Tên trường</span><input id="schoolTreeSchoolName" placeholder="ABC SUN" /></label>
+                <label><span>Trạng thái</span><select id="schoolTreeSchoolStatus"><option value="active">active</option><option value="archived">archived</option></select></label>
+                <button id="saveSchoolTreeSchool" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu trường</span></button>
+                <button id="newSchoolTreeSchool" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Mới</span></button>
+              </div>
+              <div id="schoolTreeYearEditor" class="tree-editor-group" hidden>
+                <input id="schoolTreeYearId" type="hidden" />
+                <label><span>Trường</span><select id="schoolTreeYearSchool"></select></label>
+                <label><span>Năm học/cohort</span><input id="schoolTreeYearCode" placeholder="2025-2026" /></label>
+                <label><span>Tên hiển thị</span><input id="schoolTreeYearName" placeholder="2025-2026" /></label>
+                <label><span>Trạng thái</span><select id="schoolTreeYearStatus"><option value="active">active</option><option value="archived">archived</option></select></label>
+                <button id="saveSchoolTreeYear" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu năm</span></button>
+                <button id="newSchoolTreeYear" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Mới</span></button>
+              </div>
+              <div id="schoolTreeClassEditor" class="tree-editor-group" hidden>
+                <input id="schoolTreeClassId" type="hidden" />
+                <label><span>Năm học</span><select id="schoolTreeClassYear"></select></label>
+                <label><span>Khối</span><input id="schoolTreeClassGrade" placeholder="1" /></label>
+                <label><span>Lớp</span><input id="schoolTreeClassName" placeholder="1A" /></label>
+                <label><span>Trạng thái</span><select id="schoolTreeClassStatus"><option value="active">active</option><option value="archived">archived</option></select></label>
+                <button id="saveSchoolTreeClass" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu lớp</span></button>
+                <button id="newSchoolTreeClass" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Mới</span></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel master-editor-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Manual upsert</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">edit_note</span><span>Tạo/sửa học sinh</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="newMasterStudent" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>Học sinh mới</span></button>
+              <button id="editMasterStudent" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa học sinh</span></button>
+            </div>
+          </div>
+          <div id="masterStudentEditorContent" hidden>
+            <div class="dialog-inline-actions">
+              <button id="addMasterParent" type="button"><span class="mui-icon" aria-hidden="true">group_add</span><span>Thêm phụ huynh</span></button>
+              <button id="saveMasterStudent" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu học sinh</span></button>
+            </div>
+            <div class="master-student-form">
+              <input id="masterStudentId" type="hidden" />
+              <label>
+                <span>Mã HS</span>
+                <input id="masterStudentCode" placeholder="S001" />
+              </label>
+              <label>
+                <span>Họ tên</span>
+                <input id="masterStudentName" placeholder="Nguyen Van A" />
+              </label>
+              <label>
+                <span>Lớp</span>
+                <select id="masterStudentClass"></select>
+              </label>
+              <label>
+                <span>Trạng thái</span>
+                <select id="masterStudentStatus">
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  <option value="graduated">graduated</option>
+                </select>
+              </label>
+            </div>
+            <div id="masterParentEditorRows" class="master-parent-editor-rows"></div>
           </div>
         </section>
 
@@ -1296,9 +1465,13 @@
                 <p class="section-kicker">Email settings</p>
                 <h2 class="section-title"><span class="mui-icon" aria-hidden="true">settings</span><span>Cấu hình email</span></h2>
               </div>
-              <span id="emailConfigStatus" class="status-pill">Chưa cấu hình</span>
+              <div class="panel-actions">
+                <button id="openEmailConfigDialog" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Email</span></button>
+                <button id="openCronConfigDialog" type="button"><span class="mui-icon" aria-hidden="true">schedule</span><span>Cron</span></button>
+                <span id="emailConfigStatus" class="status-pill">Chưa cấu hình</span>
+              </div>
             </div>
-            <div class="form-grid">
+            <div class="form-grid" hidden>
               <label>
                 <span>Provider</span>
                 <select id="emailProvider">
@@ -1358,7 +1531,7 @@
               <button id="sendEmail" class="primary" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi email</span></button>
             </div>
             <div class="cron-config">
-              <div class="cron-grid">
+              <div class="cron-grid" hidden>
                 <label>
                   <span>Cron</span>
                   <select id="cronEnabled">
@@ -1406,6 +1579,21 @@
         </div>
       </div>
     </div>
+
+    <dialog id="appDialog" class="app-dialog" aria-labelledby="appDialogTitle">
+      <div class="app-dialog-surface">
+        <div class="app-dialog-head">
+          <div>
+            <p id="appDialogKicker" class="section-kicker"></p>
+            <h2 id="appDialogTitle" class="section-title"></h2>
+          </div>
+          <button id="appDialogClose" class="icon-button" type="button" aria-label="Đóng dialog"><span class="mui-icon" aria-hidden="true">close</span></button>
+        </div>
+        <div id="appDialogBody" class="app-dialog-body"></div>
+        <div id="appDialogError" class="app-dialog-error" hidden></div>
+        <div id="appDialogActions" class="app-dialog-actions"></div>
+      </div>
+    </dialog>
 
     <script type="module" src="/app.js"></script>
   </body>

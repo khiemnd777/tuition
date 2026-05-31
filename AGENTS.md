@@ -30,6 +30,8 @@ ABC SUN QR Generating System is a small Go app for school payment workflows. It 
 - Do not commit or print real secrets from `email_config.local.json`, `resend_config.local.json`, or `email_cron.local.json`.
 - Preserve `PaymentItems` total overriding raw `Amount` unless the user asks for a contract change.
 - Preserve VietQR TLV/CRC behavior with exact tests when touching `vietqr_standard.go`.
+- Production UI rule: upsert/detail input workflows must use the app dialog/popup components, not inline panels.
+- Do not use native browser `window.alert`, `window.confirm`, or `window.prompt`; use the app dialog/confirm component instead.
 
 ## Planning and Review
 

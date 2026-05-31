@@ -93,9 +93,15 @@ type operationLogFilters struct {
 }
 
 func auditContextFromRequest(r *http.Request) requestAuditContext {
+	actorUserID := strings.TrimSpace(r.Header.Get(adminActorUserIDHeader))
+	actorName := strings.TrimSpace(r.Header.Get(adminActorHeader))
+	if user, ok := authenticatedUserFromRequest(r); ok {
+		actorUserID = firstNonEmpty(user.ID, actorUserID)
+		actorName = firstNonEmpty(user.DisplayName, user.Email, actorName)
+	}
 	return requestAuditContext{
-		ActorUserID: strings.TrimSpace(r.Header.Get(adminActorUserIDHeader)),
-		ActorName:   strings.TrimSpace(r.Header.Get(adminActorHeader)),
+		ActorUserID: actorUserID,
+		ActorName:   actorName,
 		RequestID:   strings.TrimSpace(r.Header.Get(requestIDHeader)),
 		IPAddress:   requestIPAddress(r),
 		UserAgent:   strings.TrimSpace(r.UserAgent()),

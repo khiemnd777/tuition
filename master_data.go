@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,15 +17,26 @@ const maxMasterDataImportRows = 1000
 
 var classGradePattern = regexp.MustCompile(`\d+`)
 
-type masterDataSchoolYearOption struct {
+type masterDataSchoolOption struct {
 	ID     string `json:"id"`
 	Code   string `json:"code"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
 }
 
+type masterDataSchoolYearOption struct {
+	ID         string `json:"id"`
+	SchoolID   string `json:"schoolId"`
+	SchoolCode string `json:"schoolCode"`
+	Code       string `json:"code"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+}
+
 type masterDataClassOption struct {
 	ID             string `json:"id"`
+	SchoolID       string `json:"schoolId"`
+	SchoolCode     string `json:"schoolCode"`
 	SchoolYearID   string `json:"schoolYearId"`
 	SchoolYearCode string `json:"schoolYearCode"`
 	Grade          string `json:"grade"`
@@ -33,16 +45,20 @@ type masterDataClassOption struct {
 }
 
 type masterDataOptions struct {
+	Schools     []masterDataSchoolOption     `json:"schools"`
 	SchoolYears []masterDataSchoolYearOption `json:"schoolYears"`
 	Classes     []masterDataClassOption      `json:"classes"`
 }
 
 type masterDataStudentListFilters struct {
-	SchoolYearID string
-	SchoolYear   string
-	ClassID      string
-	Grade        string
-	Query        string
+	StudentID       string
+	SchoolID        string
+	SchoolYearID    string
+	SchoolYear      string
+	ClassID         string
+	Grade           string
+	Query           string
+	IncludeInactive bool
 }
 
 type masterDataStudent struct {
@@ -50,6 +66,8 @@ type masterDataStudent struct {
 	StudentCode    string                    `json:"studentCode"`
 	StudentName    string                    `json:"studentName"`
 	Status         string                    `json:"status"`
+	SchoolID       string                    `json:"schoolId"`
+	SchoolCode     string                    `json:"schoolCode"`
 	ClassID        string                    `json:"classId"`
 	ClassName      string                    `json:"className"`
 	Grade          string                    `json:"grade"`
@@ -68,10 +86,30 @@ type masterDataParentContact struct {
 	ReceivesBillingEmail bool   `json:"receivesBillingEmail"`
 }
 
+type masterDataStudentSaveInput struct {
+	ID          string                      `json:"id,omitempty"`
+	StudentCode string                      `json:"studentCode"`
+	StudentName string                      `json:"studentName"`
+	ClassID     string                      `json:"classId"`
+	Status      string                      `json:"status"`
+	Parents     []masterDataParentSaveInput `json:"parents"`
+}
+
+type masterDataParentSaveInput struct {
+	ID                   string `json:"id,omitempty"`
+	ParentName           string `json:"parentName"`
+	Email                string `json:"email"`
+	EmailActive          *bool  `json:"emailActive,omitempty"`
+	IsPrimary            *bool  `json:"isPrimary,omitempty"`
+	IsActive             *bool  `json:"isActive,omitempty"`
+	ReceivesBillingEmail *bool  `json:"receivesBillingEmail,omitempty"`
+}
+
 type masterDataImportRow struct {
 	RowNumber            int    `json:"rowNumber"`
 	StudentCode          string `json:"studentCode"`
 	StudentName          string `json:"studentName"`
+	SchoolCode           string `json:"schoolCode"`
 	SchoolYearCode       string `json:"schoolYearCode"`
 	Grade                string `json:"grade"`
 	ClassName            string `json:"className"`
@@ -86,6 +124,7 @@ type masterDataImportRowResult struct {
 	RowNumber      int    `json:"rowNumber"`
 	StudentCode    string `json:"studentCode"`
 	StudentName    string `json:"studentName"`
+	SchoolCode     string `json:"schoolCode"`
 	SchoolYearCode string `json:"schoolYearCode"`
 	Grade          string `json:"grade"`
 	ClassName      string `json:"className"`
@@ -123,6 +162,8 @@ type masterDataStudentExisting struct {
 	ID             string
 	StudentCode    string
 	StudentName    string
+	SchoolID       string
+	SchoolCode     string
 	ClassID        string
 	ClassName      string
 	Grade          string
@@ -147,6 +188,15 @@ type masterDataExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+type masterDataSaveError struct {
+	Status  int
+	Message string
+}
+
+func (err *masterDataSaveError) Error() string {
+	return err.Message
 }
 
 func handleMasterDataOptions(w http.ResponseWriter, r *http.Request) {
@@ -175,6 +225,7 @@ func handleMasterDataStudents(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	students, err := listMasterDataStudents(r.Context(), db, masterDataStudentListFilters{
+		SchoolID:     strings.TrimSpace(query.Get("schoolId")),
 		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
 		SchoolYear:   normalizeSchoolYearCode(query.Get("schoolYear")),
 		ClassID:      strings.TrimSpace(query.Get("classId")),
@@ -186,6 +237,39 @@ func handleMasterDataStudents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"students": students})
+}
+
+func handleMasterDataStudentSave(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input masterDataStudentSaveInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input = normalizeMasterDataStudentSaveInput(input)
+	if err := validateMasterDataStudentSaveInput(input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	student, err := saveMasterDataStudent(r.Context(), db, input, auditContextFromRequest(r))
+	if err != nil {
+		var saveErr *masterDataSaveError
+		if errors.As(err, &saveErr) {
+			http.Error(w, saveErr.Message, saveErr.Status)
+			return
+		}
+		http.Error(w, "cannot save student", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"student": student})
 }
 
 func handleMasterDataImportCSV(w http.ResponseWriter, r *http.Request) {
@@ -243,21 +327,42 @@ func writeMasterDataDBError(w http.ResponseWriter, err error) {
 
 func listMasterDataOptions(ctx context.Context, db *sql.DB) (masterDataOptions, error) {
 	options := masterDataOptions{
+		Schools:     []masterDataSchoolOption{},
 		SchoolYears: []masterDataSchoolYearOption{},
 		Classes:     []masterDataClassOption{},
 	}
 
-	schoolYearRows, err := db.QueryContext(ctx, `
+	schoolRows, err := db.QueryContext(ctx, `
 SELECT id::text, code, name, status
-FROM school_years
-ORDER BY code DESC`)
+FROM schools
+ORDER BY code`)
+	if err != nil {
+		return options, err
+	}
+	defer schoolRows.Close()
+	for schoolRows.Next() {
+		var item masterDataSchoolOption
+		if err := schoolRows.Scan(&item.ID, &item.Code, &item.Name, &item.Status); err != nil {
+			return options, err
+		}
+		options.Schools = append(options.Schools, item)
+	}
+	if err := schoolRows.Err(); err != nil {
+		return options, err
+	}
+
+	schoolYearRows, err := db.QueryContext(ctx, `
+SELECT sy.id::text, sy.school_id::text, sc.code, sy.code, sy.name, sy.status
+FROM school_years sy
+JOIN schools sc ON sc.id = sy.school_id
+ORDER BY sc.code, sy.code DESC`)
 	if err != nil {
 		return options, err
 	}
 	defer schoolYearRows.Close()
 	for schoolYearRows.Next() {
 		var item masterDataSchoolYearOption
-		if err := schoolYearRows.Scan(&item.ID, &item.Code, &item.Name, &item.Status); err != nil {
+		if err := schoolYearRows.Scan(&item.ID, &item.SchoolID, &item.SchoolCode, &item.Code, &item.Name, &item.Status); err != nil {
 			return options, err
 		}
 		options.SchoolYears = append(options.SchoolYears, item)
@@ -267,17 +372,18 @@ ORDER BY code DESC`)
 	}
 
 	classRows, err := db.QueryContext(ctx, `
-SELECT c.id::text, c.school_year_id::text, sy.code, c.grade, c.name, c.status
+SELECT c.id::text, sy.school_id::text, sc.code, c.school_year_id::text, sy.code, c.grade, c.name, c.status
 FROM classes c
 JOIN school_years sy ON sy.id = c.school_year_id
-ORDER BY sy.code DESC, c.grade, c.name`)
+JOIN schools sc ON sc.id = sy.school_id
+ORDER BY sc.code, sy.code DESC, c.grade, c.name`)
 	if err != nil {
 		return options, err
 	}
 	defer classRows.Close()
 	for classRows.Next() {
 		var item masterDataClassOption
-		if err := classRows.Scan(&item.ID, &item.SchoolYearID, &item.SchoolYearCode, &item.Grade, &item.Name, &item.Status); err != nil {
+		if err := classRows.Scan(&item.ID, &item.SchoolID, &item.SchoolCode, &item.SchoolYearID, &item.SchoolYearCode, &item.Grade, &item.Name, &item.Status); err != nil {
 			return options, err
 		}
 		options.Classes = append(options.Classes, item)
@@ -289,9 +395,12 @@ ORDER BY sy.code DESC, c.grade, c.name`)
 	return options, nil
 }
 
-func listMasterDataStudents(ctx context.Context, db *sql.DB, filters masterDataStudentListFilters) ([]masterDataStudent, error) {
+func listMasterDataStudents(ctx context.Context, exec masterDataExecutor, filters masterDataStudentListFilters) ([]masterDataStudent, error) {
 	args := []any{}
-	conditions := []string{"s.status <> 'inactive'"}
+	conditions := []string{}
+	if !filters.IncludeInactive {
+		conditions = append(conditions, "s.status <> 'inactive'")
+	}
 	addArg := func(value any) string {
 		args = append(args, value)
 		return fmt.Sprintf("$%d", len(args))
@@ -299,6 +408,12 @@ func listMasterDataStudents(ctx context.Context, db *sql.DB, filters masterDataS
 
 	if filters.SchoolYearID != "" {
 		conditions = append(conditions, "sy.id = "+addArg(filters.SchoolYearID)+"::uuid")
+	}
+	if filters.StudentID != "" {
+		conditions = append(conditions, "s.id = "+addArg(filters.StudentID)+"::uuid")
+	}
+	if filters.SchoolID != "" {
+		conditions = append(conditions, "sc.id = "+addArg(filters.SchoolID)+"::uuid")
 	}
 	if filters.SchoolYear != "" {
 		conditions = append(conditions, "sy.code = "+addArg(filters.SchoolYear))
@@ -321,6 +436,8 @@ SELECT
 	s.student_code,
 	s.full_name,
 	s.status,
+	sc.id::text,
+	sc.code,
 	c.id::text,
 	c.name,
 	c.grade,
@@ -336,13 +453,14 @@ SELECT
 FROM students s
 JOIN classes c ON c.id = s.class_id
 JOIN school_years sy ON sy.id = c.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 LEFT JOIN student_parents sp ON sp.student_id = s.id
 LEFT JOIN parents p ON p.id = sp.parent_id
 WHERE ` + strings.Join(conditions, " AND ") + `
-ORDER BY sy.code DESC, c.grade, c.name, s.student_code, sp.is_primary DESC, p.full_name
+ORDER BY sc.code, sy.code DESC, c.grade, c.name, s.student_code, sp.is_primary DESC, p.full_name
 LIMIT 1000`
 
-	rows, err := db.QueryContext(ctx, query, args...)
+	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +476,8 @@ LIMIT 1000`
 			&student.StudentCode,
 			&student.StudentName,
 			&student.Status,
+			&student.SchoolID,
+			&student.SchoolCode,
 			&student.ClassID,
 			&student.ClassName,
 			&student.Grade,
@@ -418,6 +538,7 @@ func parseMasterDataRows(table importTable, mapping map[string]string) ([]master
 			RowNumber:            idx + 2,
 			StudentCode:          normalizeStudentCode(importFieldValue(record, table, mapping, "student_code", masterDataCSVAliases("student_code"))),
 			StudentName:          strings.TrimSpace(importFieldValue(record, table, mapping, "student", masterDataCSVAliases("student"))),
+			SchoolCode:           normalizeSchoolCode(importFieldValue(record, table, mapping, "school", masterDataCSVAliases("school"))),
 			SchoolYearCode:       normalizeSchoolYearCode(importFieldValue(record, table, mapping, "school_year", masterDataCSVAliases("school_year"))),
 			Grade:                normalizeGrade(importFieldValue(record, table, mapping, "grade", masterDataCSVAliases("grade"))),
 			ClassName:            strings.TrimSpace(importFieldValue(record, table, mapping, "class_name", masterDataCSVAliases("class_name"))),
@@ -445,6 +566,8 @@ func masterDataCSVAliases(canonical string) []string {
 		return []string{"student_code", "student_id", "ma_hoc_sinh", "ma_hs", "mhs"}
 	case "student":
 		return []string{"student_name", "student", "ten_hoc_sinh", "hoc_sinh", "ho_va_ten", "ho_ten", "ten_hs"}
+	case "school":
+		return []string{"school", "school_code", "ma_truong", "truong", "campus", "co_so"}
 	case "school_year":
 		return []string{"school_year", "academic_year", "nam_hoc", "nien_khoa"}
 	case "grade":
@@ -641,6 +764,7 @@ func buildMasterDataImportResponse(ctx context.Context, exec masterDataExecutor,
 			RowNumber:      row.RowNumber,
 			StudentCode:    row.StudentCode,
 			StudentName:    row.StudentName,
+			SchoolCode:     schoolCodeOrDefault(row.SchoolCode),
 			SchoolYearCode: row.SchoolYearCode,
 			Grade:          row.Grade,
 			ClassName:      row.ClassName,
@@ -701,14 +825,14 @@ func classifyMasterDataImportRow(ctx context.Context, exec masterDataExecutor, r
 				Incoming:    row.StudentName,
 			})
 		}
-		if !equalText(student.SchoolYearCode, row.SchoolYearCode) || !equalText(student.Grade, row.Grade) || !equalText(student.ClassName, row.ClassName) {
+		if !equalText(student.SchoolCode, schoolCodeOrDefault(row.SchoolCode)) || !equalText(student.SchoolYearCode, row.SchoolYearCode) || !equalText(student.Grade, row.Grade) || !equalText(student.ClassName, row.ClassName) {
 			issues = append(issues, masterDataImportIssue{
 				RowNumber:   row.RowNumber,
 				StudentCode: row.StudentCode,
 				Type:        "student_class_conflict",
-				Message:     "student_code already exists in a different class, grade, or school year",
-				Existing:    fmt.Sprintf("%s / %s / %s", student.SchoolYearCode, student.Grade, student.ClassName),
-				Incoming:    fmt.Sprintf("%s / %s / %s", row.SchoolYearCode, row.Grade, row.ClassName),
+				Message:     "student_code already exists in a different school, class, grade, or school year",
+				Existing:    fmt.Sprintf("%s / %s / %s / %s", student.SchoolCode, student.SchoolYearCode, student.Grade, student.ClassName),
+				Incoming:    fmt.Sprintf("%s / %s / %s / %s", schoolCodeOrDefault(row.SchoolCode), row.SchoolYearCode, row.Grade, row.ClassName),
 			})
 		}
 	}
@@ -797,7 +921,7 @@ func classifyMasterDataImportRow(ctx context.Context, exec masterDataExecutor, r
 
 func applyMasterDataImportRows(ctx context.Context, exec masterDataExecutor, rows []masterDataImportRow) error {
 	for _, row := range rows {
-		schoolYearID, err := ensureMasterDataSchoolYear(ctx, exec, row.SchoolYearCode)
+		schoolYearID, err := ensureMasterDataSchoolYear(ctx, exec, row.SchoolCode, row.SchoolYearCode)
 		if err != nil {
 			return err
 		}
@@ -820,22 +944,244 @@ func applyMasterDataImportRows(ctx context.Context, exec masterDataExecutor, row
 	return nil
 }
 
+func saveMasterDataStudent(ctx context.Context, db *sql.DB, input masterDataStudentSaveInput, auditCtx requestAuditContext) (masterDataStudent, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return masterDataStudent{}, err
+	}
+	defer tx.Rollback()
+
+	if _, err := findMasterDataClassByID(ctx, tx, input.ClassID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return masterDataStudent{}, &masterDataSaveError{Status: http.StatusBadRequest, Message: "classId does not exist"}
+		}
+		return masterDataStudent{}, err
+	}
+
+	var existing *masterDataStudentExisting
+	if input.ID != "" {
+		existing, err = findMasterDataStudentByID(ctx, tx, input.ID)
+		if err != nil {
+			return masterDataStudent{}, err
+		}
+		if existing == nil {
+			return masterDataStudent{}, &masterDataSaveError{Status: http.StatusNotFound, Message: "student not found"}
+		}
+		byCode, err := findMasterDataStudentByCode(ctx, tx, input.StudentCode)
+		if err != nil {
+			return masterDataStudent{}, err
+		}
+		if byCode != nil && byCode.ID != input.ID {
+			return masterDataStudent{}, &masterDataSaveError{Status: http.StatusConflict, Message: "student_code already belongs to another student"}
+		}
+	} else {
+		existing, err = findMasterDataStudentByCode(ctx, tx, input.StudentCode)
+		if err != nil {
+			return masterDataStudent{}, err
+		}
+	}
+
+	var studentID string
+	if existing != nil {
+		if existing.ClassID != input.ClassID {
+			locked, err := masterDataStudentHasLockedProductionRefs(ctx, tx, existing.ID)
+			if err != nil {
+				return masterDataStudent{}, err
+			}
+			if locked {
+				return masterDataStudent{}, &masterDataSaveError{Status: http.StatusConflict, Message: "student has invoices or fee adjustments; class changes are blocked"}
+			}
+		}
+		err = tx.QueryRowContext(ctx, `
+UPDATE students
+SET student_code = $2,
+	full_name = $3,
+	class_id = $4::uuid,
+	status = $5,
+	updated_by_user_id = nullif($6, '')::uuid
+WHERE id = $1::uuid
+RETURNING id::text`,
+			existing.ID, input.StudentCode, input.StudentName, input.ClassID, input.Status, auditCtx.ActorUserID).Scan(&studentID)
+		if err != nil {
+			return masterDataStudent{}, err
+		}
+	} else {
+		err = tx.QueryRowContext(ctx, `
+INSERT INTO students (student_code, full_name, class_id, status, created_by_user_id, updated_by_user_id)
+VALUES ($1, $2, $3::uuid, $4, nullif($5, '')::uuid, nullif($5, '')::uuid)
+RETURNING id::text`,
+			input.StudentCode, input.StudentName, input.ClassID, input.Status, auditCtx.ActorUserID).Scan(&studentID)
+		if err != nil {
+			return masterDataStudent{}, err
+		}
+	}
+
+	if hasActivePrimaryParentInput(input.Parents) {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE student_parents
+SET is_primary = false,
+	updated_by_user_id = nullif($2, '')::uuid
+WHERE student_id = $1::uuid AND is_primary`,
+			studentID, auditCtx.ActorUserID); err != nil {
+			return masterDataStudent{}, err
+		}
+	}
+
+	for _, parent := range input.Parents {
+		parentID, err := saveMasterDataParentForStudent(ctx, tx, studentID, parent, auditCtx)
+		if err != nil {
+			return masterDataStudent{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO student_parents (student_id, parent_id, relationship, is_primary, is_active, receives_billing_email, created_by_user_id, updated_by_user_id)
+VALUES ($1::uuid, $2::uuid, 'guardian', $3, $4, $5, nullif($6, '')::uuid, nullif($6, '')::uuid)
+ON CONFLICT (student_id, parent_id) DO UPDATE
+SET is_primary = EXCLUDED.is_primary,
+	is_active = EXCLUDED.is_active,
+	receives_billing_email = EXCLUDED.receives_billing_email,
+	updated_by_user_id = EXCLUDED.updated_by_user_id`,
+			studentID, parentID, boolValue(parent.IsPrimary), boolValue(parent.IsActive), boolValue(parent.ReceivesBillingEmail), auditCtx.ActorUserID); err != nil {
+			return masterDataStudent{}, err
+		}
+	}
+
+	saved, err := getMasterDataStudentByID(ctx, tx, studentID)
+	if err != nil {
+		return masterDataStudent{}, err
+	}
+	return saved, tx.Commit()
+}
+
+func saveMasterDataParentForStudent(ctx context.Context, exec masterDataExecutor, studentID string, input masterDataParentSaveInput, auditCtx requestAuditContext) (string, error) {
+	if input.ID != "" {
+		existing, err := findMasterDataParentByID(ctx, exec, input.ID)
+		if err != nil {
+			return "", err
+		}
+		if existing == nil {
+			return "", &masterDataSaveError{Status: http.StatusNotFound, Message: "parent not found"}
+		}
+		if input.Email != "" {
+			byEmail, err := findMasterDataParentByEmail(ctx, exec, input.Email)
+			if err != nil {
+				return "", err
+			}
+			if byEmail != nil && byEmail.ID != input.ID {
+				return "", &masterDataSaveError{Status: http.StatusConflict, Message: "parent_email already belongs to another parent"}
+			}
+		}
+		var id string
+		err = exec.QueryRowContext(ctx, `
+UPDATE parents
+SET full_name = $2,
+	email = $3,
+	email_active = $4,
+	updated_by_user_id = nullif($5, '')::uuid
+WHERE id = $1::uuid
+RETURNING id::text`,
+			input.ID, input.ParentName, input.Email, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+		return id, err
+	}
+
+	if input.Email != "" {
+		existing, err := findMasterDataParentByEmail(ctx, exec, input.Email)
+		if err != nil {
+			return "", err
+		}
+		if existing != nil {
+			if !equalText(existing.ParentName, input.ParentName) {
+				return "", &masterDataSaveError{Status: http.StatusConflict, Message: "parent_email already exists with a different parent name"}
+			}
+			var id string
+			err = exec.QueryRowContext(ctx, `
+UPDATE parents
+SET full_name = $2,
+	email_active = $3,
+	updated_by_user_id = nullif($4, '')::uuid
+WHERE id = $1::uuid
+RETURNING id::text`,
+				existing.ID, input.ParentName, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+			return id, err
+		}
+	}
+
+	if input.Email == "" {
+		existing, err := findMasterDataLinkedParentByName(ctx, exec, studentID, input.ParentName)
+		if err != nil {
+			return "", err
+		}
+		if existing != nil {
+			var id string
+			err = exec.QueryRowContext(ctx, `
+UPDATE parents
+SET full_name = $2,
+	email_active = $3,
+	updated_by_user_id = nullif($4, '')::uuid
+WHERE id = $1::uuid
+RETURNING id::text`,
+				existing.ID, input.ParentName, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+			return id, err
+		}
+	}
+
+	var id string
+	err := exec.QueryRowContext(ctx, `
+INSERT INTO parents (full_name, email, email_active, created_by_user_id, updated_by_user_id)
+VALUES ($1, $2, $3, nullif($4, '')::uuid, nullif($4, '')::uuid)
+RETURNING id::text`,
+		input.ParentName, input.Email, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+	return id, err
+}
+
+func getMasterDataStudentByID(ctx context.Context, exec masterDataExecutor, id string) (masterDataStudent, error) {
+	students, err := listMasterDataStudents(ctx, exec, masterDataStudentListFilters{StudentID: id, IncludeInactive: true})
+	if err != nil {
+		return masterDataStudent{}, err
+	}
+	if len(students) == 0 {
+		return masterDataStudent{}, sql.ErrNoRows
+	}
+	return students[0], nil
+}
+
 func listMasterDataOptionsTx(ctx context.Context, tx *sql.Tx) (masterDataOptions, error) {
 	options := masterDataOptions{
+		Schools:     []masterDataSchoolOption{},
 		SchoolYears: []masterDataSchoolYearOption{},
 		Classes:     []masterDataClassOption{},
 	}
-	schoolYearRows, err := tx.QueryContext(ctx, `
+
+	schoolRows, err := tx.QueryContext(ctx, `
 SELECT id::text, code, name, status
-FROM school_years
-ORDER BY code DESC`)
+FROM schools
+ORDER BY code`)
+	if err != nil {
+		return options, err
+	}
+	defer schoolRows.Close()
+	for schoolRows.Next() {
+		var item masterDataSchoolOption
+		if err := schoolRows.Scan(&item.ID, &item.Code, &item.Name, &item.Status); err != nil {
+			return options, err
+		}
+		options.Schools = append(options.Schools, item)
+	}
+	if err := schoolRows.Err(); err != nil {
+		return options, err
+	}
+
+	schoolYearRows, err := tx.QueryContext(ctx, `
+SELECT sy.id::text, sy.school_id::text, sc.code, sy.code, sy.name, sy.status
+FROM school_years sy
+JOIN schools sc ON sc.id = sy.school_id
+ORDER BY sc.code, sy.code DESC`)
 	if err != nil {
 		return options, err
 	}
 	defer schoolYearRows.Close()
 	for schoolYearRows.Next() {
 		var item masterDataSchoolYearOption
-		if err := schoolYearRows.Scan(&item.ID, &item.Code, &item.Name, &item.Status); err != nil {
+		if err := schoolYearRows.Scan(&item.ID, &item.SchoolID, &item.SchoolCode, &item.Code, &item.Name, &item.Status); err != nil {
 			return options, err
 		}
 		options.SchoolYears = append(options.SchoolYears, item)
@@ -845,17 +1191,18 @@ ORDER BY code DESC`)
 	}
 
 	classRows, err := tx.QueryContext(ctx, `
-SELECT c.id::text, c.school_year_id::text, sy.code, c.grade, c.name, c.status
+SELECT c.id::text, sy.school_id::text, sc.code, c.school_year_id::text, sy.code, c.grade, c.name, c.status
 FROM classes c
 JOIN school_years sy ON sy.id = c.school_year_id
-ORDER BY sy.code DESC, c.grade, c.name`)
+JOIN schools sc ON sc.id = sy.school_id
+ORDER BY sc.code, sy.code DESC, c.grade, c.name`)
 	if err != nil {
 		return options, err
 	}
 	defer classRows.Close()
 	for classRows.Next() {
 		var item masterDataClassOption
-		if err := classRows.Scan(&item.ID, &item.SchoolYearID, &item.SchoolYearCode, &item.Grade, &item.Name, &item.Status); err != nil {
+		if err := classRows.Scan(&item.ID, &item.SchoolID, &item.SchoolCode, &item.SchoolYearID, &item.SchoolYearCode, &item.Grade, &item.Name, &item.Status); err != nil {
 			return options, err
 		}
 		options.Classes = append(options.Classes, item)
@@ -869,14 +1216,17 @@ ORDER BY sy.code DESC, c.grade, c.name`)
 func findMasterDataStudentByCode(ctx context.Context, exec masterDataExecutor, code string) (*masterDataStudentExisting, error) {
 	var student masterDataStudentExisting
 	err := exec.QueryRowContext(ctx, `
-SELECT s.id::text, s.student_code, s.full_name, c.id::text, c.name, c.grade, sy.id::text, sy.code
+SELECT s.id::text, s.student_code, s.full_name, sc.id::text, sc.code, c.id::text, c.name, c.grade, sy.id::text, sy.code
 FROM students s
 JOIN classes c ON c.id = s.class_id
 JOIN school_years sy ON sy.id = c.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 WHERE s.student_code = $1`, code).Scan(
 		&student.ID,
 		&student.StudentCode,
 		&student.StudentName,
+		&student.SchoolID,
+		&student.SchoolCode,
 		&student.ClassID,
 		&student.ClassName,
 		&student.Grade,
@@ -892,6 +1242,58 @@ WHERE s.student_code = $1`, code).Scan(
 	return &student, nil
 }
 
+func findMasterDataStudentByID(ctx context.Context, exec masterDataExecutor, id string) (*masterDataStudentExisting, error) {
+	var student masterDataStudentExisting
+	err := exec.QueryRowContext(ctx, `
+SELECT s.id::text, s.student_code, s.full_name, sc.id::text, sc.code, c.id::text, c.name, c.grade, sy.id::text, sy.code
+FROM students s
+JOIN classes c ON c.id = s.class_id
+JOIN school_years sy ON sy.id = c.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
+WHERE s.id = $1::uuid`, id).Scan(
+		&student.ID,
+		&student.StudentCode,
+		&student.StudentName,
+		&student.SchoolID,
+		&student.SchoolCode,
+		&student.ClassID,
+		&student.ClassName,
+		&student.Grade,
+		&student.SchoolYearID,
+		&student.SchoolYearCode,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &student, nil
+}
+
+func findMasterDataClassByID(ctx context.Context, exec masterDataExecutor, id string) (*masterDataClassOption, error) {
+	var class masterDataClassOption
+	err := exec.QueryRowContext(ctx, `
+SELECT c.id::text, sy.school_id::text, sc.code, c.school_year_id::text, sy.code, c.grade, c.name, c.status
+FROM classes c
+JOIN school_years sy ON sy.id = c.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
+WHERE c.id = $1::uuid`, id).Scan(
+		&class.ID,
+		&class.SchoolID,
+		&class.SchoolCode,
+		&class.SchoolYearID,
+		&class.SchoolYearCode,
+		&class.Grade,
+		&class.Name,
+		&class.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &class, nil
+}
+
 func findMasterDataParentByEmail(ctx context.Context, exec masterDataExecutor, email string) (*masterDataParentExisting, error) {
 	if email == "" {
 		return nil, nil
@@ -901,6 +1303,21 @@ func findMasterDataParentByEmail(ctx context.Context, exec masterDataExecutor, e
 SELECT id::text, full_name, email, email_active
 FROM parents
 WHERE email = $1`, email).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.EmailActive)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &parent, nil
+}
+
+func findMasterDataParentByID(ctx context.Context, exec masterDataExecutor, id string) (*masterDataParentExisting, error) {
+	var parent masterDataParentExisting
+	err := exec.QueryRowContext(ctx, `
+SELECT id::text, full_name, email, email_active
+FROM parents
+WHERE id = $1::uuid`, id).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.EmailActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -930,6 +1347,17 @@ LIMIT 1`, studentID, strings.TrimSpace(parentName)).Scan(&parent.ID, &parent.Par
 		return nil, err
 	}
 	return &parent, nil
+}
+
+func masterDataStudentHasLockedProductionRefs(ctx context.Context, exec masterDataExecutor, studentID string) (bool, error) {
+	var locked bool
+	err := exec.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1 FROM invoices WHERE student_id = $1::uuid AND status <> 'void'
+	UNION ALL
+	SELECT 1 FROM student_fee_adjustments WHERE student_id = $1::uuid AND status = 'active'
+)`, studentID).Scan(&locked)
+	return locked, err
 }
 
 func findMasterDataStudentParentLink(ctx context.Context, exec masterDataExecutor, studentID string, parentID string) (*masterDataParentLinkExisting, error) {
@@ -970,19 +1398,40 @@ LIMIT 1`, studentID).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent
 	return &parent, nil
 }
 
-func ensureMasterDataSchoolYear(ctx context.Context, exec masterDataExecutor, code string) (string, error) {
+func ensureMasterDataSchool(ctx context.Context, exec masterDataExecutor, code string) (string, error) {
+	code = schoolCodeOrDefault(code)
 	var id string
 	err := exec.QueryRowContext(ctx, `
 WITH inserted AS (
-	INSERT INTO school_years (code, name)
+	INSERT INTO schools (code, name)
 	VALUES ($1, $1)
 	ON CONFLICT (code) DO NOTHING
 	RETURNING id::text
 )
 SELECT id FROM inserted
 UNION ALL
-SELECT id::text FROM school_years WHERE code = $1
+SELECT id::text FROM schools WHERE code = $1
 LIMIT 1`, code).Scan(&id)
+	return id, err
+}
+
+func ensureMasterDataSchoolYear(ctx context.Context, exec masterDataExecutor, schoolCode string, code string) (string, error) {
+	schoolID, err := ensureMasterDataSchool(ctx, exec, schoolCode)
+	if err != nil {
+		return "", err
+	}
+	var id string
+	err = exec.QueryRowContext(ctx, `
+WITH inserted AS (
+	INSERT INTO school_years (school_id, code, name)
+	VALUES ($1::uuid, $2, $2)
+	ON CONFLICT (school_id, code) DO NOTHING
+	RETURNING id::text
+)
+SELECT id FROM inserted
+UNION ALL
+SELECT id::text FROM school_years WHERE school_id = $1::uuid AND code = $2
+LIMIT 1`, schoolID, code).Scan(&id)
 	return id, err
 }
 
@@ -1056,15 +1505,126 @@ ON CONFLICT (student_id, parent_id) DO NOTHING`, studentID, parentID, row.IsPrim
 	return err
 }
 
+func normalizeMasterDataStudentSaveInput(input masterDataStudentSaveInput) masterDataStudentSaveInput {
+	input.ID = strings.TrimSpace(input.ID)
+	input.StudentCode = normalizeStudentCode(input.StudentCode)
+	input.StudentName = strings.TrimSpace(input.StudentName)
+	input.ClassID = strings.TrimSpace(input.ClassID)
+	input.Status = normalizeMasterDataStudentStatus(input.Status)
+
+	hasPrimaryValue := false
+	for idx := range input.Parents {
+		parent := &input.Parents[idx]
+		parent.ID = strings.TrimSpace(parent.ID)
+		parent.ParentName = strings.TrimSpace(parent.ParentName)
+		parent.Email = normalizeEmail(parent.Email)
+		parent.EmailActive = boolDefault(parent.EmailActive, true)
+		parent.IsActive = boolDefault(parent.IsActive, true)
+		parent.ReceivesBillingEmail = boolDefault(parent.ReceivesBillingEmail, parent.Email != "")
+		if parent.IsPrimary != nil {
+			hasPrimaryValue = true
+		}
+	}
+	if len(input.Parents) > 0 && !hasPrimaryValue {
+		input.Parents[0].IsPrimary = boolDefault(input.Parents[0].IsPrimary, true)
+	}
+	for idx := range input.Parents {
+		input.Parents[idx].IsPrimary = boolDefault(input.Parents[idx].IsPrimary, false)
+	}
+	return input
+}
+
+func validateMasterDataStudentSaveInput(input masterDataStudentSaveInput) error {
+	if input.StudentCode == "" {
+		return errors.New("studentCode is required")
+	}
+	if input.StudentName == "" {
+		return errors.New("studentName is required")
+	}
+	if input.ClassID == "" {
+		return errors.New("classId is required")
+	}
+	if err := validateMasterDataStudentStatus(input.Status); err != nil {
+		return err
+	}
+	if len(input.Parents) == 0 {
+		return errors.New("at least one parent contact is required")
+	}
+
+	activePrimaryCount := 0
+	parentKeys := map[string]bool{}
+	for idx, parent := range input.Parents {
+		if parent.ParentName == "" {
+			return fmt.Errorf("parents[%d].parentName is required", idx)
+		}
+		if boolValue(parent.ReceivesBillingEmail) && parent.Email == "" {
+			return fmt.Errorf("parents[%d].email is required when receivesBillingEmail is true", idx)
+		}
+		if boolValue(parent.IsPrimary) && boolValue(parent.IsActive) {
+			activePrimaryCount++
+		}
+		key := "name:" + strings.ToLower(parent.ParentName)
+		if parent.Email != "" {
+			key = "email:" + parent.Email
+		}
+		if parentKeys[key] {
+			return fmt.Errorf("duplicate parent contact: %s", parent.ParentName)
+		}
+		parentKeys[key] = true
+	}
+	if activePrimaryCount > 1 {
+		return errors.New("only one active primary parent is allowed")
+	}
+	return nil
+}
+
+func hasActivePrimaryParentInput(parents []masterDataParentSaveInput) bool {
+	for _, parent := range parents {
+		if boolValue(parent.IsPrimary) && boolValue(parent.IsActive) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeMasterDataStudentStatus(status string) string {
+	status = headerKey(status)
+	if status == "" {
+		return "active"
+	}
+	return status
+}
+
+func validateMasterDataStudentStatus(status string) error {
+	switch status {
+	case "active", "inactive", "graduated":
+		return nil
+	default:
+		return errors.New("status must be active, inactive, or graduated")
+	}
+}
+
+func boolDefault(value *bool, fallback bool) *bool {
+	if value != nil {
+		return value
+	}
+	return &fallback
+}
+
+func boolValue(value *bool) bool {
+	return value != nil && *value
+}
+
 func sameImportStudent(a masterDataImportRow, b masterDataImportRow) bool {
-	return equalText(a.StudentName, b.StudentName) &&
+	return equalText(schoolCodeOrDefault(a.SchoolCode), schoolCodeOrDefault(b.SchoolCode)) &&
+		equalText(a.StudentName, b.StudentName) &&
 		equalText(a.SchoolYearCode, b.SchoolYearCode) &&
 		equalText(a.Grade, b.Grade) &&
 		equalText(a.ClassName, b.ClassName)
 }
 
 func importStudentDescription(row masterDataImportRow) string {
-	return fmt.Sprintf("%s / %s / %s / %s", row.StudentName, row.SchoolYearCode, row.Grade, row.ClassName)
+	return fmt.Sprintf("%s / %s / %s / %s / %s", row.StudentName, schoolCodeOrDefault(row.SchoolCode), row.SchoolYearCode, row.Grade, row.ClassName)
 }
 
 func importParentDescription(row masterDataImportRow) string {
@@ -1094,6 +1654,18 @@ func formatParentFlags(primary bool, active bool, receivesBilling bool) string {
 
 func normalizeStudentCode(value string) string {
 	return strings.ToUpper(strings.TrimSpace(value))
+}
+
+func normalizeSchoolCode(value string) string {
+	parts := strings.Fields(strings.ToUpper(strings.TrimSpace(value)))
+	return strings.Join(parts, "_")
+}
+
+func schoolCodeOrDefault(value string) string {
+	if code := normalizeSchoolCode(value); code != "" {
+		return code
+	}
+	return "ABC_SUN"
 }
 
 func normalizeSchoolYearCode(value string) string {

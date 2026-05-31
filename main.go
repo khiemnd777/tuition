@@ -113,52 +113,7 @@ func main() {
 
 func runServer() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/banks", method(http.MethodGet, handleBanks))
-	mux.HandleFunc("/api/v1/example", method(http.MethodGet, handleExample))
-	mux.HandleFunc("/api/v1/import/fields", method(http.MethodPost, handleImportFields))
-	mux.HandleFunc("/api/v1/import/csv", method(http.MethodPost, handleImportCSV))
-	mux.HandleFunc("/api/v1/master-data/options", method(http.MethodGet, handleMasterDataOptions))
-	mux.HandleFunc("/api/v1/master-data/students", method(http.MethodGet, handleMasterDataStudents))
-	mux.HandleFunc("/api/v1/master-data/import/csv", method(http.MethodPost, handleMasterDataImportCSV))
-	mux.HandleFunc("/api/v1/fee-schedules/options", method(http.MethodGet, handleFeeScheduleOptions))
-	mux.HandleFunc("/api/v1/fee-schedules", method(http.MethodGet, handleFeeScheduleList))
-	mux.HandleFunc("/api/v1/fee-schedules/preview", method(http.MethodPost, handleFeeSchedulePreview))
-	mux.HandleFunc("/api/v1/fee-schedules/save", method(http.MethodPost, handleFeeScheduleSave))
-	mux.HandleFunc("/api/v1/invoices/options", method(http.MethodGet, handleInvoiceOptions))
-	mux.HandleFunc("/api/v1/invoices", method(http.MethodGet, handleInvoiceList))
-	mux.HandleFunc("/api/v1/invoices/preview", method(http.MethodPost, handleInvoicePreview))
-	mux.HandleFunc("/api/v1/invoices/generate", method(http.MethodPost, handleInvoiceGenerate))
-	mux.HandleFunc("/api/v1/invoices/payment", method(http.MethodGet, handleInvoicePayment))
-	mux.HandleFunc("/api/v1/invoices/pdf", method(http.MethodGet, handleInvoicePDF))
-	mux.HandleFunc("/api/v1/payments/providers", method(http.MethodGet, handlePaymentProviders))
-	mux.HandleFunc("/api/v1/payments/intents", method(http.MethodPost, handlePaymentIntentCreate))
-	mux.HandleFunc("/api/v1/payments/transactions", method(http.MethodGet, handlePaymentTransactions))
-	mux.HandleFunc("/api/v1/payments/reconciliation", method(http.MethodGet, handlePaymentReconciliation))
-	mux.HandleFunc("/api/v1/payments/webhooks/", method(http.MethodPost, handlePaymentWebhook))
-	mux.HandleFunc("/api/v1/payments/cash-receipts", method(http.MethodPost, handleManualCashReceipt))
-	mux.HandleFunc("/api/v1/notifications/options", method(http.MethodGet, handleNotificationOptions))
-	mux.HandleFunc("/api/v1/notifications/templates", method(http.MethodGet, handleNotificationTemplates))
-	mux.HandleFunc("/api/v1/notifications/campaigns", method(http.MethodGet, handleNotificationCampaigns))
-	mux.HandleFunc("/api/v1/notifications/campaigns/preview", method(http.MethodPost, handleNotificationCampaignPreview))
-	mux.HandleFunc("/api/v1/notifications/campaigns/save", method(http.MethodPost, handleNotificationCampaignSave))
-	mux.HandleFunc("/api/v1/notifications/campaigns/send", method(http.MethodPost, handleNotificationCampaignSend))
-	mux.HandleFunc("/api/v1/notifications/logs", method(http.MethodGet, handleNotificationLogs))
-	mux.HandleFunc("/api/v1/admin/dashboard", method(http.MethodGet, handleAdminDashboard))
-	mux.HandleFunc("/api/v1/admin/reports", method(http.MethodGet, handleAdminReports))
-	mux.HandleFunc("/api/v1/admin/reports/export", method(http.MethodGet, handleAdminReportsExport))
-	mux.HandleFunc("/api/v1/admin/audit-logs", method(http.MethodGet, handleAdminAuditLogs))
-	mux.HandleFunc("/api/v1/admin/operation-logs", method(http.MethodGet, handleAdminOperationLogs))
-	mux.HandleFunc("/api/v1/admin/users", method(http.MethodGet, handleAdminUsers))
-	mux.HandleFunc("/api/v1/admin/users/save", method(http.MethodPost, handleAdminUserSave))
-	mux.HandleFunc("/api/v1/admin/users/roles", method(http.MethodPost, handleAdminUserRoles))
-	mux.HandleFunc("/api/v1/admin/roles", method(http.MethodGet, handleAdminRoles))
-	mux.HandleFunc("/api/v1/qr.png", method(http.MethodGet, handleQRPNG))
-	mux.HandleFunc("/api/v1/vietqr/batch", method(http.MethodPost, handleBatch))
-	mux.HandleFunc("/api/v1/email/config", handleEmailConfig)
-	mux.HandleFunc("/api/v1/email/preview", method(http.MethodPost, handleEmailPreview))
-	mux.HandleFunc("/api/v1/email/send", method(http.MethodPost, handleEmailSend))
-	mux.HandleFunc("/api/v1/email/cron", handleEmailCron)
-	mux.HandleFunc("/api/v1/email/cron/run", method(http.MethodPost, handleEmailCronRun))
+	registerAPIRoutes(mux)
 
 	static, err := fs.Sub(webFiles, "web")
 	if err != nil {
@@ -207,6 +162,10 @@ func method(want string, next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+func handleHealthz(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func handleBanks(w http.ResponseWriter, r *http.Request) {
@@ -1053,6 +1012,7 @@ func importFieldsForTarget(target string) []importFieldOption {
 		return []importFieldOption{
 			{Key: "student_code", Label: "Mã học sinh", Required: true},
 			{Key: "student", Label: "Họ, tên", Required: true},
+			{Key: "school", Label: "Trường/cơ sở"},
 			{Key: "school_year", Label: "Năm học", Required: true},
 			{Key: "grade", Label: "Khối"},
 			{Key: "class_name", Label: "Lớp", Required: true},

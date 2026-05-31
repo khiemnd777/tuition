@@ -33,6 +33,10 @@ body {
   font-size: 14px;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 button,
 input,
 select,
@@ -97,6 +101,11 @@ button.primary:hover {
   border-color: #0f6848;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 button.danger {
   color: var(--red);
 }
@@ -104,6 +113,11 @@ button.danger {
 button.danger:hover {
   background: #fff5f5;
   border-color: #e4b8b8;
+}
+
+.icon-button {
+  width: 36px;
+  padding: 0;
 }
 
 button:focus-visible,
@@ -115,10 +129,187 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+.app-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.app-dialog-sm {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.app-dialog-lg {
+  width: min(980px, calc(100vw - 32px));
+}
+
+.app-dialog-xl {
+  width: min(1180px, calc(100vw - 32px));
+}
+
+.app-dialog::backdrop {
+  background: rgba(15, 23, 18, 0.48);
+}
+
+.app-dialog-surface {
+  max-height: calc(100vh - 40px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(16, 24, 20, 0.22);
+}
+
+.app-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.app-dialog-head > div {
+  min-width: 0;
+}
+
+.app-dialog-head .section-title {
+  align-items: center;
+  margin-top: 2px;
+}
+
+.app-dialog-body {
+  min-height: 120px;
+  overflow: auto;
+  background: var(--surface-muted);
+}
+
+.app-dialog-error {
+  border-top: 1px solid #e4b8b8;
+  padding: 10px 16px;
+  background: #fff8f8;
+  color: var(--red);
+  font-weight: 700;
+}
+
+.app-dialog-actions,
+.dialog-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.dialog-inline-actions {
+  justify-content: flex-start;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dialog-message {
+  padding: 18px 16px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.dialog-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.dialog-form-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dialog-form-grid input,
+.dialog-form-grid select,
+.dialog-form-grid textarea {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+.login-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.login-brand {
+  border-bottom: 1px solid var(--line);
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.login-mode-head {
+  display: grid;
+  gap: 3px;
+}
+
+.login-mode-head h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.login-status {
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.login-status[data-tone="busy"] {
+  color: var(--blue);
+}
+
+.login-status[data-tone="error"] {
+  color: var(--red);
 }
 
 .app-sidebar {
@@ -148,6 +339,30 @@ textarea:focus-visible {
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 1px 0 rgba(23, 33, 27, 0.02);
+}
+
+.app-bar-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.session-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.auth-user-badge {
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-shell {
@@ -450,7 +665,7 @@ textarea:focus-visible {
 }
 
 .admin-user-form {
-  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr) 150px minmax(220px, 1.2fr) auto;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   align-items: end;
 }
 
@@ -481,11 +696,16 @@ textarea:focus-visible {
   min-height: 86px;
 }
 
+.admin-user-roles-field {
+  grid-column: span 2;
+}
+
 .admin-user-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  grid-column: span 2;
 }
 
 .admin-metrics {
@@ -613,6 +833,8 @@ textarea:focus-visible {
 }
 
 .master-controls,
+.master-tree-panel,
+.master-editor-panel,
 .master-import-panel,
 .master-conflict-panel {
   grid-column: 1 / -1;
@@ -681,6 +903,211 @@ textarea:focus-visible {
 .master-import-summary.error {
   color: var(--red);
   background: #fff8f8;
+}
+
+.school-tree-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(300px, 1fr);
+  align-items: stretch;
+  min-height: 320px;
+  border-top: 1px solid var(--line);
+}
+
+.school-tree-list,
+.school-tree-detail,
+.school-tree-editor {
+  min-width: 0;
+}
+
+.school-tree-list {
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--surface-muted);
+  border-right: 1px solid var(--line);
+}
+
+.school-tree-school,
+.school-tree-year,
+.school-tree-grade {
+  display: grid;
+  gap: 6px;
+}
+
+.school-tree-school + .school-tree-school {
+  margin-top: 8px;
+}
+
+.school-tree-children {
+  display: grid;
+  gap: 6px;
+  margin-left: 18px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+.school-tree-node {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.school-tree-node:hover,
+.school-tree-node.is-selected {
+  border-color: var(--green);
+  background: #eef8f2;
+}
+
+.school-tree-node .mui-icon {
+  font-size: 20px;
+  color: var(--green);
+}
+
+.school-tree-node span {
+  min-width: 0;
+}
+
+.school-tree-node strong,
+.school-tree-node small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-tree-node strong {
+  font-size: 13px;
+}
+
+.school-tree-node small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.school-tree-class {
+  min-height: 38px;
+}
+
+.school-tree-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  color: var(--muted);
+  text-align: center;
+  font-weight: 700;
+}
+
+.school-tree-detail {
+  border-right: 1px solid var(--line);
+}
+
+.school-tree-editor {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  background: #ffffff;
+}
+
+.tree-editor-group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto;
+  gap: 8px;
+  align-items: end;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tree-editor-group label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tree-editor-group label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tree-editor-group input,
+.tree-editor-group select {
+  min-height: 36px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.master-student-form,
+.master-parent-editor-rows {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.master-student-form {
+  grid-template-columns: minmax(140px, 0.8fr) minmax(220px, 1.3fr) minmax(240px, 1.4fr) 140px;
+  align-items: end;
+}
+
+.master-student-form label,
+.master-parent-row label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.master-student-form input,
+.master-student-form select,
+.master-parent-row input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.master-parent-editor-rows {
+  border-top: 1px solid var(--line);
+}
+
+.master-parent-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.25fr) minmax(220px, 1.35fr) repeat(4, minmax(92px, auto)) auto;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.master-parent-check {
+  min-height: 36px;
+  display: flex !important;
+  align-items: center;
+  gap: 6px !important;
+  color: var(--ink-soft) !important;
+}
+
+.master-parent-check input {
+  width: 16px;
+  min-height: 16px;
 }
 
 .import-mapping-panel {
@@ -1717,6 +2144,11 @@ td select:hover,
 .cron-grid select:hover,
 .master-toolbar input:hover,
 .master-toolbar select:hover,
+.tree-editor-group input:hover,
+.tree-editor-group select:hover,
+.master-student-form input:hover,
+.master-student-form select:hover,
+.master-parent-row input:hover,
 .fee-schedule-grid input:hover,
 .fee-schedule-grid select:hover,
 .fee-config-table input:hover,
@@ -1741,6 +2173,11 @@ td select:focus,
 .cron-grid select:focus,
 .master-toolbar input:focus,
 .master-toolbar select:focus,
+.tree-editor-group input:focus,
+.tree-editor-group select:focus,
+.master-student-form input:focus,
+.master-student-form select:focus,
+.master-parent-row input:focus,
 .fee-schedule-grid input:focus,
 .fee-schedule-grid select:focus,
 .fee-config-table input:focus,
@@ -2153,6 +2590,14 @@ td select:focus,
     justify-content: flex-start;
   }
 
+  .app-bar-actions,
+  .session-actions {
+    align-items: flex-start;
+    justify-items: start;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .workspace,
   .output-grid {
     grid-template-columns: 1fr;
@@ -2175,9 +2620,17 @@ td select:focus,
     grid-template-columns: 1fr;
   }
 
+  .dialog-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .fee-schedule-grid,
   .fee-schedule-body,
   .master-wrap,
+  .school-tree-workspace,
+  .tree-editor-group,
+  .master-student-form,
+  .master-parent-row,
   .invoice-workspace,
   .invoice-toolbar,
   .reconciliation-workspace,
@@ -2191,6 +2644,8 @@ td select:focus,
   }
 
   .master-controls,
+  .master-tree-panel,
+  .master-editor-panel,
   .master-import-panel,
   .master-conflict-panel,
   .invoice-control-panel,
@@ -2213,6 +2668,16 @@ td select:focus,
   .notification-summary,
   .admin-metrics {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .school-tree-list,
+  .school-tree-detail {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .school-tree-list {
+    max-height: 360px;
   }
 
   .fee-schedule-name,

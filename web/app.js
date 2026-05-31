@@ -9,6 +9,7 @@ const generateBtn = document.querySelector("#generate");
 const addRowBtn = document.querySelector("#addRow");
 const loadSampleBtn = document.querySelector("#loadSample");
 const csvFileEl = document.querySelector("#csvFile");
+const csvFileButtonEl = document.querySelector('label[for="csvFile"]');
 const paymentMappingPanelEl = document.querySelector("#paymentMappingPanel");
 const paymentMappingCountEl = document.querySelector("#paymentMappingCount");
 const paymentMappingSummaryEl = document.querySelector("#paymentMappingSummary");
@@ -50,11 +51,15 @@ const disableCronBtn = document.querySelector("#disableCron");
 const runCronNowBtn = document.querySelector("#runCronNow");
 const cronStatusEl = document.querySelector("#cronStatus");
 const masterDataStatusEl = document.querySelector("#masterDataStatus");
+const masterSchoolFilterEl = document.querySelector("#masterSchoolFilter");
 const masterSchoolYearFilterEl = document.querySelector("#masterSchoolYearFilter");
 const masterGradeFilterEl = document.querySelector("#masterGradeFilter");
 const masterClassFilterEl = document.querySelector("#masterClassFilter");
 const masterSearchEl = document.querySelector("#masterSearch");
 const refreshMasterDataBtn = document.querySelector("#refreshMasterData");
+const openSchoolTreeSchoolDialogBtn = document.querySelector("#openSchoolTreeSchoolDialog");
+const openSchoolTreeYearDialogBtn = document.querySelector("#openSchoolTreeYearDialog");
+const openSchoolTreeClassDialogBtn = document.querySelector("#openSchoolTreeClassDialog");
 const masterCsvFileEl = document.querySelector("#masterCsvFile");
 const checkMasterImportBtn = document.querySelector("#checkMasterImport");
 const applyMasterImportBtn = document.querySelector("#applyMasterImport");
@@ -68,11 +73,51 @@ const masterImportSummaryEl = document.querySelector("#masterImportSummary");
 const masterStudentsEl = document.querySelector("#masterStudents");
 const masterStudentCountEl = document.querySelector("#masterStudentCount");
 const masterStudentDetailEl = document.querySelector("#masterStudentDetail");
+const masterStudentEditorPanelEl = document.querySelector(".master-editor-panel");
+const masterStudentEditorContentEl = document.querySelector("#masterStudentEditorContent");
+const masterStudentIdEl = document.querySelector("#masterStudentId");
+const masterStudentCodeEl = document.querySelector("#masterStudentCode");
+const masterStudentNameEl = document.querySelector("#masterStudentName");
+const masterStudentClassEl = document.querySelector("#masterStudentClass");
+const masterStudentStatusEl = document.querySelector("#masterStudentStatus");
+const masterParentEditorRowsEl = document.querySelector("#masterParentEditorRows");
+const newMasterStudentBtn = document.querySelector("#newMasterStudent");
+const editMasterStudentBtn = document.querySelector("#editMasterStudent");
+const addMasterParentBtn = document.querySelector("#addMasterParent");
+const saveMasterStudentBtn = document.querySelector("#saveMasterStudent");
 const masterConflictPanelEl = document.querySelector("#masterConflictPanel");
 const masterConflictCountEl = document.querySelector("#masterConflictCount");
 const masterConflictListEl = document.querySelector("#masterConflictList");
+const masterImportPanelEl = document.querySelector(".master-import-panel");
+const schoolTreeCountEl = document.querySelector("#schoolTreeCount");
+const schoolTreeListEl = document.querySelector("#schoolTreeList");
+const schoolTreeDetailEl = document.querySelector("#schoolTreeDetail");
+const schoolTreeSchoolEditorEl = document.querySelector("#schoolTreeSchoolEditor");
+const schoolTreeSchoolIdEl = document.querySelector("#schoolTreeSchoolId");
+const schoolTreeSchoolCodeEl = document.querySelector("#schoolTreeSchoolCode");
+const schoolTreeSchoolNameEl = document.querySelector("#schoolTreeSchoolName");
+const schoolTreeSchoolStatusEl = document.querySelector("#schoolTreeSchoolStatus");
+const saveSchoolTreeSchoolBtn = document.querySelector("#saveSchoolTreeSchool");
+const newSchoolTreeSchoolBtn = document.querySelector("#newSchoolTreeSchool");
+const schoolTreeYearEditorEl = document.querySelector("#schoolTreeYearEditor");
+const schoolTreeYearIdEl = document.querySelector("#schoolTreeYearId");
+const schoolTreeYearSchoolEl = document.querySelector("#schoolTreeYearSchool");
+const schoolTreeYearCodeEl = document.querySelector("#schoolTreeYearCode");
+const schoolTreeYearNameEl = document.querySelector("#schoolTreeYearName");
+const schoolTreeYearStatusEl = document.querySelector("#schoolTreeYearStatus");
+const saveSchoolTreeYearBtn = document.querySelector("#saveSchoolTreeYear");
+const newSchoolTreeYearBtn = document.querySelector("#newSchoolTreeYear");
+const schoolTreeClassEditorEl = document.querySelector("#schoolTreeClassEditor");
+const schoolTreeClassIdEl = document.querySelector("#schoolTreeClassId");
+const schoolTreeClassYearEl = document.querySelector("#schoolTreeClassYear");
+const schoolTreeClassGradeEl = document.querySelector("#schoolTreeClassGrade");
+const schoolTreeClassNameEl = document.querySelector("#schoolTreeClassName");
+const schoolTreeClassStatusEl = document.querySelector("#schoolTreeClassStatus");
+const saveSchoolTreeClassBtn = document.querySelector("#saveSchoolTreeClass");
+const newSchoolTreeClassBtn = document.querySelector("#newSchoolTreeClass");
 const feeScheduleLoadStatusEl = document.querySelector("#feeScheduleLoadStatus");
 const refreshFeeSchedulesBtn = document.querySelector("#refreshFeeSchedules");
+const openFeeScheduleDialogBtn = document.querySelector("#openFeeScheduleDialog");
 const previewFeeScheduleBtn = document.querySelector("#previewFeeSchedule");
 const saveFeeScheduleBtn = document.querySelector("#saveFeeSchedule");
 const feeScheduleYearEl = document.querySelector("#feeScheduleYear");
@@ -95,6 +140,7 @@ const feeSchedulesEl = document.querySelector("#feeSchedules");
 const feeScheduleCountEl = document.querySelector("#feeScheduleCount");
 const invoiceStatusEl = document.querySelector("#invoiceStatus");
 const refreshInvoicesBtn = document.querySelector("#refreshInvoices");
+const openInvoiceDialogBtn = document.querySelector("#openInvoiceDialog");
 const previewInvoicesBtn = document.querySelector("#previewInvoices");
 const generateInvoicesBtn = document.querySelector("#generateInvoices");
 const invoiceScheduleEl = document.querySelector("#invoiceSchedule");
@@ -124,6 +170,7 @@ const paymentReconTransactionRowsEl = document.querySelector("#paymentReconTrans
 const paymentReconDetailEl = document.querySelector("#paymentReconDetail");
 const notificationStatusEl = document.querySelector("#notificationStatus");
 const refreshNotificationsBtn = document.querySelector("#refreshNotifications");
+const openNotificationDialogBtn = document.querySelector("#openNotificationDialog");
 const notificationCampaignNameEl = document.querySelector("#notificationCampaignName");
 const notificationCampaignTypeEl = document.querySelector("#notificationCampaignType");
 const notificationTemplateEl = document.querySelector("#notificationTemplate");
@@ -183,10 +230,13 @@ const auditLogCountEl = document.querySelector("#auditLogCount");
 const auditLogRowsEl = document.querySelector("#auditLogRows");
 const adminUsersStatusEl = document.querySelector("#adminUsersStatus");
 const refreshAdminUsersBtn = document.querySelector("#refreshAdminUsers");
+const newAdminUserBtn = document.querySelector("#newAdminUser");
 const adminUserIdEl = document.querySelector("#adminUserId");
 const adminUserEmailEl = document.querySelector("#adminUserEmail");
+const adminUserPhoneEl = document.querySelector("#adminUserPhone");
 const adminUserDisplayNameEl = document.querySelector("#adminUserDisplayName");
 const adminUserStatusEl = document.querySelector("#adminUserStatus");
+const adminUserPasswordEl = document.querySelector("#adminUserPassword");
 const adminUserRolesEl = document.querySelector("#adminUserRoles");
 const clearAdminUserBtn = document.querySelector("#clearAdminUser");
 const saveAdminUserBtn = document.querySelector("#saveAdminUser");
@@ -200,16 +250,45 @@ const tabPanels = [...document.querySelectorAll(".tab-panel")];
 const currentSectionKickerEl = document.querySelector("#currentSectionKicker");
 const currentSectionTitleEl = document.querySelector("#currentSectionTitle");
 const currentSectionDescriptionEl = document.querySelector("#currentSectionDescription");
+const loginScreenEl = document.querySelector("#loginScreen");
+const appShellEl = document.querySelector("#appShell");
+const loginFormEl = document.querySelector("#loginForm");
+const loginEmailEl = document.querySelector("#loginEmail");
+const loginPasswordEl = document.querySelector("#loginPassword");
+const loginSubmitBtn = document.querySelector("#loginSubmit");
+const loginStatusEl = document.querySelector("#loginStatus");
+const bootstrapFormEl = document.querySelector("#bootstrapForm");
+const bootstrapDisplayNameEl = document.querySelector("#bootstrapDisplayName");
+const bootstrapEmailEl = document.querySelector("#bootstrapEmail");
+const bootstrapPhoneEl = document.querySelector("#bootstrapPhone");
+const bootstrapPasswordEl = document.querySelector("#bootstrapPassword");
+const bootstrapPasswordConfirmEl = document.querySelector("#bootstrapPasswordConfirm");
+const bootstrapSubmitBtn = document.querySelector("#bootstrapSubmit");
+const bootstrapStatusEl = document.querySelector("#bootstrapStatus");
+const authUserBadgeEl = document.querySelector("#authUserBadge");
+const logoutButton = document.querySelector("#logoutButton");
+const appDialogEl = document.querySelector("#appDialog");
+const appDialogKickerEl = document.querySelector("#appDialogKicker");
+const appDialogTitleEl = document.querySelector("#appDialogTitle");
+const appDialogBodyEl = document.querySelector("#appDialogBody");
+const appDialogErrorEl = document.querySelector("#appDialogError");
+const appDialogActionsEl = document.querySelector("#appDialogActions");
+const appDialogCloseBtn = document.querySelector("#appDialogClose");
+const openEmailConfigDialogBtn = document.querySelector("#openEmailConfigDialog");
+const openCronConfigDialogBtn = document.querySelector("#openCronConfigDialog");
 
 let banks = [];
 let currentItems = [];
 let selectedId = "";
 let feeColumnCollapsed = false;
 let savedEmailConfig = {};
-let masterDataOptions = { schoolYears: [], classes: [] };
+let masterDataOptions = { schools: [], schoolYears: [], classes: [] };
 let masterDataLoaded = false;
 let masterStudentsData = [];
 let selectedMasterStudentKey = "";
+let masterStudentParentDrafts = [];
+let schoolTreeData = { schools: [] };
+let selectedSchoolTreeNode = { type: "", id: "" };
 let paymentImportState = null;
 let masterImportState = null;
 let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
@@ -231,6 +310,10 @@ let adminReportsLoaded = false;
 let operationsLoaded = false;
 let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
+let authSession = null;
+let refreshAuthPromise = null;
+let activeDialogRestore = null;
+let activeDialogOnClose = null;
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -340,17 +423,240 @@ const tabMetadata = {
   },
 };
 
+const tabAccess = {
+  dashboardTab: ["dashboard.view"],
+  masterDataTab: ["student.view"],
+  feeTemplateTab: ["fee.view"],
+  invoiceTab: ["invoice.view"],
+  reconciliationTab: ["payment.view"],
+  paymentsTab: ["payment.create"],
+  notificationTab: ["notification.view"],
+  emailTab: { any: ["email_config.view", "email_config.update", "notification.send", "email_cron.view", "email_cron.update"] },
+  reportsTab: ["report.view"],
+  operationsTab: ["operation_log.view"],
+  usersTab: ["user.view"],
+};
+
+const permissionAliases = {
+  "dashboard.view": ["admin.dashboard.read"],
+  "student.view": ["master_data.read"],
+  "student.create": ["master_data.write"],
+  "student.update": ["master_data.write"],
+  "school_tree.view": ["master_data.read"],
+  "school_tree.update": ["master_data.write"],
+  "fee.view": ["fee_schedules.read"],
+  "fee.update": ["fee_schedules.write"],
+  "invoice.view": ["invoices.read"],
+  "invoice.create": ["invoices.write"],
+  "payment.view": ["payments.read"],
+  "payment.create": ["payments.write"],
+  "payment.reconcile": ["payments.reconcile"],
+  "notification.view": ["notifications.read"],
+  "notification.create": ["notifications.write"],
+  "notification.send": ["notifications.send", "email.send"],
+  "email_config.view": ["email.config.read"],
+  "email_config.update": ["email.config.write"],
+  "email_cron.view": ["email.cron.manage"],
+  "email_cron.update": ["email.cron.manage"],
+  "report.view": ["admin.reports.read"],
+  "report.export": ["admin.reports.export"],
+  "operation_log.view": ["operations.read"],
+  "audit_log.view": ["audit.read"],
+  "user.view": ["system.users.read"],
+  "user.create": ["system.users.write"],
+  "user.update": ["system.users.write"],
+  "user.assign_role": ["system.users.assign_roles"],
+};
+
+const nativeFetch = window.fetch.bind(window);
+window.fetch = authAwareFetch;
+
 init();
 
 function muiIcon(name) {
   return `<span class="mui-icon" aria-hidden="true">${escapeHtml(name)}</span>`;
 }
 
+function openAppDialog({ title, kicker = "Dialog", icon = "", nodes = [], content = null, actions = [], size = "md", onClose = null } = {}) {
+  if (!appDialogEl) return;
+  if (appDialogEl.open) {
+    const previousOnClose = activeDialogOnClose;
+    activeDialogOnClose = null;
+    appDialogEl.close("replace");
+    restoreDialogContent();
+    if (previousOnClose) previousOnClose();
+  } else {
+    restoreDialogContent();
+  }
+  appDialogEl.className = `app-dialog app-dialog-${size}`;
+  appDialogKickerEl.textContent = kicker;
+  appDialogTitleEl.innerHTML = `${icon ? muiIcon(icon) : ""}<span>${escapeHtml(title || "")}</span>`;
+  appDialogBodyEl.innerHTML = "";
+  appDialogActionsEl.innerHTML = "";
+  appDialogErrorEl.hidden = true;
+  appDialogErrorEl.textContent = "";
+
+  const records = [];
+  nodes.filter(Boolean).forEach((node) => {
+    const placeholder = document.createComment(`dialog:${node.id || node.className || "node"}`);
+    const parent = node.parentNode;
+    const nextSibling = node.nextSibling;
+    parent.insertBefore(placeholder, node);
+    node.hidden = false;
+    appDialogBodyEl.appendChild(node);
+    records.push({ node, parent, nextSibling, placeholder });
+  });
+  if (content instanceof HTMLElement) {
+    appDialogBodyEl.appendChild(content);
+  } else if (typeof content === "string" && content) {
+    appDialogBodyEl.innerHTML += content;
+  }
+
+  activeDialogRestore = () => {
+    records.reverse().forEach(({ node, parent, nextSibling, placeholder }) => {
+      node.hidden = true;
+      if (nextSibling && nextSibling.parentNode === parent) {
+        parent.insertBefore(node, nextSibling);
+      } else {
+        parent.appendChild(node);
+      }
+      placeholder.remove();
+    });
+    appDialogBodyEl.innerHTML = "";
+    appDialogActionsEl.innerHTML = "";
+  };
+  activeDialogOnClose = onClose;
+
+  actions.forEach((action) => appDialogActionsEl.appendChild(dialogActionButton(action)));
+  if (!actions.length) {
+    appDialogActionsEl.appendChild(dialogActionButton({ label: "Đóng", icon: "close", onClick: closeAppDialog }));
+  }
+  appDialogEl.showModal();
+  window.setTimeout(() => {
+    const first = appDialogBodyEl.querySelector("input:not([type='hidden']), select, textarea, button:not(:disabled)") || appDialogCloseBtn;
+    first?.focus();
+  }, 0);
+}
+
+function dialogActionButton({ label, icon = "", variant = "", onClick = null, closeOnSuccess = false } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = variant;
+  button.innerHTML = `${icon ? muiIcon(icon) : ""}<span>${escapeHtml(label || "OK")}</span>`;
+  button.addEventListener("click", async () => {
+    clearDialogError();
+    const previous = button.innerHTML;
+    button.disabled = true;
+    if (onClick) {
+      try {
+        const result = await onClick();
+        if (result === false) {
+          button.disabled = false;
+          button.innerHTML = previous;
+          return;
+        }
+      } catch (error) {
+        showDialogError(error?.message || "Không xử lý được thao tác");
+        button.disabled = false;
+        button.innerHTML = previous;
+        return;
+      }
+    }
+    button.disabled = false;
+    button.innerHTML = previous;
+    if (closeOnSuccess) closeAppDialog();
+  });
+  return button;
+}
+
+function closeAppDialog() {
+  if (appDialogEl?.open) {
+    appDialogEl.close("close");
+  }
+}
+
+function restoreDialogContent() {
+  if (activeDialogRestore) {
+    activeDialogRestore();
+    activeDialogRestore = null;
+  }
+}
+
+function showDialogError(message) {
+  appDialogErrorEl.textContent = message;
+  appDialogErrorEl.hidden = false;
+}
+
+function clearDialogError() {
+  appDialogErrorEl.hidden = true;
+  appDialogErrorEl.textContent = "";
+}
+
+function confirmDialog({ title, message, confirmLabel = "Xác nhận", confirmIcon = "check", danger = false } = {}) {
+  return new Promise((resolve) => {
+    let settled = false;
+    openAppDialog({
+      title,
+      kicker: "Confirm",
+      icon: danger ? "warning" : "help",
+      size: "sm",
+      content: `<div class="dialog-message">${escapeHtml(message || "")}</div>`,
+      onClose: () => {
+        if (!settled) resolve(false);
+      },
+      actions: [
+        {
+          label: "Hủy",
+          icon: "close",
+          onClick: () => {
+            settled = true;
+            resolve(false);
+          },
+          closeOnSuccess: true,
+        },
+        {
+          label: confirmLabel,
+          icon: confirmIcon,
+          variant: danger ? "danger" : "primary",
+          onClick: () => {
+            settled = true;
+            resolve(true);
+          },
+          closeOnSuccess: true,
+        },
+      ],
+    });
+  });
+}
+
 async function init() {
+  showLogin("Đang kiểm tra phiên");
+  const bootstrapStatus = await loadAuthBootstrapStatus();
+  if (!bootstrapStatus) {
+    return;
+  }
+  if (bootstrapStatus.needsBootstrap) {
+    showBootstrap("Tạo Admin để bắt đầu sử dụng hệ thống");
+    return;
+  }
+  const session = await loadCurrentAuthSession();
+  if (!session) {
+    showLogin(loginStatusEl.textContent || "Vui lòng đăng nhập");
+    return;
+  }
+  showApp(session);
+  await initializeAppData();
+}
+
+async function initializeAppData() {
   status("Đang tải", "busy");
   await loadBanks();
-  await loadEmailConfig();
-  await loadEmailCron();
+  if (hasPermission("email_config.view")) {
+    await loadEmailConfig();
+  }
+  if (hasPermission("email_cron.view") || hasPermission("email_cron.update")) {
+    await loadEmailCron();
+  }
   renderMasterFilters();
   renderMasterStudents([]);
   renderFeeScheduleControls();
@@ -372,11 +678,302 @@ async function init() {
   renderOperations(null);
   renderAdminUsers(null);
   renderFeeTemplate(defaultPaymentItems);
-  renderRows(sampleRows);
-  await loadAdminDashboard();
-  await loadMasterData();
-  await generate();
-  await previewEmail();
+  renderRows(hasPermission("payment.create") ? sampleRows : []);
+  if (hasPermission("dashboard.view")) {
+    await loadAdminDashboard();
+  }
+  if (hasPermission("student.view")) {
+    await loadMasterData();
+  }
+  if (hasPermission("payment.create")) {
+    await generate();
+  } else {
+    status("Không đủ quyền", "error");
+  }
+  if (hasPermission("notification.send") && hasPermission("payment.create")) {
+    await previewEmail();
+  }
+  await loadActiveTabData(tabPanels.find((panel) => panel.classList.contains("active"))?.id || "");
+}
+
+async function loadCurrentAuthSession() {
+  const sessionRes = await nativeFetch("/api/v1/auth/session");
+  if (sessionRes.ok) {
+    return sessionRes.json();
+  }
+  if (sessionRes.status === 401 && (await refreshAuthSession())) {
+    const retryRes = await nativeFetch("/api/v1/auth/session");
+    if (retryRes.ok) {
+      return retryRes.json();
+    }
+  }
+  const text = await sessionRes.text();
+  if (text && sessionRes.status !== 401) {
+    setLoginStatus(text, "error");
+  }
+  return null;
+}
+
+async function loadAuthBootstrapStatus() {
+  const res = await nativeFetch("/api/v1/auth/bootstrap");
+  const text = await res.text();
+  if (!res.ok) {
+    showLogin(text || "Không kiểm tra được trạng thái Admin");
+    setLoginStatus(text || "Không kiểm tra được trạng thái Admin", "error");
+    return null;
+  }
+  return JSON.parse(text);
+}
+
+async function authAwareFetch(input, options = {}) {
+  const path = requestPath(input);
+  const res = await nativeFetch(input, options);
+  if (res.status !== 401 || path.startsWith("/api/v1/auth/")) {
+    return res;
+  }
+  if (!(await refreshAuthSession())) {
+    showLogin("Phiên đăng nhập đã hết hạn");
+    return res;
+  }
+  return nativeFetch(input, options);
+}
+
+function requestPath(input) {
+  const value = typeof input === "string" ? input : input?.url || "";
+  try {
+    return new URL(value, window.location.origin).pathname;
+  } catch {
+    return value;
+  }
+}
+
+async function refreshAuthSession() {
+  if (refreshAuthPromise) return refreshAuthPromise;
+  refreshAuthPromise = nativeFetch("/api/v1/auth/refresh", { method: "POST" })
+    .then(async (res) => {
+      if (!res.ok) return false;
+      authSession = await res.json();
+      updateAuthBadge(authSession);
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      refreshAuthPromise = null;
+    });
+  return refreshAuthPromise;
+}
+
+function showLogin(message = "") {
+  authSession = null;
+  loginScreenEl.hidden = false;
+  appShellEl.hidden = true;
+  loginFormEl.hidden = false;
+  bootstrapFormEl.hidden = true;
+  if (message) setLoginStatus(message, message.includes("hết hạn") ? "error" : "");
+  loginSubmitBtn.disabled = false;
+}
+
+function showBootstrap(message = "") {
+  authSession = null;
+  loginScreenEl.hidden = false;
+  appShellEl.hidden = true;
+  loginFormEl.hidden = true;
+  bootstrapFormEl.hidden = false;
+  setBootstrapStatus(message, "");
+  bootstrapSubmitBtn.disabled = false;
+}
+
+function showApp(session) {
+  authSession = session;
+  loginScreenEl.hidden = true;
+  appShellEl.hidden = false;
+  loginPasswordEl.value = "";
+  setLoginStatus("", "");
+  updateAuthBadge(session);
+  applyPermissionUI();
+  activateInitialAllowedTab();
+}
+
+function updateAuthBadge(session) {
+  const user = session?.user || {};
+  authUserBadgeEl.textContent = user.displayName || user.email || user.phone || "Đã đăng nhập";
+}
+
+function currentPermissionSet() {
+  return new Set((authSession?.user?.permissions || []).map((permission) => permission.code).filter(Boolean));
+}
+
+function hasPermission(permission) {
+  if (!permission) return true;
+  const permissions = currentPermissionSet();
+  if (permissions.has(permission)) return true;
+  return (permissionAliases[permission] || []).some((alias) => permissions.has(alias));
+}
+
+function hasAnyPermission(permissions) {
+  return (permissions || []).some((permission) => hasPermission(permission));
+}
+
+function canUseTab(tabId) {
+  const access = tabAccess[tabId];
+  if (!access) return true;
+  if (Array.isArray(access)) return access.every((permission) => hasPermission(permission));
+  if (access.any) return hasAnyPermission(access.any);
+  return true;
+}
+
+function setElementAllowed(el, allowed) {
+  if (el) el.hidden = !allowed;
+}
+
+function applyPermissionUI() {
+  tabButtons.forEach((button) => {
+    button.hidden = !canUseTab(button.dataset.tabTarget);
+  });
+  tabPanels.forEach((panel) => {
+    if (!canUseTab(panel.id)) {
+      panel.hidden = true;
+      panel.classList.remove("active");
+    }
+  });
+
+  setElementAllowed(csvFileButtonEl, hasPermission("payment.create"));
+  setElementAllowed(loadSampleBtn, hasPermission("payment.create"));
+  setElementAllowed(generateBtn, hasPermission("payment.create"));
+  setElementAllowed(addRowBtn, hasPermission("payment.create"));
+  setElementAllowed(toggleFeeColumnBtn, hasPermission("payment.create"));
+  setElementAllowed(masterStudentEditorPanelEl, hasPermission("student.update"));
+  setElementAllowed(masterImportPanelEl, hasPermission("student.create"));
+  setElementAllowed(openSchoolTreeSchoolDialogBtn, hasPermission("school_tree.update"));
+  setElementAllowed(openSchoolTreeYearDialogBtn, hasPermission("school_tree.update"));
+  setElementAllowed(openSchoolTreeClassDialogBtn, hasPermission("school_tree.update"));
+  setElementAllowed(saveSchoolTreeSchoolBtn, hasPermission("school_tree.update"));
+  setElementAllowed(newSchoolTreeSchoolBtn, hasPermission("school_tree.update"));
+  setElementAllowed(saveSchoolTreeYearBtn, hasPermission("school_tree.update"));
+  setElementAllowed(newSchoolTreeYearBtn, hasPermission("school_tree.update"));
+  setElementAllowed(saveSchoolTreeClassBtn, hasPermission("school_tree.update"));
+  setElementAllowed(newSchoolTreeClassBtn, hasPermission("school_tree.update"));
+  setElementAllowed(openFeeScheduleDialogBtn, hasPermission("fee.view") || hasPermission("fee.update"));
+  setElementAllowed(previewFeeScheduleBtn, hasPermission("fee.view"));
+  setElementAllowed(saveFeeScheduleBtn, hasPermission("fee.update"));
+  setElementAllowed(openInvoiceDialogBtn, hasPermission("invoice.view") || hasPermission("invoice.create"));
+  setElementAllowed(previewInvoicesBtn, hasPermission("invoice.view"));
+  setElementAllowed(generateInvoicesBtn, hasPermission("invoice.create"));
+  setElementAllowed(openNotificationDialogBtn, hasPermission("notification.create") || hasPermission("notification.send"));
+  setElementAllowed(previewNotificationsBtn, hasPermission("notification.send"));
+  setElementAllowed(saveNotificationCampaignBtn, hasPermission("notification.create"));
+  setElementAllowed(sendNotificationCampaignBtn, hasPermission("notification.send"));
+  setElementAllowed(exportAdminReportClassesBtn, hasPermission("report.export"));
+  setElementAllowed(exportAdminReportInvoicesBtn, hasPermission("report.export"));
+  setElementAllowed(exportAdminReportTransactionsBtn, hasPermission("report.export"));
+  setElementAllowed(newAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
+  setElementAllowed(saveAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
+  setElementAllowed(assignAdminUserRolesBtn, hasPermission("user.assign_role"));
+  setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
+  setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
+  setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
+  setElementAllowed(dryRunEmailBtn, hasPermission("notification.send"));
+  setElementAllowed(sendEmailBtn, hasPermission("notification.send"));
+  setElementAllowed(openCronConfigDialogBtn, hasPermission("email_cron.view") || hasPermission("email_cron.update"));
+  setElementAllowed(saveCronBtn, hasPermission("email_cron.update"));
+  setElementAllowed(disableCronBtn, hasPermission("email_cron.update"));
+  setElementAllowed(runCronNowBtn, hasPermission("email_cron.update"));
+}
+
+function activateInitialAllowedTab() {
+  const current = tabPanels.find((panel) => panel.classList.contains("active"))?.id || "dashboardTab";
+  const targetId = canUseTab(current) ? current : tabButtons.find((button) => !button.hidden)?.dataset.tabTarget || "";
+  if (!targetId) {
+    currentSectionKickerEl.textContent = "Không đủ quyền";
+    currentSectionTitleEl.textContent = "Chưa có màn hình được cấp quyền";
+    currentSectionDescriptionEl.textContent = "Liên hệ quản trị viên để cập nhật role.";
+    return;
+  }
+  updateCurrentSection(targetId);
+  tabButtons.forEach((button) => {
+    const isActive = button.dataset.tabTarget === targetId;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+  tabPanels.forEach((panel) => {
+    const isActive = panel.id === targetId;
+    panel.hidden = !isActive;
+    panel.classList.toggle("active", isActive);
+  });
+}
+
+function setLoginStatus(message, tone = "") {
+  loginStatusEl.textContent = message;
+  loginStatusEl.dataset.tone = tone;
+}
+
+function setBootstrapStatus(message, tone = "") {
+  bootstrapStatusEl.textContent = message;
+  bootstrapStatusEl.dataset.tone = tone;
+}
+
+async function submitLogin(event) {
+  event.preventDefault();
+  loginSubmitBtn.disabled = true;
+  setLoginStatus("Đang đăng nhập", "busy");
+  const res = await nativeFetch("/api/v1/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      identifier: loginEmailEl.value.trim(),
+      password: loginPasswordEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    loginSubmitBtn.disabled = false;
+    setLoginStatus(text || "Không đăng nhập được", "error");
+    return;
+  }
+  const session = JSON.parse(text);
+  showApp(session);
+  await initializeAppData();
+}
+
+async function submitBootstrap(event) {
+  event.preventDefault();
+  const password = bootstrapPasswordEl.value;
+  if (password !== bootstrapPasswordConfirmEl.value) {
+    setBootstrapStatus("Password xác nhận không khớp", "error");
+    return;
+  }
+  if (!bootstrapEmailEl.value.trim() && !bootstrapPhoneEl.value.trim()) {
+    setBootstrapStatus("Nhập Email hoặc SĐT", "error");
+    return;
+  }
+  bootstrapSubmitBtn.disabled = true;
+  setBootstrapStatus("Đang tạo Admin", "busy");
+  const res = await nativeFetch("/api/v1/auth/bootstrap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      displayName: bootstrapDisplayNameEl.value.trim(),
+      email: bootstrapEmailEl.value.trim(),
+      phone: bootstrapPhoneEl.value.trim(),
+      password,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    bootstrapSubmitBtn.disabled = false;
+    setBootstrapStatus(text || "Không tạo được Admin", "error");
+    return;
+  }
+  const session = JSON.parse(text);
+  bootstrapPasswordEl.value = "";
+  bootstrapPasswordConfirmEl.value = "";
+  showApp(session);
+  await initializeAppData();
+}
+
+async function logout() {
+  await nativeFetch("/api/v1/auth/logout", { method: "POST" });
+  showLogin("Đã đăng xuất");
 }
 
 async function loadBanks() {
@@ -393,6 +990,9 @@ function renderRows(rows) {
 }
 
 async function activateTab(targetId) {
+  if (!canUseTab(targetId)) {
+    return;
+  }
   updateCurrentSection(targetId);
   tabButtons.forEach((button) => {
     const isActive = button.dataset.tabTarget === targetId;
@@ -404,6 +1004,10 @@ async function activateTab(targetId) {
     panel.hidden = !isActive;
     panel.classList.toggle("active", isActive);
   });
+  await loadActiveTabData(targetId);
+}
+
+async function loadActiveTabData(targetId) {
   if (targetId === "dashboardTab") {
     await loadAdminDashboard();
   }
@@ -432,7 +1036,9 @@ async function activateTab(targetId) {
     await loadAdminUsers();
   }
   if (targetId === "emailTab") {
-    await previewEmail();
+    if (hasPermission("notification.send")) {
+      await previewEmail();
+    }
   }
 }
 
@@ -601,6 +1207,10 @@ function collectPaymentItems(tr) {
 }
 
 async function generate() {
+  if (!hasPermission("payment.create")) {
+    status("Không đủ quyền", "error");
+    return;
+  }
   status("Đang sinh QR", "busy");
   const rows = collectRows();
   const res = await fetch("/api/v1/vietqr/batch", {
@@ -833,6 +1443,7 @@ async function loadMasterData(force = false) {
   }
   const loaded = await loadMasterDataOptions();
   if (loaded) {
+    await loadSchoolTree();
     await loadMasterStudents();
   }
 }
@@ -843,8 +1454,10 @@ async function loadMasterDataOptions() {
   const text = await res.text();
   if (!res.ok) {
     masterDataLoaded = false;
-    masterDataOptions = { schoolYears: [], classes: [] };
+    masterDataOptions = { schools: [], schoolYears: [], classes: [] };
+    schoolTreeData = { schools: [] };
     renderMasterFilters();
+    renderSchoolTree();
     renderMasterStudents([]);
     renderMasterImport(null);
     setMasterStatus(text || "Chưa cấu hình DB", "error");
@@ -858,20 +1471,30 @@ async function loadMasterDataOptions() {
 }
 
 function renderMasterFilters() {
+  const selectedSchool = masterSchoolFilterEl.value;
   const selectedYear = masterSchoolYearFilterEl.value;
   const selectedGrade = masterGradeFilterEl.value;
   const selectedClass = masterClassFilterEl.value;
 
-  masterSchoolYearFilterEl.innerHTML = [
-    `<option value="">Tất cả năm học</option>`,
-    ...(masterDataOptions.schoolYears || []).map(
+  masterSchoolFilterEl.innerHTML = [
+    `<option value="">Tất cả trường</option>`,
+    ...(masterDataOptions.schools || []).map(
       (item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code)}</option>`,
     ),
+  ].join("");
+  masterSchoolFilterEl.value = optionValueOrEmpty(masterSchoolFilterEl, selectedSchool);
+
+  masterSchoolYearFilterEl.innerHTML = [
+    `<option value="">Tất cả năm học</option>`,
+    ...(masterDataOptions.schoolYears || [])
+      .filter((item) => !masterSchoolFilterEl.value || item.schoolId === masterSchoolFilterEl.value)
+      .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.schoolCode || "")} · ${escapeHtml(item.code)}</option>`),
   ].join("");
   masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, selectedYear);
 
   const grades = [...new Set(
     (masterDataOptions.classes || [])
+      .filter((item) => !masterSchoolFilterEl.value || item.schoolId === masterSchoolFilterEl.value)
       .filter((item) => !masterSchoolYearFilterEl.value || item.schoolYearId === masterSchoolYearFilterEl.value)
       .map((item) => item.grade)
       .filter(Boolean),
@@ -887,6 +1510,7 @@ function renderMasterFilters() {
 
 function renderMasterClassFilter(selectedClass = masterClassFilterEl.value) {
   const classes = (masterDataOptions.classes || []).filter((item) => {
+    if (masterSchoolFilterEl.value && item.schoolId !== masterSchoolFilterEl.value) return false;
     if (masterSchoolYearFilterEl.value && item.schoolYearId !== masterSchoolYearFilterEl.value) return false;
     if (masterGradeFilterEl.value && item.grade !== masterGradeFilterEl.value) return false;
     return true;
@@ -898,10 +1522,383 @@ function renderMasterClassFilter(selectedClass = masterClassFilterEl.value) {
     ),
   ].join("");
   masterClassFilterEl.value = optionValueOrEmpty(masterClassFilterEl, selectedClass);
+  renderMasterStudentClassSelect();
+}
+
+function renderMasterStudentClassSelect(selectedClass = masterStudentClassEl.value) {
+  const classes = [...(masterDataOptions.classes || [])].sort((a, b) => {
+    const left = [a.schoolCode, a.schoolYearCode, a.grade, a.name].filter(Boolean).join(" ");
+    const right = [b.schoolCode, b.schoolYearCode, b.grade, b.name].filter(Boolean).join(" ");
+    return left.localeCompare(right, "vi", { numeric: true });
+  });
+  masterStudentClassEl.innerHTML = [
+    `<option value="">Chọn lớp</option>`,
+    ...classes.map((item) => {
+      const label = [item.schoolCode, item.schoolYearCode, item.grade ? `Khối ${item.grade}` : "", item.name].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(item.id)}">${escapeHtml(label)}</option>`;
+    }),
+  ].join("");
+  masterStudentClassEl.value = optionValueOrEmpty(masterStudentClassEl, selectedClass || masterClassFilterEl.value);
 }
 
 function optionValueOrEmpty(selectEl, value) {
   return [...selectEl.options].some((option) => option.value === value) ? value : "";
+}
+
+async function loadSchoolTree() {
+  const res = await fetch("/api/v1/school-tree");
+  const text = await res.text();
+  if (!res.ok) {
+    schoolTreeData = { schools: [] };
+    renderSchoolTree();
+    setMasterStatus(text || "Không tải được cây trường", "error");
+    return false;
+  }
+  schoolTreeData = JSON.parse(text);
+  renderSchoolTree();
+  return true;
+}
+
+function renderSchoolTree() {
+  const schools = schoolTreeData.schools || [];
+  renderSchoolTreeSelects();
+  const nodeCount = countSchoolTreeNodes(schools);
+  schoolTreeCountEl.textContent = `${nodeCount} node`;
+  if (!schools.length) {
+    schoolTreeListEl.innerHTML = `<div class="school-tree-empty">${muiIcon("account_tree")}<span>Chưa có cây trường</span></div>`;
+    renderSchoolTreeDetail(null);
+    return;
+  }
+  schoolTreeListEl.innerHTML = schools.map((school) => renderSchoolTreeSchool(school)).join("");
+  schoolTreeListEl.querySelectorAll("[data-tree-type]").forEach((button) => {
+    button.addEventListener("click", () => selectSchoolTreeNode(button.dataset.treeType, button.dataset.treeId));
+  });
+  renderSchoolTreeDetail(findSchoolTreeNode(selectedSchoolTreeNode.type, selectedSchoolTreeNode.id));
+}
+
+function renderSchoolTreeSchool(school) {
+  const active = selectedSchoolTreeNode.type === "school" && selectedSchoolTreeNode.id === school.id;
+  return `
+    <div class="school-tree-school">
+      <button class="school-tree-node ${active ? "is-selected" : ""}" type="button" data-tree-type="school" data-tree-id="${escapeAttr(school.id)}">
+        ${muiIcon("apartment")}
+        <span><strong>${escapeHtml(school.name || school.code || "-")}</strong><small>${escapeHtml(school.code || "")} · ${Number(school.studentCount || 0)} HS · ${Number(school.feeScheduleCount || 0)} bảng phí</small></span>
+      </button>
+      <div class="school-tree-children">
+        ${(school.schoolYears || []).map((year) => renderSchoolTreeYear(year)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderSchoolTreeYear(year) {
+  const active = selectedSchoolTreeNode.type === "year" && selectedSchoolTreeNode.id === year.id;
+  return `
+    <div class="school-tree-year">
+      <button class="school-tree-node ${active ? "is-selected" : ""}" type="button" data-tree-type="year" data-tree-id="${escapeAttr(year.id)}">
+        ${muiIcon("event")}
+        <span><strong>${escapeHtml(year.code || "-")}</strong><small>${Number(year.classCount || 0)} lớp · ${Number(year.studentCount || 0)} HS · ${Number(year.adjustmentCount || 0)} điều chỉnh</small></span>
+      </button>
+      <div class="school-tree-children">
+        ${(year.grades || []).map((grade) => renderSchoolTreeGrade(year, grade)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderSchoolTreeGrade(year, grade) {
+  const gradeId = `${year.id}|${grade.grade || ""}`;
+  const active = selectedSchoolTreeNode.type === "grade" && selectedSchoolTreeNode.id === gradeId;
+  return `
+    <div class="school-tree-grade">
+      <button class="school-tree-node ${active ? "is-selected" : ""}" type="button" data-tree-type="grade" data-tree-id="${escapeAttr(gradeId)}">
+        ${muiIcon("stacked_line_chart")}
+        <span><strong>Khối ${escapeHtml(grade.grade || "-")}</strong><small>${Number(grade.classCount || 0)} lớp · ${Number(grade.studentCount || 0)} HS</small></span>
+      </button>
+      <div class="school-tree-children">
+        ${(grade.classes || []).map((item) => renderSchoolTreeClass(item)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderSchoolTreeClass(item) {
+  const active = selectedSchoolTreeNode.type === "class" && selectedSchoolTreeNode.id === item.id;
+  return `
+    <button class="school-tree-node school-tree-class ${active ? "is-selected" : ""}" type="button" data-tree-type="class" data-tree-id="${escapeAttr(item.id)}">
+      ${muiIcon("school")}
+      <span><strong>${escapeHtml(item.name || "-")}</strong><small>${Number(item.studentCount || 0)} HS · ${Number(item.activeFeeScheduleCount || 0)} active · ${Number(item.adjustmentCount || 0)} điều chỉnh</small></span>
+    </button>
+  `;
+}
+
+function countSchoolTreeNodes(schools) {
+  return schools.reduce((sum, school) => {
+    const years = school.schoolYears || [];
+    return sum + 1 + years.reduce((yearSum, year) => {
+      const grades = year.grades || [];
+      return yearSum + 1 + grades.reduce((gradeSum, grade) => gradeSum + 1 + (grade.classes || []).length, 0);
+    }, 0);
+  }, 0);
+}
+
+function renderSchoolTreeSelects() {
+  const schools = masterDataOptions.schools || [];
+  const years = masterDataOptions.schoolYears || [];
+  const selectedYearSchool = schoolTreeYearSchoolEl.value;
+  const selectedClassYear = schoolTreeClassYearEl.value;
+  schoolTreeYearSchoolEl.innerHTML = [
+    `<option value="">Chọn trường</option>`,
+    ...schools.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code)} · ${escapeHtml(item.name || "")}</option>`),
+  ].join("");
+  schoolTreeYearSchoolEl.value = optionValueOrEmpty(schoolTreeYearSchoolEl, selectedYearSchool);
+
+  schoolTreeClassYearEl.innerHTML = [
+    `<option value="">Chọn năm học</option>`,
+    ...years
+      .filter((item) => !schoolTreeYearSchoolEl.value || item.schoolId === schoolTreeYearSchoolEl.value)
+      .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.schoolCode || "")} · ${escapeHtml(item.code || "")}</option>`),
+  ].join("");
+  schoolTreeClassYearEl.value = optionValueOrEmpty(schoolTreeClassYearEl, selectedClassYear);
+}
+
+function findSchoolTreeNode(type, id) {
+  if (!type || !id) return null;
+  for (const school of schoolTreeData.schools || []) {
+    if (type === "school" && school.id === id) return { type, school };
+    for (const year of school.schoolYears || []) {
+      if (type === "year" && year.id === id) return { type, school, year };
+      for (const grade of year.grades || []) {
+        const gradeId = `${year.id}|${grade.grade || ""}`;
+        if (type === "grade" && gradeId === id) return { type, school, year, grade };
+        for (const item of grade.classes || []) {
+          if (type === "class" && item.id === id) return { type, school, year, grade, classItem: item };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function selectSchoolTreeNode(type, id) {
+  selectedSchoolTreeNode = { type, id };
+  const node = findSchoolTreeNode(type, id);
+  fillSchoolTreeForms(node);
+  applySchoolTreeFilters(node);
+  renderSchoolTree();
+  await loadMasterStudents();
+}
+
+function applySchoolTreeFilters(node) {
+  if (!node) return;
+  masterSchoolFilterEl.value = optionValueOrEmpty(masterSchoolFilterEl, node.school?.id || "");
+  renderMasterFilters();
+  if (node.year) {
+    masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, node.year.id || "");
+  }
+  renderMasterFilters();
+  if (node.grade) {
+    masterGradeFilterEl.value = optionValueOrEmpty(masterGradeFilterEl, node.grade.grade || "");
+  }
+  renderMasterClassFilter();
+  if (node.classItem) {
+    masterClassFilterEl.value = optionValueOrEmpty(masterClassFilterEl, node.classItem.id || "");
+  }
+}
+
+function fillSchoolTreeForms(node) {
+  if (!node) return;
+  if (node.school) {
+    schoolTreeSchoolIdEl.value = node.school.id || "";
+    schoolTreeSchoolCodeEl.value = node.school.code || "";
+    schoolTreeSchoolNameEl.value = node.school.name || "";
+    schoolTreeSchoolStatusEl.value = optionValueOrEmpty(schoolTreeSchoolStatusEl, node.school.status || "active");
+    schoolTreeYearSchoolEl.value = optionValueOrEmpty(schoolTreeYearSchoolEl, node.school.id || "");
+  }
+  if (node.year) {
+    schoolTreeYearIdEl.value = node.year.id || "";
+    schoolTreeYearSchoolEl.value = optionValueOrEmpty(schoolTreeYearSchoolEl, node.year.schoolId || node.school?.id || "");
+    schoolTreeYearCodeEl.value = node.year.code || "";
+    schoolTreeYearNameEl.value = node.year.name || "";
+    schoolTreeYearStatusEl.value = optionValueOrEmpty(schoolTreeYearStatusEl, node.year.status || "active");
+    renderSchoolTreeSelects();
+    schoolTreeClassYearEl.value = optionValueOrEmpty(schoolTreeClassYearEl, node.year.id || "");
+  }
+  if (node.grade) {
+    schoolTreeClassGradeEl.value = node.grade.grade || "";
+  }
+  if (node.classItem) {
+    schoolTreeClassIdEl.value = node.classItem.id || "";
+    schoolTreeClassYearEl.value = optionValueOrEmpty(schoolTreeClassYearEl, node.classItem.schoolYearId || "");
+    schoolTreeClassGradeEl.value = node.classItem.grade || "";
+    schoolTreeClassNameEl.value = node.classItem.name || "";
+    schoolTreeClassStatusEl.value = optionValueOrEmpty(schoolTreeClassStatusEl, node.classItem.status || "active");
+  }
+}
+
+function renderSchoolTreeDetail(node) {
+  if (!node) {
+    schoolTreeDetailEl.innerHTML = `<div class="detail-placeholder">${muiIcon("account_tree")}<span>Chọn trường, năm học, khối hoặc lớp.</span></div>`;
+    return;
+  }
+  const subject = node.classItem || node.grade || node.year || node.school;
+  const title = node.classItem?.name || (node.grade ? `Khối ${node.grade.grade}` : node.year?.code || node.school?.name || "-");
+  const lines = [
+    ["Trường", node.school?.code || "-"],
+    ["Năm học", node.year?.code || "-"],
+    ["Khối", node.grade?.grade || node.classItem?.grade || "-"],
+    ["Sĩ số", subject?.studentCount ?? "-"],
+    ["Bảng phí", subject?.feeScheduleCount ?? "-"],
+    ["Điều chỉnh", subject?.adjustmentCount ?? "-"],
+  ];
+  const latest = node.classItem?.latestFeeScheduleId
+    ? `<div class="detail-section"><p class="detail-section-title">Bảng phí gần nhất</p><div class="detail-grid"><span>Kỳ</span><strong>${escapeHtml(node.classItem.latestPeriodCode || "-")}</strong><span>Tên</span><strong>${escapeHtml(node.classItem.latestFeeScheduleName || "-")}</strong><span>Trạng thái</span><strong>${escapeHtml(node.classItem.latestScheduleStatus || "-")}</strong></div></div>`
+    : "";
+  const openFees = hasPermission("fee.view") && (node.year || node.grade || node.classItem)
+    ? `<button data-tree-open-fees="true" type="button"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Mở bảng phí</span></button>`
+    : "";
+  schoolTreeDetailEl.innerHTML = `
+    <div class="detail-hero">
+      ${muiIcon(node.classItem ? "school" : node.grade ? "stacked_line_chart" : node.year ? "event" : "apartment")}
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(node.type)}</span>
+      </div>
+    </div>
+    <div class="detail-grid">
+      ${lines.map(([label, value]) => `<span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong>`).join("")}
+    </div>
+    ${latest}
+    <div class="detail-actions">${openFees}</div>
+  `;
+  const openButton = schoolTreeDetailEl.querySelector("[data-tree-open-fees]");
+  if (openButton) {
+    openButton.addEventListener("click", () => openSchoolTreeFeeScope(node));
+  }
+}
+
+async function openSchoolTreeFeeScope(node) {
+  if (!hasPermission("fee.view")) {
+    setMasterStatus("Không đủ quyền mở bảng phí", "error");
+    return;
+  }
+  await activateTab("feeTemplateTab");
+  await loadFeeSchedules(true);
+  feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, node.year?.id || node.classItem?.schoolYearId || "");
+  renderFeeScheduleControls();
+  feeScheduleGradeEl.value = optionValueOrEmpty(feeScheduleGradeEl, node.grade?.grade || node.classItem?.grade || "");
+  renderFeeScheduleClassFilter();
+  feeScheduleClassEl.value = optionValueOrEmpty(feeScheduleClassEl, node.classItem?.id || "");
+  await loadFeeScheduleList();
+}
+
+function clearSchoolTreeSchoolForm() {
+  schoolTreeSchoolIdEl.value = "";
+  schoolTreeSchoolCodeEl.value = "";
+  schoolTreeSchoolNameEl.value = "";
+  schoolTreeSchoolStatusEl.value = "active";
+}
+
+function clearSchoolTreeYearForm() {
+  schoolTreeYearIdEl.value = "";
+  schoolTreeYearCodeEl.value = "";
+  schoolTreeYearNameEl.value = "";
+  schoolTreeYearStatusEl.value = "active";
+}
+
+function clearSchoolTreeClassForm() {
+  schoolTreeClassIdEl.value = "";
+  schoolTreeClassGradeEl.value = "";
+  schoolTreeClassNameEl.value = "";
+  schoolTreeClassStatusEl.value = "active";
+}
+
+function openSchoolTreeEntityDialog(kind) {
+  const config = {
+    school: {
+      title: schoolTreeSchoolIdEl.value ? "Sửa trường" : "Tạo trường",
+      icon: "apartment",
+      node: schoolTreeSchoolEditorEl,
+      save: saveSchoolTreeSchool,
+    },
+    year: {
+      title: schoolTreeYearIdEl.value ? "Sửa năm học" : "Tạo năm học",
+      icon: "event",
+      node: schoolTreeYearEditorEl,
+      save: saveSchoolTreeYear,
+    },
+    class: {
+      title: schoolTreeClassIdEl.value ? "Sửa lớp" : "Tạo lớp",
+      icon: "school",
+      node: schoolTreeClassEditorEl,
+      save: saveSchoolTreeClass,
+    },
+  }[kind];
+  if (!config?.node) return;
+  openAppDialog({
+    title: config.title,
+    kicker: "School tree",
+    icon: config.icon,
+    nodes: [config.node],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu", icon: "save", variant: "primary", onClick: config.save, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function saveSchoolTreeSchool() {
+  return saveSchoolTreeEntity("/api/v1/school-tree/schools/save", {
+    id: schoolTreeSchoolIdEl.value,
+    code: schoolTreeSchoolCodeEl.value,
+    name: schoolTreeSchoolNameEl.value,
+    status: schoolTreeSchoolStatusEl.value,
+  }, "Đã lưu trường");
+}
+
+async function saveSchoolTreeYear() {
+  return saveSchoolTreeEntity("/api/v1/school-tree/school-years/save", {
+    id: schoolTreeYearIdEl.value,
+    schoolId: schoolTreeYearSchoolEl.value,
+    code: schoolTreeYearCodeEl.value,
+    name: schoolTreeYearNameEl.value,
+    status: schoolTreeYearStatusEl.value,
+  }, "Đã lưu năm học");
+}
+
+async function saveSchoolTreeClass() {
+  return saveSchoolTreeEntity("/api/v1/school-tree/classes/save", {
+    id: schoolTreeClassIdEl.value,
+    schoolYearId: schoolTreeClassYearEl.value,
+    grade: schoolTreeClassGradeEl.value,
+    name: schoolTreeClassNameEl.value,
+    status: schoolTreeClassStatusEl.value,
+  }, "Đã lưu lớp");
+}
+
+async function saveSchoolTreeEntity(url, payload, successMessage) {
+  if (!hasPermission("school_tree.update")) {
+    setMasterStatus("Không đủ quyền", "error");
+    return false;
+  }
+  setMasterStatus("Đang lưu cây trường", "busy");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setMasterStatus(text || "Không lưu được cây trường", "error");
+    return false;
+  }
+  masterDataLoaded = false;
+  feeSchedulesLoaded = false;
+  invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
+  await loadMasterData(true);
+  setMasterStatus(successMessage, "ready");
+  return true;
 }
 
 function adminFilterElements(kind) {
@@ -1137,6 +2134,10 @@ function renderAdminReportInvoices(rows) {
 }
 
 function exportAdminReport(dataset) {
+  if (!hasPermission("report.export")) {
+    setAdminStatus(adminReportsStatusEl, "Không đủ quyền", "error");
+    return;
+  }
   const params = adminFilterParams("reports");
   params.set("dataset", dataset);
   const link = document.createElement("a");
@@ -1268,22 +2269,27 @@ function renderAdminUserRows(users) {
   adminUserCountEl.textContent = `${users.length} user`;
   adminUserRowsEl.innerHTML = users
     .map((user) => {
-      const roleText = (user.roles || []).map((role) => role.code).join(", ");
+      const roleText = (user.roles || []).map((role) => role.name || role.code).join(", ");
       return `
         <tr data-admin-user-id="${escapeAttr(user.id || "")}">
-          <td><strong>${escapeHtml(user.email || "")}</strong></td>
-          <td>${escapeHtml(user.displayName || "")}</td>
+          <td><strong>${escapeHtml(user.displayName || "")}</strong></td>
+          <td>${escapeHtml(user.email || "-")}</td>
+          <td>${escapeHtml(user.phone || "-")}</td>
           <td><span class="tag">${escapeHtml(user.status || "")}</span></td>
+          <td><span class="tag">${user.hasPassword ? "Set" : "Missing"}</span></td>
           <td>${escapeHtml(roleText || "-")}</td>
         </tr>
       `;
     })
     .join("");
   if (!users.length) {
-    adminUserRowsEl.innerHTML = `<tr><td colspan="4" class="empty-cell">Chưa có user</td></tr>`;
+    adminUserRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có user</td></tr>`;
   }
   adminUserRowsEl.querySelectorAll("[data-admin-user-id]").forEach((row) => {
-    row.addEventListener("click", () => selectAdminUser(row.dataset.adminUserId));
+    row.addEventListener("click", () => {
+      selectAdminUser(row.dataset.adminUserId);
+      openAdminUserDialog();
+    });
   });
 }
 
@@ -1314,19 +2320,39 @@ function selectAdminUser(userId) {
   if (!user) return;
   adminUserIdEl.value = user.id || "";
   adminUserEmailEl.value = user.email || "";
+  adminUserPhoneEl.value = user.phone || "";
   adminUserDisplayNameEl.value = user.displayName || "";
   adminUserStatusEl.value = optionValueOrEmpty(adminUserStatusEl, user.status || "active") || "active";
+  adminUserPasswordEl.value = "";
   const roleCodes = (user.roles || []).map((role) => role.code);
   [...adminUserRolesEl.options].forEach((option) => {
     option.selected = roleCodes.includes(option.value);
   });
 }
 
+function openAdminUserDialog() {
+  openAppDialog({
+    title: adminUserIdEl.value ? "Sửa user" : "Tạo user",
+    kicker: "User and role admin",
+    icon: "admin_panel_settings",
+    nodes: [document.querySelector(".admin-user-form")],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Clear", icon: "backspace", onClick: clearAdminUserForm },
+      { label: "Lưu roles", icon: "assignment_ind", onClick: assignAdminUserRoles },
+      { label: "Lưu user", icon: "save", variant: "primary", onClick: saveAdminUser, closeOnSuccess: true },
+    ],
+  });
+}
+
 function clearAdminUserForm() {
   adminUserIdEl.value = "";
   adminUserEmailEl.value = "";
+  adminUserPhoneEl.value = "";
   adminUserDisplayNameEl.value = "";
   adminUserStatusEl.value = "active";
+  adminUserPasswordEl.value = "";
   [...adminUserRolesEl.options].forEach((option) => {
     option.selected = false;
   });
@@ -1340,46 +2366,44 @@ async function saveAdminUser() {
   setAdminStatus(adminUsersStatusEl, "Đang lưu", "busy");
   const res = await fetch("/api/v1/admin/users/save", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-ABC-Admin-Permission": "system.users.write",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: adminUserIdEl.value,
       email: adminUserEmailEl.value,
+      phone: adminUserPhoneEl.value,
       displayName: adminUserDisplayNameEl.value,
       status: adminUserStatusEl.value,
+      password: adminUserPasswordEl.value,
     }),
   });
   const text = await res.text();
   if (!res.ok) {
     setAdminStatus(adminUsersStatusEl, text || "Không lưu được user", "error");
-    return;
+    return false;
   }
   const data = JSON.parse(text);
   if (data.user?.id) {
     adminUserIdEl.value = data.user.id;
   }
+  adminUserPasswordEl.value = "";
   adminUsersLoaded = false;
   await loadAdminUsers(true);
   if (data.user?.id) {
     selectAdminUser(data.user.id);
   }
   setAdminStatus(adminUsersStatusEl, "Đã lưu user", "ready");
+  return true;
 }
 
 async function assignAdminUserRoles() {
   if (!adminUserIdEl.value) {
     setAdminStatus(adminUsersStatusEl, "Chọn hoặc lưu user trước", "error");
-    return;
+    return false;
   }
   setAdminStatus(adminUsersStatusEl, "Đang lưu roles", "busy");
   const res = await fetch("/api/v1/admin/users/roles", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-ABC-Admin-Permission": "system.users.assign_roles",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       userId: adminUserIdEl.value,
       roleCodes: selectedOptionValues(adminUserRolesEl),
@@ -1388,12 +2412,13 @@ async function assignAdminUserRoles() {
   const text = await res.text();
   if (!res.ok) {
     setAdminStatus(adminUsersStatusEl, text || "Không lưu được roles", "error");
-    return;
+    return false;
   }
   adminUsersLoaded = false;
   await loadAdminUsers(true);
   selectAdminUser(adminUserIdEl.value);
   setAdminStatus(adminUsersStatusEl, "Đã lưu roles", "ready");
+  return true;
 }
 
 async function loadMasterStudents() {
@@ -1402,6 +2427,7 @@ async function loadMasterStudents() {
   }
   setMasterStatus("Đang tải", "busy");
   const params = new URLSearchParams();
+  if (masterSchoolFilterEl.value) params.set("schoolId", masterSchoolFilterEl.value);
   if (masterSchoolYearFilterEl.value) params.set("schoolYearId", masterSchoolYearFilterEl.value);
   if (masterGradeFilterEl.value) params.set("grade", masterGradeFilterEl.value);
   if (masterClassFilterEl.value) params.set("classId", masterClassFilterEl.value);
@@ -1438,7 +2464,7 @@ function renderMasterStudents(students = []) {
         <tr data-master-student-row="${escapeAttr(key)}" class="${key === selectedMasterStudentKey ? "is-selected" : ""}">
           <td><strong>${escapeHtml(student.studentCode || "")}</strong></td>
           <td>${escapeHtml(student.studentName || "")}</td>
-          <td>${escapeHtml(student.schoolYearCode || "")}</td>
+          <td>${escapeHtml([student.schoolCode, student.schoolYearCode].filter(Boolean).join(" · "))}</td>
           <td>${escapeHtml(student.grade || "")}</td>
           <td>${escapeHtml(student.className || "")}</td>
           <td>${escapeHtml(parentNames || primary.parentName || "-")}</td>
@@ -1454,7 +2480,9 @@ function renderMasterStudents(students = []) {
   masterStudentsEl.querySelectorAll("[data-master-student-row]").forEach((row) => {
     row.addEventListener("click", () => selectMasterStudent(row.dataset.masterStudentRow));
   });
-  renderMasterStudentDetail(masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey));
+  const selected = masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey);
+  renderMasterStudentDetail(selected);
+  populateMasterStudentForm(selected);
 }
 
 function masterStudentKey(student) {
@@ -1466,7 +2494,24 @@ function selectMasterStudent(key) {
   masterStudentsEl.querySelectorAll("[data-master-student-row]").forEach((row) => {
     row.classList.toggle("is-selected", row.dataset.masterStudentRow === selectedMasterStudentKey);
   });
-  renderMasterStudentDetail(masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey));
+  const selected = masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey);
+  renderMasterStudentDetail(selected);
+  populateMasterStudentForm(selected);
+}
+
+function openMasterStudentDialog() {
+  openAppDialog({
+    title: masterStudentIdEl.value ? "Sửa học sinh" : "Tạo học sinh",
+    kicker: "Manual upsert",
+    icon: "edit_note",
+    nodes: [masterStudentEditorContentEl],
+    size: "lg",
+    actions: [
+      { label: "Hủy", icon: "close", onClick: closeAppDialog },
+      { label: "Thêm phụ huynh", icon: "group_add", onClick: addMasterParentDraft },
+      { label: "Lưu học sinh", icon: "save", variant: "primary", onClick: saveMasterStudent, closeOnSuccess: true },
+    ],
+  });
 }
 
 function renderMasterStudentDetail(student) {
@@ -1508,6 +2553,7 @@ function renderMasterStudentDetail(student) {
     </div>
     <div class="detail-grid">
       <span>Năm học</span><strong>${escapeHtml(student.schoolYearCode || "-")}</strong>
+      <span>Trường</span><strong>${escapeHtml(student.schoolCode || "-")}</strong>
       <span>Khối / lớp</span><strong>${escapeHtml([student.grade ? `Khối ${student.grade}` : "", student.className || ""].filter(Boolean).join(" · ") || "-")}</strong>
       <span>Trạng thái</span><strong>${escapeHtml(student.status || "active")}</strong>
       <span>Email nhận phí</span><strong>${escapeHtml(activeBillingEmails.join(", ") || "-")}</strong>
@@ -1516,7 +2562,167 @@ function renderMasterStudentDetail(student) {
       <p class="detail-section-title">Phụ huynh</p>
       <ul class="detail-list">${parentList}</ul>
     </div>
+    <div class="detail-actions">
+      <button data-edit-master-student="true" type="button">${muiIcon("edit")}<span>Sửa học sinh</span></button>
+    </div>
   `;
+  masterStudentDetailEl.querySelector("[data-edit-master-student]")?.addEventListener("click", openMasterStudentDialog);
+}
+
+function defaultMasterParentDraft(isPrimary = false) {
+  return {
+    id: "",
+    parentName: "",
+    email: "",
+    emailActive: true,
+    isPrimary,
+    isActive: true,
+    receivesBillingEmail: true,
+  };
+}
+
+function populateMasterStudentForm(student) {
+  if (!student) {
+    clearMasterStudentForm();
+    return;
+  }
+  masterStudentIdEl.value = student.id || "";
+  masterStudentCodeEl.value = student.studentCode || "";
+  masterStudentNameEl.value = student.studentName || "";
+  renderMasterStudentClassSelect(student.classId || "");
+  masterStudentStatusEl.value = optionValueOrEmpty(masterStudentStatusEl, student.status || "active") || "active";
+  masterStudentParentDrafts = (student.parents || []).map((parent) => ({
+    id: parent.id || "",
+    parentName: parent.parentName || "",
+    email: parent.email || "",
+    emailActive: parent.emailActive !== false,
+    isPrimary: !!parent.isPrimary,
+    isActive: parent.isActive !== false,
+    receivesBillingEmail: !!parent.receivesBillingEmail,
+  }));
+  if (!masterStudentParentDrafts.length) {
+    masterStudentParentDrafts = [defaultMasterParentDraft(true)];
+  }
+  renderMasterParentEditorRows();
+}
+
+function clearMasterStudentForm() {
+  masterStudentIdEl.value = "";
+  masterStudentCodeEl.value = "";
+  masterStudentNameEl.value = "";
+  renderMasterStudentClassSelect(masterClassFilterEl.value || "");
+  masterStudentStatusEl.value = "active";
+  masterStudentParentDrafts = [defaultMasterParentDraft(true)];
+  renderMasterParentEditorRows();
+}
+
+function renderMasterParentEditorRows() {
+  if (!masterStudentParentDrafts.length) {
+    masterStudentParentDrafts = [defaultMasterParentDraft(true)];
+  }
+  masterParentEditorRowsEl.innerHTML = masterStudentParentDrafts
+    .map((parent, index) => `
+      <div class="master-parent-row" data-master-parent-index="${index}">
+        <input type="hidden" data-master-parent-field="id" value="${escapeAttr(parent.id || "")}" />
+        <label>
+          <span>Phụ huynh</span>
+          <input data-master-parent-field="parentName" value="${escapeAttr(parent.parentName || "")}" />
+        </label>
+        <label>
+          <span>Email</span>
+          <input data-master-parent-field="email" type="email" value="${escapeAttr(parent.email || "")}" />
+        </label>
+        <label class="master-parent-check">
+          <input data-master-parent-field="isPrimary" name="masterParentPrimary" type="radio" ${parent.isPrimary ? "checked" : ""} />
+          <span>Chính</span>
+        </label>
+        <label class="master-parent-check">
+          <input data-master-parent-field="isActive" type="checkbox" ${parent.isActive !== false ? "checked" : ""} />
+          <span>Active</span>
+        </label>
+        <label class="master-parent-check">
+          <input data-master-parent-field="receivesBillingEmail" type="checkbox" ${parent.receivesBillingEmail !== false ? "checked" : ""} />
+          <span>Nhận phí</span>
+        </label>
+        <label class="master-parent-check">
+          <input data-master-parent-field="emailActive" type="checkbox" ${parent.emailActive !== false ? "checked" : ""} />
+          <span>Email active</span>
+        </label>
+        <button data-remove-master-parent="${index}" type="button" ${masterStudentParentDrafts.length === 1 ? "disabled" : ""}>
+          ${muiIcon("delete")}<span>Xóa</span>
+        </button>
+      </div>
+    `)
+    .join("");
+  masterParentEditorRowsEl.querySelectorAll("[data-remove-master-parent]").forEach((button) => {
+    button.addEventListener("click", () => {
+      masterStudentParentDrafts = collectMasterParentDrafts();
+      masterStudentParentDrafts.splice(Number(button.dataset.removeMasterParent), 1);
+      renderMasterParentEditorRows();
+    });
+  });
+}
+
+function collectMasterParentDrafts() {
+  return [...masterParentEditorRowsEl.querySelectorAll("[data-master-parent-index]")].map((row) => {
+    const field = (name) => row.querySelector(`[data-master-parent-field="${name}"]`);
+    return {
+      id: field("id")?.value.trim() || "",
+      parentName: field("parentName")?.value.trim() || "",
+      email: field("email")?.value.trim() || "",
+      isPrimary: !!field("isPrimary")?.checked,
+      isActive: !!field("isActive")?.checked,
+      receivesBillingEmail: !!field("receivesBillingEmail")?.checked,
+      emailActive: !!field("emailActive")?.checked,
+    };
+  });
+}
+
+function addMasterParentDraft() {
+  masterStudentParentDrafts = collectMasterParentDrafts();
+  masterStudentParentDrafts.push(defaultMasterParentDraft(!masterStudentParentDrafts.some((parent) => parent.isPrimary && parent.isActive)));
+  renderMasterParentEditorRows();
+}
+
+async function saveMasterStudent() {
+  const payload = {
+    id: masterStudentIdEl.value.trim(),
+    studentCode: masterStudentCodeEl.value.trim(),
+    studentName: masterStudentNameEl.value.trim(),
+    classId: masterStudentClassEl.value,
+    status: masterStudentStatusEl.value,
+    parents: collectMasterParentDrafts(),
+  };
+  setMasterStatus("Đang lưu", "busy");
+  const res = await fetch("/api/v1/master-data/students/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    setMasterStatus(text || "Không lưu được học sinh", "error");
+    return false;
+  }
+  const saved = data?.student;
+  if (saved) {
+    selectedMasterStudentKey = masterStudentKey(saved);
+    masterSchoolFilterEl.value = optionValueOrEmpty(masterSchoolFilterEl, saved.schoolId || "") || masterSchoolFilterEl.value;
+    renderMasterFilters();
+    masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, saved.schoolYearId || "") || masterSchoolYearFilterEl.value;
+    renderMasterFilters();
+    masterGradeFilterEl.value = optionValueOrEmpty(masterGradeFilterEl, saved.grade || "") || masterGradeFilterEl.value;
+    renderMasterClassFilter(saved.classId || "");
+  }
+  await loadMasterData(true);
+  setMasterStatus("Đã lưu học sinh", "ready");
+  return true;
 }
 
 async function submitMasterImport(apply) {
@@ -1525,8 +2731,15 @@ async function submitMasterImport(apply) {
     setMasterStatus("Chưa chọn file", "error");
     return;
   }
-  if (apply && !window.confirm("Áp dụng import sẽ ghi dữ liệu học sinh, phụ huynh và lớp vào database. Tiếp tục?")) {
-    return;
+  if (apply) {
+    const confirmed = await confirmDialog({
+      title: "Áp dụng import master data?",
+      message: "Thao tác này sẽ ghi dữ liệu học sinh, phụ huynh và lớp vào database.",
+      confirmLabel: "Áp dụng import",
+      confirmIcon: "publish",
+      danger: true,
+    });
+    if (!confirmed) return;
   }
 
   setMasterStatus(apply ? "Đang áp dụng" : "Đang kiểm tra", "busy");
@@ -1756,6 +2969,21 @@ function collectFeeScheduleDraft() {
   };
 }
 
+function openFeeScheduleDialog() {
+  openAppDialog({
+    title: "Tạo/sửa bảng phí",
+    kicker: "Production fees",
+    icon: "price_change",
+    nodes: [document.querySelector(".fee-schedule-grid"), document.querySelector(".fee-schedule-body")],
+    size: "xl",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Preview", icon: "visibility", onClick: previewFeeSchedule },
+      { label: "Lưu bảng phí", icon: "save", variant: "primary", onClick: saveFeeSchedule, closeOnSuccess: true },
+    ],
+  });
+}
+
 function parseFeeAdjustmentsCsv() {
   const lines = feeAdjustmentsCsvEl.value
     .split(/\r?\n/)
@@ -1813,10 +3041,11 @@ async function previewFeeSchedule() {
   if (!res.ok || !data) {
     renderFeeSchedulePreview({ rows: [], issues: [{ message: text || "Preview failed", type: "preview_failed" }] });
     setFeeScheduleStatus("Lỗi", "error");
-    return;
+    return false;
   }
   renderFeeSchedulePreview(data);
   setFeeScheduleStatus(data.issues?.length ? "Có lỗi" : "Đã preview", data.issues?.length ? "error" : "ready");
+  return !data.issues?.length;
 }
 
 async function saveFeeSchedule() {
@@ -1837,11 +3066,12 @@ async function saveFeeSchedule() {
     const issues = data?.issues || [{ type: "save_failed", message: text || "Save failed" }];
     renderFeeSchedulePreview({ rows: [], issues });
     setFeeScheduleStatus("Lỗi", "error");
-    return;
+    return false;
   }
   renderFeeSchedulePreview(data.preview || null);
   renderFeeSchedules(data.schedules || []);
   setFeeScheduleStatus("Đã lưu", "ready");
+  return true;
 }
 
 function renderFeeSchedulePreview(data) {
@@ -1993,6 +3223,20 @@ function collectInvoiceRequest() {
   };
 }
 
+function openInvoiceDialog() {
+  openAppDialog({
+    title: "Cấu hình sinh hóa đơn",
+    kicker: "Production invoices",
+    icon: "request_quote",
+    nodes: [document.querySelector(".invoice-toolbar")],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Preview", icon: "visibility", onClick: previewInvoices },
+    ],
+  });
+}
+
 async function previewInvoices() {
   setInvoiceStatus("Đang preview", "busy");
   const res = await fetch("/api/v1/invoices/preview", {
@@ -2010,16 +3254,22 @@ async function previewInvoices() {
   if (!res.ok || !data) {
     renderInvoicePreview({ rows: [], issues: [{ type: "preview_failed", message: text || "Preview failed" }] });
     setInvoiceStatus("Lỗi", "error");
-    return;
+    return false;
   }
   renderInvoicePreview(data);
   setInvoiceStatus(data.issues?.length ? "Có lỗi" : "Đã preview", data.issues?.length ? "error" : "ready");
+  return !data.issues?.length;
 }
 
 async function generateInvoices() {
-  if (!window.confirm("Sinh hóa đơn sẽ ghi dữ liệu invoice vào database. Tiếp tục?")) {
-    return;
-  }
+  const confirmed = await confirmDialog({
+    title: "Sinh hóa đơn?",
+    message: "Thao tác này sẽ ghi dữ liệu invoice vào database.",
+    confirmLabel: "Sinh hóa đơn",
+    confirmIcon: "post_add",
+    danger: true,
+  });
+  if (!confirmed) return false;
   setInvoiceStatus("Đang sinh hóa đơn", "busy");
   const res = await fetch("/api/v1/invoices/generate", {
     method: "POST",
@@ -2036,11 +3286,12 @@ async function generateInvoices() {
   if (!res.ok || !data) {
     renderInvoicePreview(data?.preview || { rows: [], issues: data?.issues || [{ type: "generate_failed", message: text || "Generate failed" }] });
     setInvoiceStatus("Lỗi", "error");
-    return;
+    return false;
   }
   renderInvoicePreview(data.preview || null);
   renderInvoices(data.invoices || []);
   setInvoiceStatus("Đã sinh hóa đơn", "ready");
+  return true;
 }
 
 function renderInvoicePreview(data) {
@@ -2310,6 +3561,7 @@ function renderPaymentReconSummary(summary) {
 function renderPaymentReconInvoices(invoices, intents) {
   paymentReconInvoiceCountEl.textContent = `${invoices.length} hóa đơn`;
   const hasPayOS = (paymentReconciliationData.providers || []).some((provider) => provider.code === "payos");
+  const canWritePayments = hasPermission("payment.create");
   paymentReconInvoiceRowsEl.innerHTML = invoices
     .map((invoice) => {
       const paid = Number(invoice.paidAmount || 0);
@@ -2317,6 +3569,15 @@ function renderPaymentReconInvoices(invoices, intents) {
       const outstanding = Math.max(total - paid, 0);
       const intent = intents?.[invoice.id];
       const intentLabel = intent?.provider ? `${intent.provider}: ${intent.status}` : "";
+      const actions = canWritePayments
+        ? `
+          <div class="invoice-actions">
+            <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
+            ${hasPayOS ? `<button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
+            <button type="button" data-recon-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Tiền mặt</span></button>
+          </div>
+        `
+        : "";
       return `
         <tr data-recon-invoice-row="${escapeAttr(invoice.id || "")}">
           <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong>${intentLabel ? `<small>${escapeHtml(intentLabel)}</small>` : ""}</td>
@@ -2325,13 +3586,7 @@ function renderPaymentReconInvoices(invoices, intents) {
           <td class="money">${formatMoney(total)}</td>
           <td class="money">${formatMoney(paid)}</td>
           <td><span class="tag">${escapeHtml(invoice.status || "unpaid")}</span></td>
-          <td>
-            <div class="invoice-actions">
-              <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
-              ${hasPayOS ? `<button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
-              <button type="button" data-recon-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Tiền mặt</span></button>
-            </div>
-          </td>
+          <td>${actions}</td>
         </tr>
       `;
     })
@@ -2410,27 +3665,85 @@ async function createPaymentIntent(invoiceId, provider) {
   await loadPaymentReconciliation(true);
 }
 
+function cashReceiptDialog(defaultAmount) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const body = document.createElement("div");
+    body.className = "dialog-form-grid";
+    body.innerHTML = `
+      <label>
+        <span>Số tiền thu tiền mặt</span>
+        <input data-cash-field="amount" inputmode="numeric" value="${escapeAttr(String(defaultAmount || ""))}" />
+      </label>
+      <label>
+        <span>Người thu tiền</span>
+        <input data-cash-field="collectorName" />
+      </label>
+      <label>
+        <span>Mã phiếu thu</span>
+        <input data-cash-field="receiptReference" value="${escapeAttr(`CASH${Date.now()}`)}" />
+      </label>
+      <label>
+        <span>Lý do ghi nhận</span>
+        <input data-cash-field="reason" value="Thu tiền mặt học phí" />
+      </label>
+    `;
+    const field = (name) => body.querySelector(`[data-cash-field="${name}"]`);
+    openAppDialog({
+      title: "Ghi nhận tiền mặt",
+      kicker: "Đối soát",
+      icon: "payments",
+      content: body,
+      size: "md",
+      onClose: () => {
+        if (!settled) resolve(null);
+      },
+      actions: [
+        {
+          label: "Hủy",
+          icon: "close",
+          onClick: () => {
+            settled = true;
+            resolve(null);
+          },
+          closeOnSuccess: true,
+        },
+        {
+          label: "Ghi nhận",
+          icon: "payments",
+          variant: "primary",
+          onClick: () => {
+            const amount = parseMoneyInput(field("amount").value);
+            if (!amount || amount <= 0) {
+              showDialogError("Số tiền phải lớn hơn 0");
+              return false;
+            }
+            settled = true;
+            resolve({
+              amount,
+              collectorName: field("collectorName").value.trim(),
+              receiptReference: field("receiptReference").value.trim(),
+              reason: field("reason").value.trim(),
+            });
+          },
+          closeOnSuccess: true,
+        },
+      ],
+    });
+  });
+}
+
 async function recordManualCashReceipt(invoiceId, defaultAmount) {
   if (!invoiceId) return;
   paymentReconSelection = { type: "invoice", id: invoiceId };
   updatePaymentReconActiveRows();
-  const amountValue = window.prompt("Số tiền thu tiền mặt", String(defaultAmount || ""));
-  if (amountValue === null) return;
-  const amount = parseMoneyInput(amountValue);
-  const collectorName = window.prompt("Người thu tiền", "");
-  if (collectorName === null) return;
-  const receiptReference = window.prompt("Mã phiếu thu", `CASH${Date.now()}`);
-  if (receiptReference === null) return;
-  const reason = window.prompt("Lý do ghi nhận", "Thu tiền mặt học phí");
-  if (reason === null) return;
-  if (!window.confirm("Ghi nhận khoản thu tiền mặt vào ledger đối soát?")) {
-    return;
-  }
+  const receipt = await cashReceiptDialog(defaultAmount);
+  if (!receipt) return false;
   setPaymentReconStatus("Đang ghi nhận", "busy");
   const res = await fetch("/api/v1/payments/cash-receipts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ invoiceId, amount, collectorName, receiptReference, reason }),
+    body: JSON.stringify({ invoiceId, ...receipt }),
   });
   const text = await res.text();
   let data = null;
@@ -2442,12 +3755,13 @@ async function recordManualCashReceipt(invoiceId, defaultAmount) {
   if (!res.ok || !data) {
     setPaymentReconStatus("Lỗi", "error");
     renderPaymentReconDetail(`<div class="reconciliation-error">${escapeHtml(text || "Không ghi nhận được tiền mặt")}</div>`, { type: "invoice", id: invoiceId });
-    return;
+    return false;
   }
   paymentReconciliationLoaded = false;
   await loadPaymentReconciliation(true);
   renderPaymentReconDetail(transactionDetailTemplate(data.transaction), { type: "transaction", id: data.transaction?.id || "" });
   setPaymentReconStatus("Đã ghi nhận", "ready");
+  return true;
 }
 
 function renderPaymentReconDetail(html, selection = null) {
@@ -2622,6 +3936,21 @@ function collectNotificationInput() {
   };
 }
 
+function openNotificationDialog() {
+  openAppDialog({
+    title: "Cấu hình campaign",
+    kicker: "Invoice campaigns",
+    icon: "campaign",
+    nodes: [document.querySelector(".notification-toolbar")],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Preview", icon: "visibility", onClick: previewNotifications },
+      { label: "Lưu campaign", icon: "save", variant: "primary", onClick: saveNotificationCampaign },
+    ],
+  });
+}
+
 async function previewNotifications() {
   setNotificationStatus("Đang preview", "busy");
   const res = await fetch("/api/v1/notifications/campaigns/preview", {
@@ -2665,9 +3994,14 @@ async function saveNotificationCampaign() {
 }
 
 async function sendNotificationCampaign() {
-  if (!window.confirm("Gửi campaign sẽ gửi email thật qua provider hiện tại và ghi log theo từng invoice/recipient. Tiếp tục?")) {
-    return;
-  }
+  const confirmed = await confirmDialog({
+    title: "Gửi campaign?",
+    message: "Thao tác này sẽ gửi email thật qua provider hiện tại và ghi log theo từng invoice/recipient.",
+    confirmLabel: "Gửi campaign",
+    confirmIcon: "send",
+    danger: true,
+  });
+  if (!confirmed) return false;
   setNotificationStatus("Đang gửi", "busy");
   const input = { ...collectNotificationInput(), confirmSend: true, dryRun: false };
   const res = await fetch("/api/v1/notifications/campaigns/send", {
@@ -2678,13 +4012,14 @@ async function sendNotificationCampaign() {
   const text = await res.text();
   if (!res.ok) {
     setNotificationStatus(text || "Không gửi được campaign", "error");
-    return;
+    return false;
   }
   const data = JSON.parse(text);
   currentNotificationCampaignId = data.campaign?.id || currentNotificationCampaignId;
   renderNotificationResults(data);
   notificationLoaded = false;
   setNotificationStatus("Đã xử lý gửi", "ready");
+  return true;
 }
 
 function renderNotificationPreview(data) {
@@ -2734,9 +4069,12 @@ function renderNotificationCampaigns(campaigns) {
     ? notificationOptions.campaigns.map(notificationCampaignRowTemplate).join("")
     : `<tr><td colspan="5">Chưa có campaign</td></tr>`;
   notificationCampaignRowsEl.querySelectorAll("tr[data-campaign-id]").forEach((row) => {
-    row.addEventListener("click", () => {
+    row.addEventListener("click", async () => {
       const campaign = notificationOptions.campaigns.find((item) => item.id === row.dataset.campaignId);
-      if (campaign) selectNotificationCampaign(campaign);
+      if (campaign) {
+        await selectNotificationCampaign(campaign);
+        openNotificationDialog();
+      }
     });
   });
 }
@@ -2845,7 +4183,41 @@ function collectEmailConfig() {
   };
 }
 
+function openEmailConfigDialog() {
+  openAppDialog({
+    title: "Cấu hình email",
+    kicker: "Email settings",
+    icon: "settings",
+    nodes: [document.querySelector(".form-grid")],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Preview email", icon: "visibility", onClick: previewEmail },
+      { label: "Lưu cấu hình", icon: "save", variant: "primary", onClick: saveEmailConfig, closeOnSuccess: true },
+    ],
+  });
+}
+
+function openCronConfigDialog() {
+  openAppDialog({
+    title: "Cấu hình cron",
+    kicker: "Email cron",
+    icon: "schedule",
+    nodes: [document.querySelector(".cron-grid")],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Tắt cron", icon: "event_busy", onClick: disableEmailCron },
+      { label: "Lưu cron", icon: "event_available", variant: "primary", onClick: () => saveEmailCron(cronEnabledEl.value === "true"), closeOnSuccess: true },
+    ],
+  });
+}
+
 async function saveEmailConfig() {
+  if (!hasPermission("email_config.update")) {
+    setEmailStatus("Không đủ quyền", true);
+    return false;
+  }
   setEmailStatus("Saving");
   const res = await fetch("/api/v1/email/config", {
     method: "POST",
@@ -2870,6 +4242,10 @@ async function saveEmailConfig() {
 }
 
 async function previewEmail() {
+  if (!hasPermission("notification.send")) {
+    setEmailStatus("Không đủ quyền", true);
+    return;
+  }
   const rows = collectRows();
   if (!rows.length) return;
   const res = await fetch("/api/v1/email/preview", {
@@ -2893,8 +4269,18 @@ async function previewEmail() {
 }
 
 async function sendEmails(dryRun) {
-  const saved = await saveEmailConfig();
-  if (!saved) return;
+  if (!dryRun) {
+    const confirmed = await confirmDialog({
+      title: "Gửi email thật?",
+      message: "Thao tác này sẽ gửi email thật qua provider hiện tại cho các dòng đang có trong bảng.",
+      confirmLabel: "Gửi email",
+      confirmIcon: "send",
+      danger: true,
+    });
+    if (!confirmed) return false;
+  }
+  const saved = hasPermission("email_config.update") ? await saveEmailConfig() : true;
+  if (!saved) return false;
   await generate();
   const rows = collectRows();
   setEmailStatus(dryRun ? "Checking" : "Sending");
@@ -2910,10 +4296,11 @@ async function sendEmails(dryRun) {
   const text = await res.text();
   if (!res.ok) {
     setEmailStatus(text || "Send failed", true);
-    return;
+    return false;
   }
   const data = JSON.parse(text);
   renderEmailResults(data.results || []);
+  return true;
 }
 
 function renderEmailResults(results) {
@@ -2939,8 +4326,8 @@ function setEmailStatus(message, isError = false) {
 }
 
 async function saveEmailCron(enabled) {
-  const saved = await saveEmailConfig();
-  if (!saved) return;
+  const saved = hasPermission("email_config.update") ? await saveEmailConfig() : true;
+  if (!saved) return false;
   await generate();
   setCronStatus("Saving");
   const res = await fetch("/api/v1/email/cron", {
@@ -2957,9 +4344,10 @@ async function saveEmailCron(enabled) {
   const text = await res.text();
   if (!res.ok) {
     setCronStatus(text || "Save cron failed", true);
-    return;
+    return false;
   }
   renderCronStatus(JSON.parse(text));
+  return true;
 }
 
 async function disableEmailCron() {
@@ -2972,23 +4360,30 @@ async function disableEmailCron() {
   const text = await res.text();
   if (!res.ok) {
     setCronStatus(text || "Disable cron failed", true);
-    return;
+    return false;
   }
   renderCronStatus(JSON.parse(text));
+  return true;
 }
 
 async function runEmailCronNow() {
-  if (!window.confirm("Chạy cron sẽ gửi email thật qua provider hiện tại theo giới hạn còn lại. Tiếp tục?")) {
-    return;
-  }
+  const confirmed = await confirmDialog({
+    title: "Chạy cron ngay?",
+    message: "Thao tác này sẽ gửi email thật qua provider hiện tại theo giới hạn còn lại.",
+    confirmLabel: "Chạy cron",
+    confirmIcon: "play_arrow",
+    danger: true,
+  });
+  if (!confirmed) return false;
   setCronStatus("Running");
   const res = await fetch("/api/v1/email/cron/run", { method: "POST" });
   const text = await res.text();
   if (!res.ok) {
     setCronStatus(text || "Run cron failed", true);
-    return;
+    return false;
   }
   renderCronStatus(JSON.parse(text));
+  return true;
 }
 
 function renderCronStatus(data) {
@@ -3194,6 +4589,10 @@ function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
 }
 
+loginFormEl.addEventListener("submit", submitLogin);
+bootstrapFormEl.addEventListener("submit", submitBootstrap);
+logoutButton.addEventListener("click", logout);
+
 generateBtn.addEventListener("click", generate);
 
 toggleFeeColumnBtn.addEventListener("click", () => {
@@ -3237,6 +4636,19 @@ csvFileEl.addEventListener("change", async () => {
 applyPaymentImportBtn.addEventListener("click", submitPaymentImport);
 cancelPaymentImportBtn.addEventListener("click", clearPaymentImport);
 
+appDialogCloseBtn.addEventListener("click", closeAppDialog);
+appDialogEl.addEventListener("click", (event) => {
+  if (event.target === appDialogEl) {
+    closeAppDialog();
+  }
+});
+appDialogEl.addEventListener("close", () => {
+  const onClose = activeDialogOnClose;
+  activeDialogOnClose = null;
+  restoreDialogContent();
+  if (onClose) onClose();
+});
+
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
 });
@@ -3277,10 +4689,18 @@ operationLevelFilterEl.addEventListener("change", () => loadOperations(true));
 operationLimitEl.addEventListener("change", () => loadOperations(true));
 
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
+newAdminUserBtn.addEventListener("click", () => {
+  clearAdminUserForm();
+  openAdminUserDialog();
+});
 clearAdminUserBtn.addEventListener("click", clearAdminUserForm);
 saveAdminUserBtn.addEventListener("click", saveAdminUser);
 assignAdminUserRolesBtn.addEventListener("click", assignAdminUserRoles);
 
+masterSchoolFilterEl.addEventListener("change", async () => {
+  renderMasterFilters();
+  await loadMasterStudents();
+});
 masterSchoolYearFilterEl.addEventListener("change", async () => {
   renderMasterFilters();
   await loadMasterStudents();
@@ -3295,6 +4715,13 @@ masterSearchEl.addEventListener("input", () => {
   masterSearchEl.dataset.timer = window.setTimeout(loadMasterStudents, 250);
 });
 refreshMasterDataBtn.addEventListener("click", () => loadMasterData(true));
+newMasterStudentBtn.addEventListener("click", () => {
+  clearMasterStudentForm();
+  openMasterStudentDialog();
+});
+editMasterStudentBtn.addEventListener("click", openMasterStudentDialog);
+addMasterParentBtn.addEventListener("click", addMasterParentDraft);
+saveMasterStudentBtn.addEventListener("click", saveMasterStudent);
 masterCsvFileEl.addEventListener("change", async () => {
   const file = masterCsvFileEl.files[0];
   if (!file) {
@@ -3307,8 +4734,19 @@ masterCsvFileEl.addEventListener("change", async () => {
 clearMasterImportMappingBtn.addEventListener("click", clearMasterImport);
 checkMasterImportBtn.addEventListener("click", () => submitMasterImport(false));
 applyMasterImportBtn.addEventListener("click", () => submitMasterImport(true));
+openSchoolTreeSchoolDialogBtn.addEventListener("click", () => openSchoolTreeEntityDialog("school"));
+openSchoolTreeYearDialogBtn.addEventListener("click", () => openSchoolTreeEntityDialog("year"));
+openSchoolTreeClassDialogBtn.addEventListener("click", () => openSchoolTreeEntityDialog("class"));
+saveSchoolTreeSchoolBtn.addEventListener("click", saveSchoolTreeSchool);
+newSchoolTreeSchoolBtn.addEventListener("click", clearSchoolTreeSchoolForm);
+schoolTreeYearSchoolEl.addEventListener("change", renderSchoolTreeSelects);
+saveSchoolTreeYearBtn.addEventListener("click", saveSchoolTreeYear);
+newSchoolTreeYearBtn.addEventListener("click", clearSchoolTreeYearForm);
+saveSchoolTreeClassBtn.addEventListener("click", saveSchoolTreeClass);
+newSchoolTreeClassBtn.addEventListener("click", clearSchoolTreeClassForm);
 
 refreshFeeSchedulesBtn.addEventListener("click", () => loadFeeSchedules(true));
+openFeeScheduleDialogBtn.addEventListener("click", openFeeScheduleDialog);
 feeScheduleYearEl.addEventListener("change", async () => {
   renderFeeScheduleControls();
   await loadFeeScheduleList();
@@ -3325,6 +4763,7 @@ previewFeeScheduleBtn.addEventListener("click", previewFeeSchedule);
 saveFeeScheduleBtn.addEventListener("click", saveFeeSchedule);
 
 refreshInvoicesBtn.addEventListener("click", () => loadInvoices(true));
+openInvoiceDialogBtn.addEventListener("click", openInvoiceDialog);
 previewInvoicesBtn.addEventListener("click", previewInvoices);
 generateInvoicesBtn.addEventListener("click", generateInvoices);
 refreshPaymentReconBtn.addEventListener("click", () => loadPaymentReconciliation(true));
@@ -3332,6 +4771,7 @@ paymentProviderFilterEl.addEventListener("change", () => loadPaymentReconciliati
 paymentInvoiceStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 paymentTransactionStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 refreshNotificationsBtn.addEventListener("click", () => loadNotifications(true));
+openNotificationDialogBtn.addEventListener("click", openNotificationDialog);
 notificationCampaignTypeEl.addEventListener("change", () => {
   currentNotificationCampaignId = "";
   const match = (notificationOptions.templates || []).find((item) => item.code === notificationCampaignTypeEl.value);
@@ -3347,6 +4787,8 @@ saveNotificationCampaignBtn.addEventListener("click", saveNotificationCampaign);
 sendNotificationCampaignBtn.addEventListener("click", sendNotificationCampaign);
 
 saveEmailConfigBtn.addEventListener("click", saveEmailConfig);
+openEmailConfigDialogBtn.addEventListener("click", openEmailConfigDialog);
+openCronConfigDialogBtn.addEventListener("click", openCronConfigDialog);
 previewEmailBtn.addEventListener("click", previewEmail);
 dryRunEmailBtn.addEventListener("click", () => sendEmails(true));
 sendEmailBtn.addEventListener("click", () => sendEmails(false));

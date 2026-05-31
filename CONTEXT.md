@@ -38,11 +38,17 @@ The externally reachable app URL embedded in email QR links. If missing, request
 **Student code**:
 The durable production identifier for a student. Student names are display data only and are not unique.
 
+**School**:
+The top-level school or campus in the production tree. Existing data is backfilled to the default `ABC_SUN` school.
+
 **School year**:
-The academic year used to group classes and student listings.
+The academic year or cohort inside one school, used to group classes and student listings.
+
+**School tree**:
+The operational hierarchy `school > school year/cohort > grade > class`. It is used to browse students, parent contacts, fee schedules, and student fee adjustments from the same context.
 
 **Class master data**:
-The production class record for a school year and grade. Payment rows may still carry a display class name during import or preview.
+The production class record for a school year/cohort and grade. Payment rows may still carry a display class name during import or preview.
 
 **Parent contact**:
 A parent or guardian linked to one or more students. Billing-email delivery uses explicit active, primary, and receives-billing flags.
@@ -114,13 +120,28 @@ An immutable append-only record in `audit_logs` for money and fee changes. It st
 A production failure log in `operation_logs` for webhook, email, and background-job issues. It is used for incident review and does not replace the immutable money/fee audit log.
 
 **App user**:
-An administrative user stored in `app_users`. This is separate from students and parents.
+An administrative user stored in `app_users`. This is separate from students and parents. An app user must have at least one login/contact identifier: email or phone.
+
+**App user password**:
+A bcrypt password hash stored on `app_users.password_hash`. The plaintext password is only accepted during login, bootstrap, or explicit user password update.
 
 **App role**:
-A named set of app permissions assigned to app users through `app_user_roles`.
+A named set of app permissions assigned to app users through `app_user_roles`. Default production roles are `admin` (Quản trị viên), `staff` (Nhân sự), and `accountant` (Kế toán).
 
 **App permission**:
-A code seeded in `app_permissions` and attached to roles. Admin write APIs declare required permission codes through their request contract.
+A code seeded in `app_permissions` and attached to roles. Protected production API routes declare required permission codes on the server and reject authenticated users who do not have the required code. Canonical permission codes use `{module}.{action}`, such as `user.view`, `student.update`, `invoice.create`, or `payment.reconcile`.
+
+**Route-level RBAC**:
+The API authorization layer that maps each protected `/api/v1` route to an app permission. Static UI hiding is only a convenience; backend route-level RBAC is authoritative.
+
+**Auth session**:
+A browser admin login session stored in `app_auth_sessions`. Sessions can expire or be revoked by logout or invalid refresh-token reuse.
+
+**Access token**:
+A short-lived opaque browser token stored in an HttpOnly cookie. The app stores only its SHA-256 hash in `app_auth_access_tokens`.
+
+**Refresh token**:
+A longer-lived opaque browser token stored in an HttpOnly cookie scoped to auth endpoints. Refresh tokens rotate after use and store only SHA-256 hashes in `app_auth_refresh_tokens`.
 
 ## Relationships
 
@@ -131,7 +152,8 @@ A code seeded in `app_permissions` and attached to roles. Admin write APIs decla
 - Manual email sends and cron sends share the same rolling quota.
 - A student can have many parent contacts.
 - A parent contact can be linked to many students.
-- A class belongs to one school year and can have many students.
+- A school has many school years/cohorts.
+- A class belongs to one school year/cohort and can have many students.
 - A bảng phí theo kỳ has many fee schedule items.
 - A student can have many fee adjustments for a bảng phí theo kỳ.
 - A bảng phí theo kỳ can generate one active invoice per student.
@@ -149,6 +171,9 @@ A code seeded in `app_permissions` and attached to roles. Admin write APIs decla
 - An operation log can reference a provider event, notification recipient, or background job result.
 - An app user can have many app roles.
 - An app role can have many app permissions.
+- A protected API route requires one app permission unless it is explicitly public or authenticated-only.
+- An app user can have many auth sessions.
+- An auth session can have many short-lived access tokens and rotated refresh tokens.
 
 ## Flagged Ambiguities
 
@@ -158,3 +183,4 @@ A code seeded in `app_permissions` and attached to roles. Admin write APIs decla
 - "Notification" can mean a template, campaign, recipient, or delivery log. Use the precise term above.
 - "Log" can mean audit log, operation log, notification log, provider event, or local cron state. Use the precise term above.
 - "User" can mean an app user, student, parent contact, or operator. Use the precise term above.
+- "Session" can mean browser auth session, cron state, or a provider interaction. Use the precise term above.

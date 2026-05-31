@@ -89,9 +89,29 @@ func TestValidateAdminUserSaveInputNormalizesFields(t *testing.T) {
 	}
 }
 
+func TestValidateAdminUserSaveInputAllowsPhoneWithoutEmail(t *testing.T) {
+	input := adminUserSaveInput{
+		Phone:  " 090 123-4567 ",
+		Status: "active",
+	}
+	if err := validateAdminUserSaveInput(&input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Phone != "0901234567" || input.Email != "" || input.DisplayName != "0901234567" {
+		t.Fatalf("unexpected phone-only user input: %+v", input)
+	}
+}
+
+func TestValidateAdminUserSaveInputRequiresEmailOrPhone(t *testing.T) {
+	input := adminUserSaveInput{DisplayName: "Missing contact"}
+	if err := validateAdminUserSaveInput(&input); err == nil {
+		t.Fatal("expected missing email and phone to be rejected")
+	}
+}
+
 func TestNormalizeAdminRoleCodesDeduplicatesAndSorts(t *testing.T) {
-	got := normalizeAdminRoleCodes([]string{"Billing Admin", "viewer", "billing-admin", "", "Super.Admin"})
-	want := []string{"billing_admin", "super_admin", "viewer"}
+	got := normalizeAdminRoleCodes([]string{"Admin", "staff", "accountant", "viewer", "ADMIN", ""})
+	want := []string{"accountant", "admin", "staff"}
 	if len(got) != len(want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}

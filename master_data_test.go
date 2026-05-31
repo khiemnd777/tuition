@@ -99,6 +99,51 @@ S001,Nguyen An,2025-2026,3.02,Nguyen Van B,b@example.com,true
 	}
 }
 
+func TestNormalizeMasterDataStudentSaveInputDefaultsParentFlags(t *testing.T) {
+	input := normalizeMasterDataStudentSaveInput(masterDataStudentSaveInput{
+		StudentCode: " s001 ",
+		StudentName: " Nguyen An ",
+		ClassID:     " class-1 ",
+		Parents: []masterDataParentSaveInput{
+			{ParentName: " Nguyen Van A ", Email: " A@Example.COM "},
+		},
+	})
+
+	if input.StudentCode != "S001" || input.StudentName != "Nguyen An" || input.ClassID != "class-1" {
+		t.Fatalf("unexpected normalized student input: %+v", input)
+	}
+	if input.Status != "active" {
+		t.Fatalf("expected default active status, got %q", input.Status)
+	}
+	parent := input.Parents[0]
+	if parent.ParentName != "Nguyen Van A" || parent.Email != "a@example.com" {
+		t.Fatalf("unexpected normalized parent input: %+v", parent)
+	}
+	if !boolValue(parent.EmailActive) || !boolValue(parent.IsActive) || !boolValue(parent.IsPrimary) || !boolValue(parent.ReceivesBillingEmail) {
+		t.Fatalf("expected first parent defaults to active primary billing contact, got %+v", parent)
+	}
+}
+
+func TestValidateMasterDataStudentSaveInputRejectsMultipleActivePrimaryParents(t *testing.T) {
+	input := normalizeMasterDataStudentSaveInput(masterDataStudentSaveInput{
+		StudentCode: "S001",
+		StudentName: "Nguyen An",
+		ClassID:     "class-1",
+		Parents: []masterDataParentSaveInput{
+			{ParentName: "Nguyen Van A", Email: "a@example.com", IsPrimary: boolPtr(true)},
+			{ParentName: "Nguyen Van B", Email: "b@example.com", IsPrimary: boolPtr(true)},
+		},
+	})
+
+	if err := validateMasterDataStudentSaveInput(input); err == nil || !strings.Contains(err.Error(), "only one active primary parent") {
+		t.Fatalf("expected multiple primary parent validation error, got %v", err)
+	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
 func hasMasterDataIssue(issues []masterDataImportIssue, issueType string) bool {
 	for _, issue := range issues {
 		if issue.Type == issueType {

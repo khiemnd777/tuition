@@ -275,6 +275,135 @@ func TestLoadEmbeddedMigrationsIncludesReportsAuditOperations(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesAuthSessions(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var auth migration
+	for _, item := range migrations {
+		if item.Version == "0009" {
+			auth = item
+			break
+		}
+	}
+	if auth.Name != "auth_sessions" {
+		t.Fatalf("expected auth migration 0009, got %+v", auth)
+	}
+
+	for _, want := range []string{
+		"ADD COLUMN IF NOT EXISTS password_hash",
+		"CREATE TABLE IF NOT EXISTS app_auth_sessions",
+		"CREATE TABLE IF NOT EXISTS app_auth_access_tokens",
+		"CREATE TABLE IF NOT EXISTS app_auth_refresh_tokens",
+		"app_auth_access_tokens_hash_key",
+		"app_auth_refresh_tokens_hash_key",
+		"used_at timestamptz",
+		"revoked_at timestamptz",
+	} {
+		if !strings.Contains(auth.SQL, want) {
+			t.Fatalf("expected auth migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesRBACPermissions(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var rbac migration
+	for _, item := range migrations {
+		if item.Version == "0010" {
+			rbac = item
+			break
+		}
+	}
+	if rbac.Name != "rbac_permissions" {
+		t.Fatalf("expected RBAC migration 0010, got %+v", rbac)
+	}
+
+	for _, want := range []string{
+		"email.config.read",
+		"email.config.write",
+		"email.send",
+		"email.cron.manage",
+		"super_admin",
+		"billing_admin",
+	} {
+		if !strings.Contains(rbac.SQL, want) {
+			t.Fatalf("expected RBAC migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesSchoolTreeManagement(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var schoolTree migration
+	for _, item := range migrations {
+		if item.Version == "0011" {
+			schoolTree = item
+			break
+		}
+	}
+	if schoolTree.Name != "school_tree_management" {
+		t.Fatalf("expected school tree migration 0011, got %+v", schoolTree)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS schools",
+		"ALTER TABLE school_years ADD COLUMN IF NOT EXISTS school_id",
+		"school_years_school_id_fkey",
+		"school_years_school_code_key",
+		"schools_set_updated_at",
+		"ABC_SUN",
+	} {
+		if !strings.Contains(schoolTree.SQL, want) {
+			t.Fatalf("expected school tree migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesUserContactsAndRoles(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var users migration
+	for _, item := range migrations {
+		if item.Version == "0012" {
+			users = item
+			break
+		}
+	}
+	if users.Name != "user_contacts_and_roles" {
+		t.Fatalf("expected users migration 0012, got %+v", users)
+	}
+
+	for _, want := range []string{
+		"ADD COLUMN IF NOT EXISTS phone",
+		"app_users_contact_required",
+		"app_users_phone_key",
+		"Admin / Quản trị viên",
+		"Staff / Nhân sự",
+		"Accountant / Kế toán",
+		"user.view",
+		"payment.reconcile",
+		"email_cron.update",
+	} {
+		if !strings.Contains(users.SQL, want) {
+			t.Fatalf("expected user contacts/roles migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

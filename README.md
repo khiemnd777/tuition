@@ -91,7 +91,7 @@ Khi mở Codex trong thư mục này, có thể gọi trực tiếp các skill n
 
 ## Nền tảng persistence production
 
-Server QR/email mặc định vẫn chạy không cần database. Các lệnh production persistence dùng PostgreSQL và đọc cấu hình từ biến môi trường, không lưu secret trong repo:
+Server vẫn khởi động được khi chưa cấu hình database để phục vụ static UI và endpoint QR PNG public, nhưng Web Admin production và các API bảo vệ yêu cầu PostgreSQL. Các lệnh production persistence dùng PostgreSQL và đọc cấu hình từ biến môi trường, không lưu secret trong repo:
 
 ```sh
 export ABC_ENV=local
@@ -104,16 +104,36 @@ go run . migrate up
 
 `ABC_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `ABC_DATABASE_URL_LOCAL`, `ABC_DATABASE_URL_STAGING`, `ABC_DATABASE_URL_PRODUCTION`; sau đó fallback sang `ABC_DATABASE_URL` và `DATABASE_URL`.
 
-Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice. Schema vận hành tạo `operation_logs` để giữ lỗi webhook, email và background job cho production review.
+Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `schools`, `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice. Schema vận hành tạo `operation_logs` để giữ lỗi webhook, email và background job cho production review. Schema auth tạo `app_auth_sessions`, `app_auth_access_tokens`, `app_auth_refresh_tokens`, và thêm `password_hash` vào `app_users`; browser token chỉ lưu hash trong DB. Migration RBAC bổ sung permission cho email config/send/cron để tất cả API production có permission route-level rõ ràng. Migration school tree thêm `schools`, backfill dữ liệu hiện có vào `ABC_SUN`, và gắn năm học/lớp vào cây `school > school year/cohort > class`. Migration user/RBAC mới thêm `phone` cho `app_users`, cho phép Email hoặc SĐT là định danh bắt buộc, seed role `admin`, `staff`, `accountant`, và seed permission canonical dạng `{module}.{action}`.
 
 Quy ước production hiện tại:
 
 - Primary key dùng UUID do PostgreSQL sinh bằng `gen_random_uuid()`.
 - Bảng vận hành có `created_at`, `updated_at`, `created_by_user_id`, `updated_by_user_id` khi cần audit actor.
 - Phiếu thu tiền mặt và điều chỉnh phí cần lý do; app ghi thêm audit log bất biến cho các thay đổi này.
+- Web Admin dùng cookie HttpOnly cho access/refresh token. Access token mặc định sống 15 phút, refresh token mặc định sống 7 ngày và được rotate sau mỗi lần refresh.
 - Secret chỉ đi qua environment hoặc secret manager, không commit vào file tracked.
 - Runbook backup/restore: `docs/runbooks/backup-restore.md`.
 - Runbook deployment, incident, staging smoke test và readiness checklist: `docs/runbooks/production-operations.md`.
+
+Bootstrap admin đầu tiên sau khi chạy migration auth:
+
+```sh
+export ABC_AUTH_BOOTSTRAP_EMAIL='admin@example.edu.vn'
+export ABC_AUTH_BOOTSTRAP_PHONE='0901234567'
+export ABC_AUTH_BOOTSTRAP_PASSWORD='change-this-long-password'
+export ABC_AUTH_BOOTSTRAP_DISPLAY_NAME='ABC SUN Admin'
+```
+
+Nếu `app_users` chưa có user nào, màn đăng nhập sẽ đổi sang form tạo Admin đầu tiên tại URL Web Admin. Form này yêu cầu password và ít nhất một trong hai trường Email hoặc SĐT; Admin được gán role `admin`. Bootstrap qua biến môi trường vẫn được hỗ trợ: khi login với Email/SĐT bootstrap, app tạo/cập nhật user active và gán role `admin`. Có thể điều chỉnh TTL bằng `ABC_AUTH_ACCESS_TTL` và `ABC_AUTH_REFRESH_TTL` theo định dạng Go duration, ví dụ `15m`, `168h`. Ở production, cookie tự bật `Secure`; local HTTP có thể để mặc định không secure hoặc cấu hình bằng `ABC_AUTH_COOKIE_SECURE`.
+
+Role production mặc định:
+
+- `admin` / `Admin - Quản trị viên`: toàn quyền.
+- `staff` / `Staff - Nhân sự`: quản lý học sinh, cây trường/lớp và thông báo.
+- `accountant` / `Accountant - Kế toán`: quản lý bảng phí, hóa đơn, thanh toán, đối soát, báo cáo, email/cron và xem audit log.
+
+Permission mới dùng dạng `{module}.{action}`, ví dụ `user.view`, `student.update`, `fee.view`, `invoice.create`, `payment.reconcile`, `report.export`. Các permission cũ vẫn được map tương thích trong code để không làm gãy user/role đã migrate từ phiên bản trước.
 
 Endpoint PNG test nhanh:
 
@@ -151,7 +171,7 @@ Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong
 }
 ```
 
-Trong UI, workflow được tách thành các tab: `Dashboard`, `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, `Thông báo`, `Báo cáo`, `Người dùng`, `Thanh toán`, và `Email & Cron`. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Các tab production và admin dùng PostgreSQL đã cấu hình.
+Trong UI, workflow được tách thành các tab: `Dashboard`, `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, `Thông báo`, `Báo cáo`, `Người dùng`, `Thanh toán`, và `Email & Cron`. Tab `Học sinh` có cây trường để quản lý trường, năm học/cohort, khối, lớp, sĩ số, bảng phí và điều chỉnh theo lớp. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Các tab production và admin dùng PostgreSQL đã cấu hình.
 
 ## Excel/CSV master data
 
@@ -160,18 +180,20 @@ File mẫu: `samples/master_data.csv`
 Header production master data:
 
 ```csv
-student_code,student_name,school_year,grade,class_name,parent_name,parent_email,parent_primary,parent_active,receives_billing_email
+student_code,student_name,school,school_year,grade,class_name,parent_name,parent_email,parent_primary,parent_active,receives_billing_email
 ```
 
 Quy tắc import:
 
-- `student_code` là bắt buộc và unique trong phạm vi trường hiện tại.
+- `student_code` là bắt buộc và hiện vẫn unique toàn hệ thống để giữ ổn định invoice/payment hiện có.
 - `student_name` không được dùng làm định danh; hai học sinh trùng tên phải có `student_code` khác nhau.
+- `school` là tùy chọn; nếu bỏ trống app dùng trường mặc định `ABC_SUN`.
 - `school_year` và `class_name` là bắt buộc. `grade` có thể bỏ trống nếu app suy ra được từ `class_name`, ví dụ `3.02` -> `3`.
 - Một học sinh có thể có nhiều phụ huynh; mỗi học sinh chỉ có một phụ huynh chính đang active.
 - `parent_email` được chuẩn hóa lowercase. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
 - Import preview sẽ báo conflict nếu CSV hoặc database hiện có mâu thuẫn; apply import không tự overwrite dữ liệu khác biệt.
 - UI sẽ scan header Excel/CSV trước và cho map cột, ví dụ `Họ và tên` -> `Họ, tên`, `Phụ huynh` -> `Tên ba mẹ`.
+- Ngoài import batch, tab `Học sinh` có form tạo/sửa thủ công từng học sinh. Manual save upsert theo `studentCode`, chọn lớp hiện có, cập nhật thông tin phụ huynh/link nhận billing, không xóa phụ huynh cũ nếu không được đánh dấu inactive hoặc bỏ nhận billing. Nếu học sinh đã có invoice hoặc điều chỉnh phí đang active, app chặn đổi lớp để tránh lệch dữ liệu đã phát hành.
 
 ## Bảng phí theo kỳ
 
@@ -246,19 +268,28 @@ Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải t
 
 Tab `Dashboard` tổng hợp công nợ production từ hóa đơn và ledger thanh toán: tổng cần thu, đã thu, còn thiếu, tỷ lệ thu, số học sinh unpaid, partial, overpaid/manual review, giao dịch chưa match và top lớp còn phải thu. Bộ lọc hỗ trợ năm học, khối, lớp, kỳ thu, tháng và trạng thái invoice.
 
-Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi tiết hóa đơn, và export CSV cho lớp, hóa đơn, giao dịch. Tab `Vận hành` đọc `operation_logs` và `audit_logs` để kiểm tra lỗi webhook/email/background job và audit thay đổi tiền/phí. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user và gán role qua API. Các write endpoint user admin yêu cầu header quyền nội bộ `X-ABC-Admin-Permission` tương ứng với permission seed trong migration; đây là lớp contract API hiện tại, chưa thay thế hệ thống đăng nhập production đầy đủ.
+Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi tiết hóa đơn, và export CSV cho lớp, hóa đơn, giao dịch. Tab `Vận hành` đọc `operation_logs` và `audit_logs` để kiểm tra lỗi webhook/email/background job và audit thay đổi tiền/phí. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user, đặt password tùy chọn, và gán role qua API. Web Admin yêu cầu đăng nhập bằng access/refresh token trước khi gọi API production; backend kiểm tra permission từ role của user đăng nhập cho từng route và trả `403` khi thiếu quyền. UI ẩn menu/action không đủ quyền nhưng không thay thế enforcement backend.
 
 ## API
 
 - `GET /api/v1/example`: trả về một VietQR mẫu kèm PNG data URL.
+- `POST /api/v1/auth/login`: đăng nhập bằng email/password, set access và refresh cookie HttpOnly.
+- `POST /api/v1/auth/refresh`: rotate refresh token và cấp access token mới.
+- `POST /api/v1/auth/logout`: revoke session hiện tại và clear cookie.
+- `GET /api/v1/auth/session`: trả user/role/permission hiện tại nếu access token còn hiệu lực.
 - `GET /api/v1/qr.png`: trả về ảnh PNG để scan trực tiếp.
 - `GET /api/v1/banks`: danh sách ngân hàng từ package VietQR.
 - `POST /api/v1/import/fields?target=payments|master_data`: scan header Excel/CSV, trả fields và suggested mapping.
 - `POST /api/v1/import/csv`: parse Excel/CSV thành rows, hỗ trợ multipart field `mapping`.
-- `GET /api/v1/master-data/options`: danh sách năm học/lớp production cho bộ lọc UI.
-- `GET /api/v1/master-data/students`: danh sách học sinh production, hỗ trợ `schoolYearId`, `schoolYear`, `classId`, `grade`, `q`.
+- `GET /api/v1/master-data/options`: danh sách trường/năm học/lớp production cho bộ lọc UI.
+- `GET /api/v1/master-data/students`: danh sách học sinh production, hỗ trợ `schoolId`, `schoolYearId`, `schoolYear`, `classId`, `grade`, `q`.
 - `POST /api/v1/master-data/import/csv?apply=false`: preview import Excel/CSV master data và trả conflict report, hỗ trợ multipart field `mapping`.
 - `POST /api/v1/master-data/import/csv?apply=true`: áp dụng import Excel/CSV master data nếu không có conflict.
+- `POST /api/v1/master-data/students/save`: tạo/cập nhật thủ công một học sinh, lớp hiện có, và các liên hệ phụ huynh.
+- `GET /api/v1/school-tree`: cây `school > school year/cohort > grade > class`, kèm sĩ số, bảng phí và điều chỉnh.
+- `POST /api/v1/school-tree/schools/save`: tạo/cập nhật trường.
+- `POST /api/v1/school-tree/school-years/save`: tạo/cập nhật năm học/cohort trong một trường.
+- `POST /api/v1/school-tree/classes/save`: tạo/cập nhật lớp trong một năm học/cohort.
 - `GET /api/v1/fee-schedules/options`: danh sách năm học/lớp và fee type cho bảng phí theo kỳ.
 - `GET /api/v1/fee-schedules`: danh sách bảng phí đã lưu, hỗ trợ `schoolYearId`, `classId`, `grade`, `status`.
 - `POST /api/v1/fee-schedules/preview`: preview bảng phí theo kỳ trước khi sinh invoice.
@@ -282,14 +313,16 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/notifications/campaigns/save`: lưu campaign và snapshot recipient hiện tại.
 - `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật.
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
+- `GET /api/v1/healthz`: healthcheck public cho Docker/API liveness.
 - `GET /api/v1/admin/dashboard`: dashboard công nợ, hỗ trợ `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
 - `GET /api/v1/admin/reports`: báo cáo theo lớp và hóa đơn, hỗ trợ cùng bộ lọc dashboard.
 - `GET /api/v1/admin/reports/export?dataset=classes|invoices|transactions`: export CSV theo bộ lọc báo cáo.
 - `GET /api/v1/admin/audit-logs`: đọc audit log bất biến, hỗ trợ `action`, `entityType`, `limit`.
 - `GET /api/v1/admin/operation-logs`: đọc operational log, hỗ trợ `source`, `level`, `limit`.
 - `GET /api/v1/admin/users`: danh sách user, role, permission.
-- `POST /api/v1/admin/users/save`: tạo/cập nhật user; yêu cầu `X-ABC-Admin-Permission: system.users.write`.
-- `POST /api/v1/admin/users/roles`: gán role cho user; yêu cầu `X-ABC-Admin-Permission: system.users.assign_roles`.
+- `GET/POST /api/v1/auth/bootstrap`: kiểm tra/tạo Admin đầu tiên khi `app_users` rỗng.
+- `POST /api/v1/admin/users/save`: tạo/cập nhật user bằng Tên, Email, SĐT, Password; yêu cầu `user.create` hoặc `user.update`.
+- `POST /api/v1/admin/users/roles`: gán role `admin`, `staff`, `accountant` cho user; yêu cầu permission `user.assign_role`.
 - `GET /api/v1/admin/roles`: danh sách role và permission.
 - `POST /api/v1/vietqr/batch`: sinh QR theo danh sách rows.
 - `GET/POST /api/v1/email/config`: đọc/lưu cấu hình email local.
