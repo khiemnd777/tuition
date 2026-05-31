@@ -199,6 +199,15 @@
             </label>
           </div>
           <div id="adminDashboardMetrics" class="admin-metrics">Chưa có dữ liệu dashboard</div>
+          <section class="operator-onboarding-section" aria-labelledby="operatorOnboardingTitle">
+            <div class="task-section-head">
+              <div>
+                <p class="section-kicker">Operator guardrails</p>
+                <h3 id="operatorOnboardingTitle"><span class="mui-icon" aria-hidden="true">checklist</span><span>Đường đi tối thiểu trước vận hành</span></h3>
+              </div>
+            </div>
+            <div id="operatorOnboarding" class="operator-onboarding-list">Chưa có dữ liệu onboarding</div>
+          </section>
           <div class="dashboard-task-grid">
             <section class="dashboard-task-section" aria-labelledby="adminWorkQueueTitle">
               <div class="task-section-head">
@@ -1877,7 +1886,7 @@
           <button id="appDialogClose" class="icon-button" type="button" aria-label="Đóng dialog"><span class="mui-icon" aria-hidden="true">close</span></button>
         </div>
         <div id="appDialogBody" class="app-dialog-body"></div>
-        <div id="appDialogError" class="app-dialog-error" hidden></div>
+        <div id="appDialogError" class="app-dialog-error" role="alert" tabindex="-1" hidden></div>
         <div id="appDialogActions" class="app-dialog-actions"></div>
       </div>
     </dialog>

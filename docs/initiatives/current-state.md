@@ -4,15 +4,15 @@ Last updated: 2026-05-31
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, and operational readiness complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work is continuing through the next usability, workflow, data-relationship, reporting, and operations initiatives one initiative at a time.
+Advanced Production work in the current roadmap is complete. Future work should start from a new scoped roadmap item or production hardening request.
 
-Current phase: `advanced_14_planned`
+Current phase: `advanced_production_complete`
 
-Current initiative: Advanced 13 - Reports, Audit, And Operations Command Center is complete.
+Current initiative: Advanced 15 - Onboarding And Operator Guardrails is complete.
 
-Next recommended initiative: start Advanced 14 - Responsive, Accessibility, And UI Polish.
+Next recommended initiative: review, commit, and push the completed Advanced 14/15 changes, or define the next roadmap initiative.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -144,6 +144,21 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Sanitized operation/audit metadata before returning it to the UI so secret-like keys and raw payloads are redacted.
   - Added Reports UI transaction table and Operations UI summary/detail panel with sanitized metadata and workflow drilldown actions.
   - Added focused tests for transaction export match explanation, operation grouping, and metadata redaction.
+- Advanced 14: Responsive, Accessibility, And UI Polish is complete:
+  - Hardened app dialog accessibility with focus restoration, `role=alert` error output, busy state locking, loading affordance, and viewport-safe sizing.
+  - Added keyboard activation and `aria-selected` synchronization for selectable workflow table rows.
+  - Tightened responsive CSS for panel headers, action bars, dialog actions, status pills, metrics, table wrappers, and small-screen one-column layouts.
+  - Prevented wide tables from expanding the page viewport while preserving horizontal scroll inside table wrappers.
+  - Converted compact fee remove controls to icon-only buttons with screen-reader text and labels to avoid button text overflow.
+  - Kept native browser `alert`, `confirm`, and `prompt` out of the UI and preserved app dialog confirmations.
+  - Verified desktop workflow navigation across production tabs with no page-level horizontal overflow and no browser console warnings/errors.
+- Advanced 15: Onboarding And Operator Guardrails is complete:
+  - Added a Dashboard operator setup checklist for first-run path: school, school year/classes, student/parent import, billing recipients, email provider, fee schedule, and invoice preview.
+  - Added role clarity in the User & Roles screen by summarizing Admin, Staff, Accountant, and custom-role permissions by view/create/update/send/reconcile/export/administer capability.
+  - Added session recovery for active workflow and global school/year/period/month context after session expiry and login refresh, while clearing it on explicit logout.
+  - Expanded risky action confirmations with actor, scope, provider, recipient, queue, invoice, import, and audit context for real sends, cron run/disable, invoice generation, imports, and fee schedule saves.
+  - Added audit-bound cash receipt guardrails showing current actor and requiring reason before creating the manual cash ledger entry.
+  - Kept provider secrets masked/blank in UI and continued using app dialogs instead of native browser prompts.
 
 ## Advanced Production Roadmap
 
@@ -162,8 +177,8 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 | Advanced 11 | Communication Campaign Workbench | Make campaign targeting, billing-recipient resolution, dry-run preview, real-send confirmation, send logs, retries, and cron queues explicit. | Complete |
 | Advanced 12 | Collection And Reconciliation Workbench | Center collection and reconciliation around invoices, payment intents, cash receipts, transaction matching, and manual-review queues. | Complete |
 | Advanced 13 | Reports, Audit, And Operations Command Center | Consolidate filtered reports, exports, audit trails, provider/email/cron failures, and operational drilldowns. | Complete |
-| Advanced 14 | Responsive, Accessibility, And UI Polish | Verify and harden all production workflows on desktop and mobile with stable layouts, dialogs, states, and accessible controls. | Planned |
-| Advanced 15 | Onboarding And Operator Guardrails | Add first-run/operator guardrails, role clarity, session recovery, risky-action confirmations, and audit-bound action context. | Planned |
+| Advanced 14 | Responsive, Accessibility, And UI Polish | Verify and harden all production workflows on desktop and mobile with stable layouts, dialogs, states, and accessible controls. | Complete |
+| Advanced 15 | Onboarding And Operator Guardrails | Add first-run/operator guardrails, role clarity, session recovery, risky-action confirmations, and audit-bound action context. | Complete |
 
 Recommended order:
 
@@ -629,7 +644,7 @@ Advanced 13 planning:
 Advanced 13 completion prompt:
 
 ```text
-Advanced 13 is complete. Continue with Advanced 14 from docs/initiatives/current-state.md when ready.
+Advanced 14 is complete. Continue with Advanced 15 from docs/initiatives/current-state.md when ready.
 ```
 
 Advanced 14 launch prompt:
@@ -654,6 +669,12 @@ Advanced 14 planning:
 - No native browser `alert`, `confirm`, or `prompt`.
 - Browser verification should cover the changed workflows.
 - Acceptance: no overlapping UI, no major layout shift, and no unusable workflow on mobile.
+
+Advanced 14 completion prompt:
+
+```text
+Advanced 14 is complete. Continue with Advanced 15 from docs/initiatives/current-state.md when ready.
+```
 
 Advanced 15 launch prompt:
 
@@ -681,6 +702,12 @@ Advanced 15 planning:
 - Do not show secrets or local config values in UI/logs.
 - Acceptance: first-time operators know the minimum setup path and risky actions remain intentional.
 
+Advanced 15 completion prompt:
+
+```text
+Advanced 15 is complete. Review, commit, and push the Advanced Production hardening changes when ready, or define the next roadmap initiative.
+```
+
 ## Completed Follow-up: User Contact Bootstrap And Canonical RBAC
 
 User request:
@@ -700,8 +727,7 @@ Completed:
 
 ## Not Started
 
-- Advanced 14 - Responsive, Accessibility, And UI Polish.
-- Advanced 15 - Onboarding And Operator Guardrails.
+- No Advanced Production roadmap initiatives remain in the current plan.
 
 ## Agent Protocol
 
@@ -735,7 +761,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Advanced 13 is complete. Continue with Advanced 14 from docs/initiatives/current-state.md when ready.
+Advanced 15 is complete. Review, commit, and push the Advanced Production hardening changes when ready, or define the next roadmap initiative.
 ```
 
 ## Known Safety Constraints

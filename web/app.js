@@ -223,6 +223,7 @@ const adminDashboardPeriodEl = document.querySelector("#adminDashboardPeriod");
 const adminDashboardMonthEl = document.querySelector("#adminDashboardMonth");
 const adminDashboardInvoiceStatusEl = document.querySelector("#adminDashboardInvoiceStatus");
 const adminDashboardMetricsEl = document.querySelector("#adminDashboardMetrics");
+const operatorOnboardingEl = document.querySelector("#operatorOnboarding");
 const adminWorkQueueEl = document.querySelector("#adminWorkQueue");
 const adminQuickActionsEl = document.querySelector("#adminQuickActions");
 const adminReadinessSeverityEl = document.querySelector("#adminReadinessSeverity");
@@ -372,6 +373,17 @@ let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
 let appContextApplyTimer = 0;
 let activeDialogRestore = null;
 let activeDialogOnClose = null;
+let lastDialogTrigger = null;
+let interactiveRowsScheduled = false;
+const interactiveRowSelector = [
+  "tr[data-master-student-row]",
+  "tr[data-invoice-row]",
+  "tr[data-recon-invoice-row]",
+  "tr[data-recon-transaction-row]",
+  "tr[data-recipient-key]",
+  "tr[data-operation-log-row]",
+  "tr[data-audit-log-row]",
+].join(", ");
 
 const defaultPaymentItems = [
   { label: "Tiền học phí Tháng 04", labelEn: "Tuition fees for April", amount: 3950000 },
@@ -537,6 +549,17 @@ const permissionAliases = {
   "user.assign_role": ["system.users.assign_roles"],
 };
 
+const sessionRecoveryStorageKey = "abcsun.sessionRecovery.v1";
+const permissionSummaryGroups = [
+  { key: "view", label: "View", verbs: ["view", "read"] },
+  { key: "create", label: "Create", verbs: ["create"] },
+  { key: "update", label: "Update", verbs: ["update", "write", "manage"] },
+  { key: "send", label: "Send", verbs: ["send"] },
+  { key: "reconcile", label: "Reconcile", verbs: ["reconcile"] },
+  { key: "export", label: "Export", verbs: ["export"] },
+  { key: "administer", label: "Administer", verbs: ["assign_role", "administer"] },
+];
+
 const nativeFetch = window.fetch.bind(window);
 window.fetch = authAwareFetch;
 
@@ -548,6 +571,7 @@ function muiIcon(name) {
 
 function openAppDialog({ title, kicker = "Dialog", icon = "", nodes = [], content = null, actions = [], size = "md", onClose = null } = {}) {
   if (!appDialogEl) return;
+  lastDialogTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (appDialogEl.open) {
     const previousOnClose = activeDialogOnClose;
     activeDialogOnClose = null;
@@ -564,6 +588,9 @@ function openAppDialog({ title, kicker = "Dialog", icon = "", nodes = [], conten
   appDialogActionsEl.innerHTML = "";
   appDialogErrorEl.hidden = true;
   appDialogErrorEl.textContent = "";
+  appDialogEl.removeAttribute("aria-busy");
+  appDialogEl.removeAttribute("aria-describedby");
+  delete appDialogEl.dataset.busy;
 
   const records = [];
   nodes.filter(Boolean).forEach((node) => {
@@ -609,33 +636,61 @@ function openAppDialog({ title, kicker = "Dialog", icon = "", nodes = [], conten
 
 function dialogActionButton({ label, icon = "", variant = "", onClick = null, closeOnSuccess = false } = {}) {
   const button = document.createElement("button");
+  const actionLabel = label || "OK";
   button.type = "button";
   button.className = variant;
-  button.innerHTML = `${icon ? muiIcon(icon) : ""}<span>${escapeHtml(label || "OK")}</span>`;
+  button.innerHTML = `${icon ? muiIcon(icon) : ""}<span>${escapeHtml(actionLabel)}</span>`;
   button.addEventListener("click", async () => {
     clearDialogError();
     const previous = button.innerHTML;
-    button.disabled = true;
+    const previousMinWidth = button.style.minWidth;
+    let shouldClose = closeOnSuccess;
+    setDialogActionsBusy(button, true);
     if (onClick) {
       try {
         const result = await onClick();
         if (result === false) {
-          button.disabled = false;
-          button.innerHTML = previous;
-          return;
+          shouldClose = false;
         }
       } catch (error) {
         showDialogError(error?.message || "Không xử lý được thao tác");
-        button.disabled = false;
-        button.innerHTML = previous;
-        return;
+        shouldClose = false;
       }
     }
-    button.disabled = false;
+    setDialogActionsBusy(button, false);
     button.innerHTML = previous;
-    if (closeOnSuccess) closeAppDialog();
+    button.style.minWidth = previousMinWidth;
+    if (shouldClose) closeAppDialog();
   });
   return button;
+}
+
+function setDialogActionsBusy(activeButton, busy) {
+  if (!appDialogEl || !appDialogActionsEl) return;
+  const controls = [appDialogCloseBtn, ...appDialogActionsEl.querySelectorAll("button")].filter(Boolean);
+  if (busy) {
+    appDialogEl.dataset.busy = "true";
+    appDialogEl.setAttribute("aria-busy", "true");
+    controls.forEach((control) => {
+      control.dataset.dialogWasDisabled = control.disabled ? "true" : "false";
+      control.disabled = true;
+    });
+    if (activeButton) {
+      const width = Math.ceil(activeButton.getBoundingClientRect().width);
+      if (width) activeButton.style.minWidth = `${width}px`;
+      activeButton.disabled = true;
+      activeButton.setAttribute("aria-busy", "true");
+      activeButton.innerHTML = `${muiIcon("progress_activity")}<span>Đang xử lý</span>`;
+    }
+    return;
+  }
+  delete appDialogEl.dataset.busy;
+  appDialogEl.removeAttribute("aria-busy");
+  controls.forEach((control) => {
+    control.disabled = control.dataset.dialogWasDisabled === "true";
+    delete control.dataset.dialogWasDisabled;
+  });
+  activeButton?.removeAttribute("aria-busy");
 }
 
 function closeAppDialog() {
@@ -654,22 +709,75 @@ function restoreDialogContent() {
 function showDialogError(message) {
   appDialogErrorEl.textContent = message;
   appDialogErrorEl.hidden = false;
+  appDialogEl?.setAttribute("aria-describedby", "appDialogError");
+  window.setTimeout(() => appDialogErrorEl.focus(), 0);
 }
 
 function clearDialogError() {
   appDialogErrorEl.hidden = true;
   appDialogErrorEl.textContent = "";
+  appDialogEl?.removeAttribute("aria-describedby");
 }
 
-function confirmDialog({ title, message, confirmLabel = "Xác nhận", confirmIcon = "check", danger = false } = {}) {
+function scheduleEnhanceInteractiveRows() {
+  if (interactiveRowsScheduled) return;
+  interactiveRowsScheduled = true;
+  window.requestAnimationFrame(() => {
+    interactiveRowsScheduled = false;
+    enhanceInteractiveRows();
+  });
+}
+
+function enhanceInteractiveRows(root = document) {
+  root.querySelectorAll(interactiveRowSelector).forEach((row) => {
+    row.tabIndex = 0;
+    row.setAttribute("aria-selected", row.classList.contains("is-selected") ? "true" : "false");
+  });
+}
+
+function activateFocusedInteractiveRow(event) {
+  if (!["Enter", " "].includes(event.key)) return;
+  const row = event.target.closest?.(interactiveRowSelector);
+  if (!row || event.target !== row) return;
+  event.preventDefault();
+  row.click();
+}
+
+function confirmDialog({
+  title,
+  message,
+  confirmLabel = "Xác nhận",
+  confirmIcon = "check",
+  danger = false,
+  details = [],
+  actor = false,
+  auditNote = "",
+} = {}) {
   return new Promise((resolve) => {
     let settled = false;
+    const detailRows = [
+      ...(actor ? [{ label: "Actor", value: currentActorLabel() }] : []),
+      ...details.filter((item) => item?.label || item?.value),
+      ...(auditNote ? [{ label: "Audit", value: auditNote }] : []),
+    ];
+    const detailsHtml = detailRows.length
+      ? `<dl class="dialog-risk-list">${detailRows
+          .map(
+            (item) => `
+              <div>
+                <dt>${escapeHtml(item.label || "")}</dt>
+                <dd>${escapeHtml(item.value || "-")}</dd>
+              </div>
+            `,
+          )
+          .join("")}</dl>`
+      : "";
     openAppDialog({
       title,
       kicker: "Confirm",
       icon: danger ? "warning" : "help",
       size: "sm",
-      content: `<div class="dialog-message">${escapeHtml(message || "")}</div>`,
+      content: `<div class="dialog-message${danger ? " dialog-message-danger" : ""}">${escapeHtml(message || "")}${detailsHtml}</div>`,
       onClose: () => {
         if (!settled) resolve(false);
       },
@@ -696,6 +804,11 @@ function confirmDialog({ title, message, confirmLabel = "Xác nhận", confirmIc
       ],
     });
   });
+}
+
+function currentActorLabel() {
+  const user = authSession?.user || {};
+  return user.displayName || user.email || user.phone || "Current session";
 }
 
 async function init() {
@@ -854,13 +967,22 @@ function showBootstrap(message = "") {
 
 function showApp(session) {
   authSession = session;
+  const recovery = readSessionRecoveryState();
+  if (recovery?.context) {
+    appContext = {
+      schoolId: recovery.context.schoolId || "",
+      schoolYearId: recovery.context.schoolYearId || "",
+      periodCode: recovery.context.periodCode || "",
+      month: recovery.context.month || "",
+    };
+  }
   loginScreenEl.hidden = true;
   appShellEl.hidden = false;
   loginPasswordEl.value = "";
   setLoginStatus("", "");
   updateAuthBadge(session);
   applyPermissionUI();
-  activateInitialAllowedTab();
+  activateInitialAllowedTab(recovery?.activeTabId || "");
 }
 
 function updateAuthBadge(session) {
@@ -969,9 +1091,13 @@ function applyPermissionUI() {
   renderAdminQuickActions();
 }
 
-function activateInitialAllowedTab() {
+function activateInitialAllowedTab(preferredTabId = "") {
   const current = tabPanels.find((panel) => panel.classList.contains("active"))?.id || "dashboardTab";
-  const targetId = canUseTab(current) ? current : tabButtons.find((button) => !button.hidden)?.dataset.tabTarget || "";
+  const targetId = canUseTab(preferredTabId)
+    ? preferredTabId
+    : canUseTab(current)
+      ? current
+      : tabButtons.find((button) => !button.hidden)?.dataset.tabTarget || "";
   if (!targetId) {
     currentSectionKickerEl.textContent = "Không đủ quyền";
     currentSectionTitleEl.textContent = "Chưa có màn hình được cấp quyền";
@@ -991,6 +1117,38 @@ function activateInitialAllowedTab() {
     panel.hidden = !isActive;
     panel.classList.toggle("active", isActive);
   });
+  persistSessionRecoveryState(targetId);
+}
+
+function readSessionRecoveryState() {
+  try {
+    return JSON.parse(window.localStorage.getItem(sessionRecoveryStorageKey) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function persistSessionRecoveryState(tabId = activeTabId()) {
+  try {
+    window.localStorage.setItem(
+      sessionRecoveryStorageKey,
+      JSON.stringify({
+        activeTabId: tabId || "dashboardTab",
+        context: appContext,
+        savedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    // Session recovery is best-effort only.
+  }
+}
+
+function clearSessionRecoveryState() {
+  try {
+    window.localStorage.removeItem(sessionRecoveryStorageKey);
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 function setLoginStatus(message, tone = "") {
@@ -1064,6 +1222,7 @@ async function submitBootstrap(event) {
 
 async function logout() {
   await nativeFetch("/api/v1/auth/logout", { method: "POST" });
+  clearSessionRecoveryState();
   showLogin("Đã đăng xuất");
 }
 
@@ -1097,6 +1256,7 @@ async function activateTab(targetId) {
   });
   await loadActiveTabData(targetId);
   await applyAppContextToTab(targetId, true);
+  persistSessionRecoveryState(targetId);
 }
 
 async function loadActiveTabData(targetId) {
@@ -1237,6 +1397,7 @@ function syncAppContextFromActiveTab(targetId = activeTabId()) {
   if (Object.prototype.hasOwnProperty.call(next, "periodCode")) appContext.periodCode = next.periodCode || "";
   if (Object.prototype.hasOwnProperty.call(next, "month")) appContext.month = next.month || "";
   renderAppContextControls();
+  persistSessionRecoveryState(targetId);
 }
 
 function readTabContext(targetId) {
@@ -1297,6 +1458,7 @@ async function applyAppContextToActiveTab() {
     month: appContextMonthEl.value || "",
   };
   await applyAppContextToTab(activeTabId(), true);
+  persistSessionRecoveryState();
 }
 
 function scheduleApplyAppContext() {
@@ -1407,7 +1569,7 @@ function paymentItemTemplate(item = {}) {
       <input class="fee-label" data-fee-field="label" value="${escapeAttr(item.label || "")}" placeholder="Diễn giải" />
       <input class="fee-label-en" data-fee-field="labelEn" value="${escapeAttr(item.labelEn || "")}" placeholder="Explanation" />
       <input class="fee-amount" data-fee-field="amount" value="${Number(item.amount || 0)}" type="number" min="0" step="1000" />
-      <button class="remove-fee danger" type="button" title="Xóa khoản phí">${muiIcon("remove_circle")}<span>Xóa</span></button>
+      <button class="remove-fee icon-only danger" type="button" aria-label="Xóa khoản phí" title="Xóa khoản phí">${muiIcon("remove_circle")}<span class="sr-only">Xóa</span></button>
     </div>
   `;
 }
@@ -1698,6 +1860,20 @@ async function submitPaymentImport() {
     status("Chưa chọn file", "error");
     return;
   }
+  const confirmed = await confirmDialog({
+    title: "Import bảng thanh toán?",
+    message: "Thao tác này sẽ thay thế các dòng QR/import hiện tại bằng dữ liệu từ file đã map.",
+    confirmLabel: "Import vào bảng",
+    confirmIcon: "publish",
+    danger: true,
+    actor: true,
+    details: [
+      { label: "File", value: paymentImportState.file?.name || "-" },
+      { label: "Preview", value: `${paymentImportState.preview?.length || 0} dòng` },
+      { label: "Scope", value: "Legacy QR/import table, không ghi production invoice" },
+    ],
+  });
+  if (!confirmed) return;
   status("Đang import", "busy");
   const form = new FormData();
   form.append("file", paymentImportState.file);
@@ -2583,11 +2759,114 @@ async function loadAdminDashboard(force = false) {
 function renderAdminDashboard(data) {
   adminDashboardData = data || null;
   renderAdminMetrics(adminDashboardMetricsEl, data?.summary || null);
+  renderOperatorOnboarding(data);
   renderAdminWorkQueue(data);
   renderAdminQuickActions();
   renderAdminReadiness(data?.readiness || null);
   renderAdminTopClasses(data?.topClasses || []);
   renderAdminAttentionInvoices(data?.attentionInvoices || []);
+}
+
+function renderOperatorOnboarding(data) {
+  if (!operatorOnboardingEl) return;
+  const issues = data?.readiness?.issues || [];
+  const issueTypes = new Set(issues.map((issue) => issue.type).filter(Boolean));
+  const hasDashboardData = !!data?.summary;
+  const hasSchools = (adminOptions.schools || []).length > 0 || (masterDataOptions.schools || []).length > 0 || (schoolTreeData.schools || []).length > 0;
+  const hasYears = (adminOptions.schoolYears || []).length > 0 || (masterDataOptions.schoolYears || []).length > 0 || (feeScheduleOptions.schoolYears || []).length > 0;
+  const hasClasses = (adminOptions.classes || []).length > 0 || (masterDataOptions.classes || []).length > 0 || (feeScheduleOptions.classes || []).length > 0;
+  const billingIssueTypes = [
+    "student_missing_billing_recipient",
+    "billing_recipient_missing_email",
+    "billing_recipient_email_inactive",
+    "inactive_parent_selected_for_billing",
+  ];
+  const studentIssueTypes = ["student_missing_parent", "student_missing_class", "class_has_no_students"];
+  const feeIssueTypes = ["class_missing_fee_schedule", "fee_schedule_empty_items", "fee_schedule_zero_amount_items"];
+  const steps = [
+    {
+      id: "school",
+      label: "Tạo hoặc kiểm tra trường",
+      detail: "Trường là scope gốc cho năm học, lớp, học sinh và báo cáo.",
+      status: hasSchools ? "ready" : "warning",
+      statusLabel: hasSchools ? "Ready" : "Cần tạo",
+      action: "students",
+    },
+    {
+      id: "classes",
+      label: "Tạo năm học và lớp",
+      detail: "Năm học/cohort và lớp cần sẵn sàng trước import hoặc lập bảng phí.",
+      status: hasYears && hasClasses ? "ready" : "warning",
+      statusLabel: hasYears && hasClasses ? "Ready" : "Thiếu dữ liệu",
+      action: "students",
+    },
+    {
+      id: "students",
+      label: "Import học sinh và phụ huynh",
+      detail: "Student code là định danh bền vững; phụ huynh cần được liên kết rõ.",
+      status: hasAnyIssue(issueTypes, studentIssueTypes) ? "warning" : hasDashboardData ? "ready" : "info",
+      statusLabel: hasAnyIssue(issueTypes, studentIssueTypes) ? "Cần xử lý" : hasDashboardData ? "Ready" : "Chưa tải",
+      action: "students",
+    },
+    {
+      id: "billing",
+      label: "Resolve billing recipients",
+      detail: "Mỗi học sinh cần người nhận phí active, nhận billing, email active và có email.",
+      status: hasAnyIssue(issueTypes, billingIssueTypes) ? "error" : hasDashboardData ? "ready" : "info",
+      statusLabel: hasAnyIssue(issueTypes, billingIssueTypes) ? "Blocking" : hasDashboardData ? "Ready" : "Chưa tải",
+      action: "students",
+    },
+    {
+      id: "email",
+      label: "Cấu hình email provider",
+      detail: "Chỉ lưu masked state trong UI; không hiển thị app password/API key thật.",
+      status: issueTypes.has("email_provider_not_configured") ? "warning" : hasDashboardData ? "ready" : "info",
+      statusLabel: issueTypes.has("email_provider_not_configured") ? "Chưa cấu hình" : hasDashboardData ? "Ready" : "Chưa tải",
+      action: "email_config",
+    },
+    {
+      id: "fees",
+      label: "Tạo bảng phí đầu tiên",
+      detail: "Preview scope, item, adjustment và billing readiness trước khi lưu active.",
+      status: hasAnyIssue(issueTypes, feeIssueTypes) ? "warning" : hasDashboardData ? "ready" : "info",
+      statusLabel: hasAnyIssue(issueTypes, feeIssueTypes) ? "Cần bảng phí" : hasDashboardData ? "Ready" : "Chưa tải",
+      action: "fees",
+    },
+    {
+      id: "invoice",
+      label: "Preview invoice batch đầu tiên",
+      detail: "Preview giúp thấy blocking issue trước khi ghi invoice vào database.",
+      status: Number(data?.summary?.receivableAmount || 0) > 0 ? "ready" : hasDashboardData ? "info" : "warning",
+      statusLabel: Number(data?.summary?.receivableAmount || 0) > 0 ? "Ready" : hasDashboardData ? "Next" : "Cần tải",
+      action: "invoices",
+    },
+  ];
+  operatorOnboardingEl.innerHTML = steps.map(renderOperatorOnboardingStep).join("");
+}
+
+function hasAnyIssue(issueTypes, types) {
+  return types.some((type) => issueTypes.has(type));
+}
+
+function renderOperatorOnboardingStep(step, index) {
+  const action = dashboardActionDefinitions().find((item) => item.id === step.action);
+  const canOpen = action && dashboardActionAllowed(action);
+  const tone = step.status === "error" ? "error" : step.status === "warning" ? "warning" : step.status === "ready" ? "ready" : "busy";
+  return `
+    <div class="operator-onboarding-item" data-status="${escapeAttr(step.status)}">
+      <span class="operator-onboarding-index">${index + 1}</span>
+      <span class="operator-onboarding-copy">
+        <strong>${escapeHtml(step.label)}</strong>
+        <small>${escapeHtml(step.detail)}</small>
+      </span>
+      <span class="status-pill" data-tone="${escapeAttr(tone)}">${escapeHtml(step.statusLabel)}</span>
+      ${
+        canOpen
+          ? `<button type="button" data-dashboard-action="${escapeAttr(step.action)}">${muiIcon("open_in_new")}<span>Mở</span></button>`
+          : `<span class="status-pill">Không đủ quyền</span>`
+      }
+    </div>
+  `;
 }
 
 function dashboardActionDefinitions() {
@@ -3439,15 +3718,18 @@ function renderAdminRoleList(roles) {
   adminRoleCountEl.textContent = `${roles.length} role`;
   adminRoleListEl.innerHTML = roles
     .map((role) => {
-      const permissions = (role.permissions || []).map((permission) => `<span class="tag">${escapeHtml(permission.code || "")}</span>`).join("");
+      const summaries = rolePermissionSummaries(role.permissions || []);
       return `
         <div class="admin-role-item">
           <div>
             <strong>${escapeHtml(role.name || role.code || "")}</strong>
             <small>${escapeHtml(role.code || "")}${role.isSystem ? " · system" : ""}</small>
             <p>${escapeHtml(role.description || "")}</p>
+            <p>${escapeHtml(roleTemplateSummary(role.code))}</p>
           </div>
-          <div class="admin-permission-list">${permissions || `<span class="tag">no permissions</span>`}</div>
+          <div class="admin-permission-summary">
+            ${summaries.map(renderPermissionSummaryGroup).join("") || `<span class="tag">no permissions</span>`}
+          </div>
         </div>
       `;
     })
@@ -3455,6 +3737,69 @@ function renderAdminRoleList(roles) {
   if (!roles.length) {
     adminRoleListEl.textContent = "Chưa có role";
   }
+}
+
+function roleTemplateSummary(code = "") {
+  switch (code) {
+    case "admin":
+      return "Admin: cấu hình hệ thống, user/role, tất cả workflow học phí và vận hành.";
+    case "staff":
+      return "Staff: quản lý học sinh/phụ huynh, lớp, thông báo và các bước chăm sóc vận hành.";
+    case "accountant":
+      return "Accountant: lập phí, hóa đơn, thu tiền, đối soát, báo cáo, email/cron và audit.";
+    default:
+      return "Custom role: kiểm tra nhóm permission trước khi gán cho operator.";
+  }
+}
+
+function rolePermissionSummaries(permissions) {
+  const byGroup = new Map(permissionSummaryGroups.map((group) => [group.key, { ...group, modules: new Set(), raw: [] }]));
+  permissions.forEach((permission) => {
+    const code = permission.code || "";
+    const group = permissionSummaryGroup(code);
+    if (!byGroup.has(group.key)) {
+      byGroup.set(group.key, { ...group, modules: new Set(), raw: [] });
+    }
+    const entry = byGroup.get(group.key);
+    entry.modules.add(permissionModuleLabel(code));
+    entry.raw.push(code);
+  });
+  return [...byGroup.values()].filter((group) => group.modules.size || group.raw.length);
+}
+
+function permissionSummaryGroup(code) {
+  const verb = String(code || "").split(".").pop() || "";
+  return permissionSummaryGroups.find((group) => group.verbs.includes(verb)) || { key: "other", label: "Other", verbs: [] };
+}
+
+function permissionModuleLabel(code) {
+  const module = String(code || "").split(".")[0] || "system";
+  const labels = {
+    audit_log: "audit",
+    dashboard: "dashboard",
+    email_config: "email config",
+    email_cron: "email cron",
+    fee: "fees",
+    invoice: "invoices",
+    notification: "notifications",
+    operation_log: "operations",
+    payment: "payments",
+    report: "reports",
+    school_tree: "school tree",
+    student: "students",
+    user: "users",
+  };
+  return labels[module] || module.replaceAll("_", " ");
+}
+
+function renderPermissionSummaryGroup(group) {
+  const modules = [...group.modules].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
+  return `
+    <div class="admin-permission-group">
+      <span>${escapeHtml(group.label)}</span>
+      <strong>${escapeHtml(modules.join(", ") || "-")}</strong>
+    </div>
+  `;
 }
 
 function selectAdminUser(userId) {
@@ -4098,6 +4443,12 @@ async function submitMasterImport(apply) {
       confirmLabel: "Áp dụng import",
       confirmIcon: "publish",
       danger: true,
+      actor: true,
+      details: [
+        { label: "File", value: file.name || "-" },
+        { label: "Preview", value: `${masterImportState?.preview?.length || 0} dòng` },
+        { label: "Audit", value: "Conflict sẽ bị báo lỗi, không silent overwrite dữ liệu lệch" },
+      ],
     });
     if (!confirmed) return;
   }
@@ -4535,11 +4886,28 @@ async function previewFeeSchedule() {
 }
 
 async function saveFeeSchedule() {
+  const draft = collectFeeScheduleDraft();
+  const confirmed = await confirmDialog({
+    title: "Lưu bảng phí?",
+    message: "Thao tác này lưu bảng phí và điều chỉnh theo học sinh; các điều chỉnh cần lý do để phục vụ audit.",
+    confirmLabel: "Lưu bảng phí",
+    confirmIcon: "save",
+    danger: draft.adjustments.length > 0 || draft.status === "active",
+    actor: true,
+    auditNote: draft.adjustments.length ? "Mỗi adjustment phải có reason rõ ràng trước khi lưu." : "Operator và thời điểm lưu được ghi nhận.",
+    details: [
+      { label: "Kỳ thu", value: draft.periodCode || "-" },
+      { label: "Status", value: draft.status || "draft" },
+      { label: "Điều chỉnh", value: `${draft.adjustments.length} dòng` },
+      { label: "Operator", value: draft.operatorName || currentActorLabel() },
+    ],
+  });
+  if (!confirmed) return false;
   setFeeScheduleStatus("Đang lưu", "busy");
   const res = await fetch("/api/v1/fee-schedules/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(collectFeeScheduleDraft()),
+    body: JSON.stringify(draft),
   });
   const text = await res.text();
   let data = null;
@@ -4806,19 +5174,29 @@ async function previewInvoices() {
 }
 
 async function generateInvoices() {
+  const request = collectInvoiceRequest();
+  const schedule = selectedInvoiceSchedule();
   const confirmed = await confirmDialog({
     title: "Sinh hóa đơn?",
     message: "Thao tác này sẽ ghi dữ liệu invoice vào database.",
     confirmLabel: "Sinh hóa đơn",
     confirmIcon: "post_add",
     danger: true,
+    actor: true,
+    auditNote: "Preview lại trước khi sinh nếu scope, kỳ thu hoặc regenerate vừa thay đổi.",
+    details: [
+      { label: "Bảng phí", value: schedule?.name || schedule?.periodCode || request.feeScheduleId || "-" },
+      { label: "Kỳ thu", value: schedule?.periodCode || appContext.periodCode || "-" },
+      { label: "Regenerate", value: request.regenerate ? "Có" : "Không" },
+      { label: "Tài khoản", value: request.bankAccount || "-" },
+    ],
   });
   if (!confirmed) return false;
   setInvoiceStatus("Đang sinh hóa đơn", "busy");
   const res = await fetch("/api/v1/invoices/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(collectInvoiceRequest()),
+    body: JSON.stringify(request),
   });
   const text = await res.text();
   let data = null;
@@ -5690,6 +6068,10 @@ function cashReceiptDialog(defaultAmount) {
     const body = document.createElement("div");
     body.className = "dialog-form-grid";
     body.innerHTML = `
+      <div class="dialog-guardrail">
+        <strong>${muiIcon("verified_user")}Audit-bound action</strong>
+        <span>Actor: ${escapeHtml(currentActorLabel())}. Lý do ghi nhận là bắt buộc và sẽ đi vào audit/payment ledger.</span>
+      </div>
       <label>
         <span>Số tiền thu tiền mặt</span>
         <input data-cash-field="amount" inputmode="numeric" value="${escapeAttr(String(defaultAmount || ""))}" />
@@ -5735,6 +6117,10 @@ function cashReceiptDialog(defaultAmount) {
             const amount = parseMoneyInput(field("amount").value);
             if (!amount || amount <= 0) {
               showDialogError("Số tiền phải lớn hơn 0");
+              return false;
+            }
+            if (!field("reason").value.trim()) {
+              showDialogError("Nhập lý do ghi nhận để phục vụ audit");
               return false;
             }
             settled = true;
@@ -6135,20 +6521,29 @@ async function saveNotificationCampaign() {
 }
 
 async function sendNotificationCampaign() {
+  const input = collectNotificationInput();
   const confirmed = await confirmDialog({
     title: "Gửi campaign?",
     message: "Thao tác này sẽ gửi email thật qua provider hiện tại và ghi log theo từng invoice/recipient.",
     confirmLabel: "Gửi campaign",
     confirmIcon: "send",
     danger: true,
+    actor: true,
+    auditNote: "Send log được ghi theo campaign/template/invoice/recipient.",
+    details: [
+      { label: "Campaign", value: input.name || currentNotificationCampaignId || "-" },
+      { label: "Type", value: input.campaignType || "-" },
+      { label: "Template", value: notificationTemplateEl.selectedOptions?.[0]?.textContent || "-" },
+      { label: "Recipients", value: `${notificationPreviewData?.recipients?.length || 0} trong preview hiện tại` },
+    ],
   });
   if (!confirmed) return false;
   setNotificationStatus("Đang gửi", "busy");
-  const input = { ...collectNotificationInput(), confirmSend: true, dryRun: false };
+  const sendInput = { ...input, confirmSend: true, dryRun: false };
   const res = await fetch("/api/v1/notifications/campaigns/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(sendInput),
   });
   const text = await res.text();
   if (!res.ok) {
@@ -6182,6 +6577,12 @@ async function retrySelectedNotificationRecipients() {
     confirmLabel: "Retry selected",
     confirmIcon: "replay",
     danger: true,
+    actor: true,
+    auditNote: "Retry dùng forceResend=true và ghi delivery log mới.",
+    details: [
+      { label: "Campaign", value: currentNotificationCampaignId || "-" },
+      { label: "Recipients", value: `${recipientIds.length} selected` },
+    ],
   });
   if (!confirmed) return false;
   setNotificationStatus("Đang retry", "busy");
@@ -6651,12 +7052,20 @@ async function previewEmail() {
 
 async function sendEmails(dryRun) {
   if (!dryRun) {
+    const rows = collectRows();
     const confirmed = await confirmDialog({
       title: "Gửi email thật?",
       message: "Thao tác này sẽ gửi email thật qua provider hiện tại cho các dòng đang có trong bảng.",
       confirmLabel: "Gửi email",
       confirmIcon: "send",
       danger: true,
+      actor: true,
+      auditNote: "Preview hoặc dry-run trước khi gửi thật; provider secrets không hiển thị trong UI.",
+      details: [
+        { label: "Provider", value: emailProviderEl.value || "gmail" },
+        { label: "Recipients", value: `${rows.filter((row) => row.email).length}/${rows.length} dòng có email` },
+        { label: "Template", value: emailTemplateEl.value || "-" },
+      ],
     });
     if (!confirmed) return false;
   }
@@ -6732,6 +7141,19 @@ async function saveEmailCron(enabled) {
 }
 
 async function disableEmailCron() {
+  const confirmed = await confirmDialog({
+    title: "Tắt cron gửi email?",
+    message: "Thao tác này dừng scheduler cục bộ; các email chưa gửi sẽ vẫn nằm trong queue nhưng không tự chạy.",
+    confirmLabel: "Tắt cron",
+    confirmIcon: "event_busy",
+    danger: true,
+    actor: true,
+    details: [
+      { label: "Queue", value: cronQueueSummaryEl.value || "-" },
+      { label: "Provider", value: emailProviderEl.value || "gmail" },
+    ],
+  });
+  if (!confirmed) return false;
   setCronStatus("Saving");
   const res = await fetch("/api/v1/email/cron", {
     method: "POST",
@@ -6754,6 +7176,13 @@ async function runEmailCronNow() {
     confirmLabel: "Chạy cron",
     confirmIcon: "play_arrow",
     danger: true,
+    actor: true,
+    auditNote: "Chỉ chạy khi đã kiểm tra quota và queue; không dùng để test gửi thật.",
+    details: [
+      { label: "Queue", value: cronQueueSummaryEl.value || "-" },
+      { label: "Daily limit", value: cronDailyLimitEl.value || "-" },
+      { label: "Provider", value: emailProviderEl.value || "gmail" },
+    ],
   });
   if (!confirmed) return false;
   setCronStatus("Running");
@@ -7021,16 +7450,38 @@ cancelPaymentImportBtn.addEventListener("click", clearPaymentImport);
 
 appDialogCloseBtn.addEventListener("click", closeAppDialog);
 appDialogEl.addEventListener("click", (event) => {
+  if (appDialogEl.dataset.busy === "true") return;
   if (event.target === appDialogEl) {
     closeAppDialog();
   }
 });
+appDialogEl.addEventListener("cancel", (event) => {
+  if (appDialogEl.dataset.busy === "true") {
+    event.preventDefault();
+  }
+});
 appDialogEl.addEventListener("close", () => {
   const onClose = activeDialogOnClose;
+  const trigger = lastDialogTrigger;
+  lastDialogTrigger = null;
   activeDialogOnClose = null;
+  delete appDialogEl.dataset.busy;
+  appDialogEl.removeAttribute("aria-busy");
+  appDialogEl.removeAttribute("aria-describedby");
   restoreDialogContent();
   if (onClose) onClose();
+  if (trigger?.isConnected && !appDialogEl.open) {
+    window.setTimeout(() => trigger.focus(), 0);
+  }
 });
+document.addEventListener("keydown", activateFocusedInteractiveRow);
+new MutationObserver(scheduleEnhanceInteractiveRows).observe(document.body, {
+  attributes: true,
+  attributeFilter: ["class"],
+  childList: true,
+  subtree: true,
+});
+scheduleEnhanceInteractiveRows();
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
@@ -7047,6 +7498,10 @@ adminWorkQueueEl.addEventListener("click", (event) => {
   if (button) runDashboardAction(button.dataset.dashboardAction, button.dataset.readinessIssue || "");
 });
 adminQuickActionsEl.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-dashboard-action]");
+  if (button) runDashboardAction(button.dataset.dashboardAction, button.dataset.readinessIssue || "");
+});
+operatorOnboardingEl?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-dashboard-action]");
   if (button) runDashboardAction(button.dataset.dashboardAction, button.dataset.readinessIssue || "");
 });
