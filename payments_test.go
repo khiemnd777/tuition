@@ -68,6 +68,58 @@ func TestMatchPaymentTransactionToInvoicesSupportsPartialAndOverpayment(t *testi
 	}
 }
 
+func TestSummarizePaymentReconciliationTracksCollectionQueues(t *testing.T) {
+	invoices := []invoiceSummary{
+		{ID: "invoice-1", Status: invoiceStatusUnpaid, TotalAmount: 1000, PaidAmount: 0},
+		{ID: "invoice-2", Status: invoiceStatusPartial, TotalAmount: 2000, PaidAmount: 750},
+		{ID: "invoice-3", Status: invoiceStatusPaid, TotalAmount: 3000, PaidAmount: 3000},
+		{ID: "invoice-4", Status: invoiceStatusOverpaid, TotalAmount: 4000, PaidAmount: 4500},
+		{ID: "invoice-5", Status: invoiceStatusManualReview, TotalAmount: 5000, PaidAmount: 0},
+	}
+	transactions := []paymentTransactionSummary{
+		{Status: paymentTransactionStatusMatched},
+		{Status: paymentTransactionStatusUnmatched},
+		{Status: paymentTransactionStatusManualReview},
+	}
+
+	summary := summarizePaymentReconciliation(invoices, transactions)
+	if summary.InvoiceCount != 5 {
+		t.Fatalf("expected 5 invoices, got %d", summary.InvoiceCount)
+	}
+	if summary.TotalReceivable != 15000 {
+		t.Fatalf("expected receivable 15000, got %d", summary.TotalReceivable)
+	}
+	if summary.TotalCollected != 8250 {
+		t.Fatalf("expected collected 8250, got %d", summary.TotalCollected)
+	}
+	if summary.OutstandingAmount != 7250 {
+		t.Fatalf("expected outstanding 7250, got %d", summary.OutstandingAmount)
+	}
+	if summary.CollectionRate != 0.55 {
+		t.Fatalf("expected collection rate 0.55, got %f", summary.CollectionRate)
+	}
+	if summary.UnpaidCount != 1 || summary.PartialCount != 1 || summary.PaidCount != 1 || summary.OverpaidCount != 1 {
+		t.Fatalf("unexpected invoice status counts: %+v", summary)
+	}
+	if summary.UnmatchedCount != 1 || summary.MatchedCount != 1 || summary.ManualReviewCount != 2 {
+		t.Fatalf("unexpected work queue counts: %+v", summary)
+	}
+}
+
+func TestInvoiceIDsFromSummariesKeepsStableInvoiceScope(t *testing.T) {
+	ids := invoiceIDsFromSummaries([]invoiceSummary{
+		{ID: "invoice-1"},
+		{},
+		{ID: " invoice-2 "},
+	})
+	if len(ids) != 2 {
+		t.Fatalf("expected two invoice IDs, got %+v", ids)
+	}
+	if ids[0] != "invoice-1" || ids[1] != "invoice-2" {
+		t.Fatalf("expected IDs to preserve list order for query scope, got %+v", ids)
+	}
+}
+
 func TestNormalizeSePayWebhookTransaction(t *testing.T) {
 	transaction, err := normalizeSePayWebhook(map[string]any{
 		"id":              float64(92704),

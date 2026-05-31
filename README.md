@@ -236,15 +236,15 @@ PDF receipt được render từ dữ liệu hóa đơn đã lưu, không đọc
 
 ## Thanh toán và đối soát
 
-Tab `Đối soát` ghi nhận payment intent, webhook provider, giao dịch vào, match đối soát và phiếu thu tiền mặt trên database production. Provider mặc định:
+Tab `Đối soát` ghi nhận payment intent, webhook provider, giao dịch vào, match đối soát và phiếu thu tiền mặt trên database production. Workbench đối soát có bước Scope, Invoice ledger, Transactions, Match detail và Manual review; filter theo trường, năm học, khối, lớp, kỳ thu, provider, invoice status và transaction status. Summary hiển thị phải thu, đã thu, còn thiếu, collection rate, unpaid, partial, paid, overpaid, manual-review và unmatched để operator thấy ngay hàng đợi cần xử lý. Provider mặc định:
 
 - `manual_vietqr`: dùng QR hóa đơn hiện tại, đối soát thủ công hoặc tiền mặt.
 - `sepay`: nhận webhook biến động số dư, lưu raw payload trước rồi parse transaction theo `id`, `transferAmount`, `accountNumber`, `content`, `referenceCode`.
 - `payos`: tạo payment link qua API merchant khi có cấu hình env và nhận webhook payment link.
 
-Webhook provider được xử lý idempotent bằng unique key trên `provider_events` và `payment_transactions`; provider retry hoặc gửi lại cùng giao dịch sẽ không tạo thêm khoản thu. Match tự động dựa trên mã hóa đơn hoặc provider reference trong nội dung/reference, số tài khoản thu, và số tiền. Sau mỗi match, app tính lại `paid_amount` từ `reconciliation_matches` active và cập nhật status invoice thành `unpaid`, `partial`, `paid`, hoặc `overpaid`.
+Webhook provider được xử lý idempotent bằng unique key trên `provider_events` và `payment_transactions`; provider retry hoặc gửi lại cùng giao dịch sẽ không tạo thêm khoản thu. Match tự động dựa trên mã hóa đơn hoặc provider reference trong nội dung/reference, số tài khoản thu, và số tiền. Transaction và invoice detail hiển thị match type, match status, score, applied amount, reason, provider reference và collection account để giải thích vì sao giao dịch được hoặc chưa được match. Sau mỗi match, app tính lại `paid_amount` từ `reconciliation_matches` active và cập nhật status invoice thành `unpaid`, `partial`, `paid`, hoặc `overpaid`.
 
-Ghi nhận tiền mặt yêu cầu người thu tiền, số tiền, và mã phiếu thu. Giao dịch tiền mặt cũng đi qua ledger `payment_transactions`, tạo `manual_cash_receipts`, và có match `cash` để audit được như giao dịch webhook.
+Ghi nhận tiền mặt yêu cầu người thu tiền, số tiền, lý do và mã phiếu thu. Giao dịch tiền mặt cũng đi qua ledger `payment_transactions`, tạo `manual_cash_receipts`, và có match `cash` để audit được như giao dịch webhook. Manual review queue gom invoice partial/overpaid/manual-review và transaction unmatched/manual-review để các trường hợp lệch tiền hoặc thiếu reference dễ tìm.
 
 payOS dùng env sau, không commit secret thật:
 
@@ -258,20 +258,22 @@ export ABC_PAYOS_CANCEL_URL='https://example.edu.vn/payment-cancel'
 
 ## Notification campaigns
 
-Tab `Thông báo` chuyển luồng gửi email từ danh sách payment row tạm sang campaign dựa trên invoice production. Campaign chọn invoice theo năm học, kỳ thu, khối/lớp, trạng thái invoice và hạn thanh toán; recipient lấy từ parent contact đang active và có `receives_billing_email=true`.
+Tab `Thông báo` chuyển luồng gửi email từ danh sách payment row tạm sang campaign dựa trên invoice production. Workbench đi theo Target, Recipients, Email preview, Send/logs, và Cron: campaign chọn invoice theo năm học, kỳ thu, khối/lớp, trạng thái invoice và hạn thanh toán; recipient lấy từ parent contact đang active và có `receives_billing_email=true`.
 
 Template mặc định:
 
 - `first_notice`: thông báo thanh toán lần đầu cho invoice `unpaid`.
 - `reminder`: nhắc thanh toán, chỉ cho invoice `unpaid` hoặc `partial`; backend chặn chọn nhầm `paid`.
 
-Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải thu và số tiền còn phải thu trước khi gửi. Khi gửi thật, app dùng lại email provider hiện tại, render email học phí với QR inline CID, ghi `notification_logs` theo campaign/template/invoice/recipient, và bỏ qua recipient đã gửi trong cùng campaign/template/invoice/email nếu không bật resend rõ ràng. Email gửi từ campaign cũng tính vào quota rolling 24 giờ giống gửi thủ công và cron.
+Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải thu, số tiền còn phải thu, QR readiness, trạng thái gửi trước, lỗi và retry eligibility trước khi gửi. Operator có thể chọn từng recipient để render subject/HTML email theo template và invoice trước khi gửi thật. Khi gửi thật, app dùng lại email provider hiện tại, render email học phí với QR inline CID, ghi `notification_logs` theo campaign/template/invoice/recipient/provider/message-id/error/timestamp, và bỏ qua recipient đã gửi trong cùng campaign/template/invoice/email nếu không bật resend rõ ràng. Retry selected yêu cầu campaign đã lưu, recipient được chọn, confirm dialog, `confirmSend=true`, và `forceResend=true`. Email gửi từ campaign cũng tính vào quota rolling 24 giờ giống gửi thủ công và cron.
+
+Panel Cron trong tab `Thông báo` chỉ đọc trạng thái scheduler: enabled, send time, daily limit, queued, sent, errors, sent 24h, next/last run, và recent results. Cấu hình cron vẫn dùng app dialog chung; chạy cron thật chỉ nằm trong tab Email & Cron và luôn cần xác nhận.
 
 ## Web Admin
 
 Mục `Tổng quan` tổng hợp công nợ production từ hóa đơn và ledger thanh toán: tổng cần thu, đã thu, còn thiếu, tỷ lệ thu, số học sinh unpaid, partial, overpaid/manual review, giao dịch chưa match và top lớp còn phải thu. Dashboard cũng hiển thị work queue và quick actions theo permission để mở nhanh học sinh, bảng phí, hóa đơn, thông báo, đối soát hoặc công cụ QR/import legacy. Bộ lọc hỗ trợ năm học, khối, lớp, kỳ thu, tháng và trạng thái invoice.
 
-Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi tiết hóa đơn, và export CSV cho lớp, hóa đơn, giao dịch. Tab `Vận hành` đọc `operation_logs` và `audit_logs` để kiểm tra lỗi webhook/email/background job và audit thay đổi tiền/phí. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user, đặt password tùy chọn, và gán role qua API. Web Admin yêu cầu đăng nhập bằng access/refresh token trước khi gọi API production; backend kiểm tra permission từ role của user đăng nhập cho từng route và trả `403` khi thiếu quyền. UI ẩn menu/action không đủ quyền nhưng không thay thế enforcement backend.
+Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi tiết hóa đơn, giao dịch thanh toán theo provider, và export CSV cho lớp, hóa đơn, giao dịch. Báo cáo giao dịch giữ match explanation gồm match type/status/score, amount applied và reason để đối chiếu provider/reference/account. Tab `Vận hành` đọc `operation_logs` và `audit_logs` để kiểm tra lỗi webhook/email/cron/background job và audit thay đổi tiền/phí; command center có summary lỗi, filter theo operation/status/action/entity type, detail panel metadata đã redacted secret/raw payload, và drilldown sang workflow liên quan khi có entity id. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user, đặt password tùy chọn, và gán role qua API. Web Admin yêu cầu đăng nhập bằng access/refresh token trước khi gọi API production; backend kiểm tra permission từ role của user đăng nhập cho từng route và trả `403` khi thiếu quyền. UI ẩn menu/action không đủ quyền nhưng không thay thế enforcement backend.
 
 ## API
 
@@ -307,22 +309,23 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `GET /api/v1/payments/providers`: danh sách provider thanh toán và trạng thái cấu hình.
 - `POST /api/v1/payments/intents`: tạo payment intent cho invoice qua `manual_vietqr`, `sepay`, hoặc `payos`.
 - `GET /api/v1/payments/transactions`: danh sách giao dịch ledger, hỗ trợ `provider`, `status`, `limit`.
-- `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, summary, invoices, transactions, intents.
+- `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, master-data filters, summary, invoices, transactions, intents và reconciliation matches theo invoice.
 - `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos`, lưu raw event, parse transaction và đối soát.
 - `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice; yêu cầu lý do audit qua `reason`.
 - `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
 - `GET /api/v1/notifications/templates`: danh sách notification template/version.
 - `GET /api/v1/notifications/campaigns`: danh sách campaign đã lưu.
 - `POST /api/v1/notifications/campaigns/preview`: dry-run target invoice/recipient trước khi lưu hoặc gửi.
+- `POST /api/v1/notifications/campaigns/email-preview`: render subject/HTML cho template và recipient/invoice đã chọn, không gửi email thật.
 - `POST /api/v1/notifications/campaigns/save`: lưu campaign và snapshot recipient hiện tại.
-- `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật.
+- `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật, hỗ trợ `recipientIds` cho retry selected và `forceResend=true` để gửi lại có chủ đích.
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
 - `GET /api/v1/healthz`: healthcheck public cho Docker/API liveness.
 - `GET /api/v1/admin/dashboard`: dashboard công nợ và readiness center, hỗ trợ `schoolId`, `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
-- `GET /api/v1/admin/reports`: báo cáo theo lớp và hóa đơn, hỗ trợ cùng bộ lọc dashboard.
+- `GET /api/v1/admin/reports`: báo cáo theo lớp, hóa đơn và giao dịch thanh toán, hỗ trợ cùng bộ lọc dashboard và `provider`.
 - `GET /api/v1/admin/reports/export?dataset=classes|invoices|transactions`: export CSV theo bộ lọc báo cáo.
-- `GET /api/v1/admin/audit-logs`: đọc audit log bất biến, hỗ trợ `action`, `entityType`, `limit`.
-- `GET /api/v1/admin/operation-logs`: đọc operational log, hỗ trợ `source`, `level`, `limit`.
+- `GET /api/v1/admin/audit-logs`: đọc audit log bất biến, hỗ trợ `action`, `entityType`, `entityId`, `limit`; response có summary command-center và metadata đã redacted secret-like keys.
+- `GET /api/v1/admin/operation-logs`: đọc operational log, hỗ trợ `source`, `level`, `operation`, `status`, `entityType`, `entityId`, `limit`; response có summary lỗi webhook/email/cron/background job và metadata đã redacted secret-like keys.
 - `GET /api/v1/admin/users`: danh sách user, role, permission.
 - `GET/POST /api/v1/auth/bootstrap`: kiểm tra/tạo Admin đầu tiên khi `app_users` rỗng.
 - `POST /api/v1/admin/users/save`: tạo/cập nhật user bằng Tên, Email, SĐT, Password; yêu cầu `user.create` hoặc `user.update`.

@@ -51,7 +51,7 @@ func buildAdminReportCSV(ctx context.Context, db *sql.DB, filters adminFilters, 
 	case adminReportDatasetInvoices:
 		records = adminInvoiceReportCSVRecords(invoices)
 	case adminReportDatasetTransactions:
-		transactions, err := listPaymentTransactions(ctx, db, paymentTransactionListFilters{Limit: 5000})
+		transactions, err := listPaymentTransactions(ctx, db, paymentTransactionListFilters{Provider: filters.Provider, Limit: 5000})
 		if err != nil {
 			return "", nil, fmt.Errorf("cannot load report transactions")
 		}
@@ -175,6 +175,11 @@ func adminTransactionReportCSVRecords(rows []paymentTransactionSummary) [][]stri
 		"bank_name",
 		"reference_code",
 		"status",
+		"match_type",
+		"match_status",
+		"match_score",
+		"amount_applied",
+		"match_reason",
 		"description",
 	}}
 	for _, transaction := range rows {
@@ -192,6 +197,11 @@ func adminTransactionReportCSVRecords(rows []paymentTransactionSummary) [][]stri
 			transaction.BankName,
 			transaction.ReferenceCode,
 			transaction.Status,
+			transaction.MatchType,
+			transaction.MatchStatus,
+			strconv.Itoa(transaction.MatchScore),
+			strconv.Itoa(transaction.AmountApplied),
+			transaction.MatchReason,
 			transaction.Description,
 		})
 	}

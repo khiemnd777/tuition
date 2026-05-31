@@ -765,7 +765,7 @@
 
     <section id="reconciliationTab" class="tab-panel" role="tabpanel" hidden>
       <div class="reconciliation-workspace">
-        <section class="panel reconciliation-control-panel">
+        <section class="panel reconciliation-control-panel" data-reconciliation-step-panel="scope">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Payment reconciliation</p>
@@ -777,6 +777,26 @@
             </div>
           </div>
           <div class="reconciliation-toolbar">
+            <label>
+              <span>Trường</span>
+              <select id="paymentReconSchoolFilter"></select>
+            </label>
+            <label>
+              <span>Năm học</span>
+              <select id="paymentReconYearFilter"></select>
+            </label>
+            <label>
+              <span>Khối</span>
+              <select id="paymentReconGradeFilter"></select>
+            </label>
+            <label>
+              <span>Lớp</span>
+              <select id="paymentReconClassFilter"></select>
+            </label>
+            <label>
+              <span>Kỳ thu</span>
+              <input id="paymentReconPeriodFilter" placeholder="2026-04" />
+            </label>
             <label>
               <span>Provider</span>
               <select id="paymentProviderFilter"></select>
@@ -802,10 +822,17 @@
               </select>
             </label>
           </div>
+          <div id="paymentReconSteps" class="reconciliation-workbench-steps">
+            <button class="is-active" type="button" data-reconciliation-step="scope"><span class="mui-icon" aria-hidden="true">filter_alt</span><span>Scope</span></button>
+            <button type="button" data-reconciliation-step="ledger"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Invoice ledger</span></button>
+            <button type="button" data-reconciliation-step="transactions"><span class="mui-icon" aria-hidden="true">sync_alt</span><span>Transactions</span></button>
+            <button type="button" data-reconciliation-step="detail"><span class="mui-icon" aria-hidden="true">manage_search</span><span>Match detail</span></button>
+            <button type="button" data-reconciliation-step="review"><span class="mui-icon" aria-hidden="true">priority_high</span><span>Manual review</span></button>
+          </div>
           <div id="paymentReconSummary" class="reconciliation-summary">Chưa có dữ liệu đối soát</div>
         </section>
 
-        <section class="panel reconciliation-invoice-panel">
+        <section class="panel reconciliation-invoice-panel" data-reconciliation-step-panel="ledger">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Receivables</p>
@@ -832,7 +859,7 @@
                   <th scope="col">Phải thu</th>
                   <th scope="col">Đã thu</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Tác vụ</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody id="paymentReconInvoiceRows"></tbody>
@@ -840,7 +867,7 @@
           </div>
         </section>
 
-        <section class="panel reconciliation-transaction-panel">
+        <section class="panel reconciliation-transaction-panel" data-reconciliation-step-panel="transactions">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Ledger</p>
@@ -856,6 +883,7 @@
                 <col class="recon-money-col" />
                 <col class="recon-account-col" />
                 <col class="recon-description-col" />
+                <col class="recon-match-col" />
                 <col class="recon-status-col" />
               </colgroup>
               <thead>
@@ -865,6 +893,7 @@
                   <th scope="col">Số tiền</th>
                   <th scope="col">Tài khoản</th>
                   <th scope="col">Nội dung</th>
+                  <th scope="col">Reason</th>
                   <th scope="col">Match</th>
                 </tr>
               </thead>
@@ -873,7 +902,18 @@
           </div>
         </section>
 
-        <aside class="panel reconciliation-detail-panel">
+        <section class="panel reconciliation-review-panel" data-reconciliation-step-panel="review">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Manual review queue</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">priority_high</span><span>Cần xử lý</span></h2>
+            </div>
+            <span id="paymentReconReviewCount" class="count-badge">0 mục</span>
+          </div>
+          <div id="paymentReconReviewRows" class="reconciliation-review-list">Chưa có mục cần xử lý</div>
+        </section>
+
+        <aside class="panel reconciliation-detail-panel" data-reconciliation-step-panel="detail">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Detail</p>
@@ -887,7 +927,7 @@
 
     <section id="notificationTab" class="tab-panel" role="tabpanel" hidden>
       <div class="notification-workspace">
-        <section class="panel notification-control-panel">
+        <section class="panel notification-control-panel" data-notification-step-panel="target">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Invoice campaigns</p>
@@ -946,16 +986,31 @@
               <span>Hạn trước ngày</span>
               <input id="notificationDueBefore" type="date" />
             </label>
+            <label>
+              <span>Force resend</span>
+              <select id="notificationForceResend">
+                <option value="false">Không</option>
+                <option value="true">Có</option>
+              </select>
+            </label>
+          </div>
+          <div id="notificationWorkbenchSteps" class="notification-workbench-steps">
+            <button class="is-active" type="button" data-notification-step="target"><span class="mui-icon" aria-hidden="true">filter_alt</span><span>Target</span></button>
+            <button type="button" data-notification-step="recipients"><span class="mui-icon" aria-hidden="true">mark_email_unread</span><span>Recipients</span></button>
+            <button type="button" data-notification-step="email"><span class="mui-icon" aria-hidden="true">drafts</span><span>Email preview</span></button>
+            <button type="button" data-notification-step="send"><span class="mui-icon" aria-hidden="true">send</span><span>Send & logs</span></button>
+            <button type="button" data-notification-step="cron"><span class="mui-icon" aria-hidden="true">event</span><span>Cron</span></button>
           </div>
           <div class="notification-actions">
             <button id="previewNotifications" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
             <button id="saveNotificationCampaign" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu campaign</span></button>
+            <button id="retryNotificationRecipients" type="button"><span class="mui-icon" aria-hidden="true">replay</span><span>Retry selected</span></button>
             <button id="sendNotificationCampaign" class="primary" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi campaign</span></button>
           </div>
           <div id="notificationSummary" class="notification-summary">Chưa có preview</div>
         </section>
 
-        <section class="panel notification-recipient-panel">
+        <section class="panel notification-recipient-panel" data-notification-step-panel="recipients">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Dry-run recipients</p>
@@ -966,20 +1021,24 @@
           <div class="table-wrap notification-table-wrap">
             <table class="notification-table" aria-label="Người nhận notification">
               <colgroup>
+                <col class="notification-select-col" />
                 <col class="notification-invoice-col" />
                 <col class="notification-student-col" />
-                <col class="notification-class-col" />
                 <col class="notification-email-col" />
                 <col class="notification-money-col" />
+                <col class="notification-status-col" />
+                <col class="notification-status-col" />
                 <col class="notification-status-col" />
               </colgroup>
               <thead>
                 <tr>
+                  <th scope="col">Chọn</th>
                   <th scope="col">Invoice</th>
                   <th scope="col">Học sinh</th>
-                  <th scope="col">Lớp</th>
-                  <th scope="col">Email</th>
+                  <th scope="col">Phụ huynh / Email</th>
                   <th scope="col">Số tiền</th>
+                  <th scope="col">QR</th>
+                  <th scope="col">Sent / Retry</th>
                   <th scope="col">Status</th>
                 </tr>
               </thead>
@@ -988,7 +1047,18 @@
           </div>
         </section>
 
-        <section class="panel notification-campaign-panel">
+        <section class="panel notification-email-preview-panel" data-notification-step-panel="email">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Selected recipient</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">drafts</span><span>Email preview</span></h2>
+            </div>
+            <span id="notificationEmailPreviewStatus" class="count-badge">Chưa chọn</span>
+          </div>
+          <iframe id="notificationEmailPreviewFrame" title="Notification email preview"></iframe>
+        </section>
+
+        <section class="panel notification-campaign-panel" data-notification-step-panel="send">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Saved campaigns</p>
@@ -1019,7 +1089,18 @@
           </div>
         </section>
 
-        <aside class="panel notification-log-panel">
+        <section class="panel notification-cron-panel" data-notification-step-panel="cron">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Batch scheduler</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">event</span><span>Cron trạng thái</span></h2>
+            </div>
+            <button id="openNotificationCronConfig" type="button"><span class="mui-icon" aria-hidden="true">schedule</span><span>Cấu hình</span></button>
+          </div>
+          <div id="notificationCronSnapshot" class="notification-cron-snapshot">Chưa tải cron</div>
+        </section>
+
+        <aside class="panel notification-log-panel" data-notification-step-panel="send">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Delivery logs</p>
@@ -1083,6 +1164,10 @@
                 <option value="overpaid">Overpaid</option>
                 <option value="manual_review">Manual review</option>
               </select>
+            </label>
+            <label>
+              <span>Provider</span>
+              <select id="adminReportsProvider"></select>
             </label>
           </div>
           <div id="adminReportsSummary" class="admin-metrics">Chưa có dữ liệu báo cáo</div>
@@ -1153,6 +1238,37 @@
             </table>
           </div>
         </section>
+
+        <section class="panel admin-report-transaction-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Payment transactions</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">sync_alt</span><span>Giao dịch thanh toán</span></h2>
+            </div>
+            <span id="adminReportTransactionCount" class="count-badge">0 giao dịch</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Báo cáo giao dịch thanh toán">
+              <colgroup>
+                <col class="admin-code-col" />
+                <col class="admin-money-col" />
+                <col class="admin-message-col" />
+                <col class="admin-code-col" />
+                <col class="admin-status-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Provider</th>
+                  <th scope="col">Số tiền</th>
+                  <th scope="col">Match reason</th>
+                  <th scope="col">Invoice</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminReportTransactionRows"></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -1189,10 +1305,27 @@
               </select>
             </label>
             <label>
+              <span>Operation</span>
+              <input id="operationNameFilter" placeholder="email.cron.send" />
+            </label>
+            <label>
+              <span>Status</span>
+              <input id="operationStatusFilter" placeholder="error" />
+            </label>
+            <label>
+              <span>Audit action</span>
+              <input id="auditActionFilter" placeholder="manual_cash_receipt.create" />
+            </label>
+            <label>
+              <span>Entity type</span>
+              <input id="operationEntityTypeFilter" placeholder="invoice" />
+            </label>
+            <label>
               <span>Limit</span>
               <input id="operationLimit" type="number" min="10" max="500" step="10" value="100" />
             </label>
           </div>
+          <div id="operationsSummary" class="admin-metrics">Chưa có dữ liệu vận hành</div>
         </section>
 
         <section class="panel operation-log-panel">
@@ -1256,6 +1389,16 @@
             </table>
           </div>
         </section>
+
+        <aside class="panel operation-detail-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Selected log</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">manage_search</span><span>Chi tiết log</span></h2>
+            </div>
+          </div>
+          <div id="operationLogDetail" class="operation-log-detail">Chưa chọn log</div>
+        </aside>
       </div>
     </section>
 

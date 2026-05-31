@@ -167,6 +167,12 @@ const invoicePaymentStatusEl = document.querySelector("#invoicePaymentStatus");
 const invoicePaymentPreviewEl = document.querySelector("#invoicePaymentPreview");
 const paymentReconStatusEl = document.querySelector("#paymentReconStatus");
 const refreshPaymentReconBtn = document.querySelector("#refreshPaymentRecon");
+const paymentReconStepsEl = document.querySelector("#paymentReconSteps");
+const paymentReconSchoolFilterEl = document.querySelector("#paymentReconSchoolFilter");
+const paymentReconYearFilterEl = document.querySelector("#paymentReconYearFilter");
+const paymentReconGradeFilterEl = document.querySelector("#paymentReconGradeFilter");
+const paymentReconClassFilterEl = document.querySelector("#paymentReconClassFilter");
+const paymentReconPeriodFilterEl = document.querySelector("#paymentReconPeriodFilter");
 const paymentProviderFilterEl = document.querySelector("#paymentProviderFilter");
 const paymentInvoiceStatusFilterEl = document.querySelector("#paymentInvoiceStatusFilter");
 const paymentTransactionStatusFilterEl = document.querySelector("#paymentTransactionStatusFilter");
@@ -175,6 +181,8 @@ const paymentReconInvoiceCountEl = document.querySelector("#paymentReconInvoiceC
 const paymentReconInvoiceRowsEl = document.querySelector("#paymentReconInvoiceRows");
 const paymentReconTransactionCountEl = document.querySelector("#paymentReconTransactionCount");
 const paymentReconTransactionRowsEl = document.querySelector("#paymentReconTransactionRows");
+const paymentReconReviewCountEl = document.querySelector("#paymentReconReviewCount");
+const paymentReconReviewRowsEl = document.querySelector("#paymentReconReviewRows");
 const paymentReconDetailEl = document.querySelector("#paymentReconDetail");
 const notificationStatusEl = document.querySelector("#notificationStatus");
 const refreshNotificationsBtn = document.querySelector("#refreshNotifications");
@@ -188,16 +196,23 @@ const notificationClassEl = document.querySelector("#notificationClass");
 const notificationPeriodEl = document.querySelector("#notificationPeriod");
 const notificationInvoiceStatusEl = document.querySelector("#notificationInvoiceStatus");
 const notificationDueBeforeEl = document.querySelector("#notificationDueBefore");
+const notificationForceResendEl = document.querySelector("#notificationForceResend");
+const notificationWorkbenchStepsEl = document.querySelector("#notificationWorkbenchSteps");
 const previewNotificationsBtn = document.querySelector("#previewNotifications");
 const saveNotificationCampaignBtn = document.querySelector("#saveNotificationCampaign");
+const retryNotificationRecipientsBtn = document.querySelector("#retryNotificationRecipients");
 const sendNotificationCampaignBtn = document.querySelector("#sendNotificationCampaign");
 const notificationSummaryEl = document.querySelector("#notificationSummary");
 const notificationRecipientCountEl = document.querySelector("#notificationRecipientCount");
 const notificationRecipientsEl = document.querySelector("#notificationRecipients");
+const notificationEmailPreviewStatusEl = document.querySelector("#notificationEmailPreviewStatus");
+const notificationEmailPreviewFrameEl = document.querySelector("#notificationEmailPreviewFrame");
 const notificationCampaignCountEl = document.querySelector("#notificationCampaignCount");
 const notificationCampaignRowsEl = document.querySelector("#notificationCampaignRows");
 const notificationLogCountEl = document.querySelector("#notificationLogCount");
 const notificationLogsEl = document.querySelector("#notificationLogs");
+const notificationCronSnapshotEl = document.querySelector("#notificationCronSnapshot");
+const openNotificationCronConfigBtn = document.querySelector("#openNotificationCronConfig");
 const adminDashboardStatusEl = document.querySelector("#adminDashboardStatus");
 const refreshAdminDashboardBtn = document.querySelector("#refreshAdminDashboard");
 const adminDashboardSchoolEl = document.querySelector("#adminDashboardSchool");
@@ -229,20 +244,29 @@ const adminReportsClassEl = document.querySelector("#adminReportsClass");
 const adminReportsPeriodEl = document.querySelector("#adminReportsPeriod");
 const adminReportsMonthEl = document.querySelector("#adminReportsMonth");
 const adminReportsInvoiceStatusEl = document.querySelector("#adminReportsInvoiceStatus");
+const adminReportsProviderEl = document.querySelector("#adminReportsProvider");
 const adminReportsSummaryEl = document.querySelector("#adminReportsSummary");
 const adminReportClassCountEl = document.querySelector("#adminReportClassCount");
 const adminReportClassRowsEl = document.querySelector("#adminReportClassRows");
 const adminReportInvoiceCountEl = document.querySelector("#adminReportInvoiceCount");
 const adminReportInvoiceRowsEl = document.querySelector("#adminReportInvoiceRows");
+const adminReportTransactionCountEl = document.querySelector("#adminReportTransactionCount");
+const adminReportTransactionRowsEl = document.querySelector("#adminReportTransactionRows");
 const operationsStatusEl = document.querySelector("#operationsStatus");
 const refreshOperationsBtn = document.querySelector("#refreshOperations");
 const operationSourceFilterEl = document.querySelector("#operationSourceFilter");
 const operationLevelFilterEl = document.querySelector("#operationLevelFilter");
+const operationNameFilterEl = document.querySelector("#operationNameFilter");
+const operationStatusFilterEl = document.querySelector("#operationStatusFilter");
+const auditActionFilterEl = document.querySelector("#auditActionFilter");
+const operationEntityTypeFilterEl = document.querySelector("#operationEntityTypeFilter");
 const operationLimitEl = document.querySelector("#operationLimit");
+const operationsSummaryEl = document.querySelector("#operationsSummary");
 const operationLogCountEl = document.querySelector("#operationLogCount");
 const operationLogRowsEl = document.querySelector("#operationLogRows");
 const auditLogCountEl = document.querySelector("#auditLogCount");
 const auditLogRowsEl = document.querySelector("#auditLogRows");
+const operationLogDetailEl = document.querySelector("#operationLogDetail");
 const adminUsersStatusEl = document.querySelector("#adminUsersStatus");
 const refreshAdminUsersBtn = document.querySelector("#refreshAdminUsers");
 const newAdminUserBtn = document.querySelector("#newAdminUser");
@@ -322,17 +346,24 @@ let invoicesData = [];
 let invoiceDetailCache = new Map();
 let selectedInvoiceId = "";
 let paymentReconciliationLoaded = false;
-let paymentReconciliationData = { providers: [], invoices: [], transactions: [], intents: {}, summary: {} };
+let paymentReconciliationData = { providers: [], schools: [], schoolYears: [], classes: [], invoices: [], transactions: [], intents: {}, matches: {}, summary: {} };
 let paymentReconSelection = { type: "", id: "" };
 let notificationLoaded = false;
 let notificationOptions = { templates: [], campaigns: [], schoolYears: [], classes: [] };
 let notificationPreviewData = { recipients: [], summary: {}, campaign: null, logs: [] };
 let currentNotificationCampaignId = "";
+let selectedNotificationRecipientKey = "";
+let selectedNotificationRecipientIds = new Set();
+let notificationCronData = null;
 let adminOptions = { schools: [], schoolYears: [], classes: [] };
 let adminDashboardLoaded = false;
 let adminDashboardData = null;
 let adminReportsLoaded = false;
+let adminReportProviders = [];
+let adminReportsData = null;
 let operationsLoaded = false;
+let operationsData = { operationLogs: [], auditLogs: [], operationSummary: {}, auditSummary: {} };
+let selectedOperationLog = { type: "", id: "" };
 let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
 let authSession = null;
@@ -915,6 +946,7 @@ function applyPermissionUI() {
   setElementAllowed(openNotificationDialogBtn, hasPermission("notification.create") || hasPermission("notification.send"));
   setElementAllowed(previewNotificationsBtn, hasPermission("notification.send"));
   setElementAllowed(saveNotificationCampaignBtn, hasPermission("notification.create"));
+  setElementAllowed(retryNotificationRecipientsBtn, hasPermission("notification.send"));
   setElementAllowed(sendNotificationCampaignBtn, hasPermission("notification.send"));
   setElementAllowed(exportAdminReportClassesBtn, hasPermission("report.export"));
   setElementAllowed(exportAdminReportInvoicesBtn, hasPermission("report.export"));
@@ -928,6 +960,7 @@ function applyPermissionUI() {
   setElementAllowed(dryRunEmailBtn, hasPermission("notification.send"));
   setElementAllowed(sendEmailBtn, hasPermission("notification.send"));
   setElementAllowed(openCronConfigDialogBtn, hasPermission("email_cron.view") || hasPermission("email_cron.update"));
+  setElementAllowed(openNotificationCronConfigBtn, hasPermission("email_cron.view") || hasPermission("email_cron.update"));
   setElementAllowed(saveCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(disableCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(runCronNowBtn, hasPermission("email_cron.update"));
@@ -1243,6 +1276,13 @@ function readTabContext(targetId) {
       periodCode: notificationPeriodEl.value.trim(),
     };
   }
+  if (targetId === "reconciliationTab") {
+    return {
+      schoolId: paymentReconSchoolFilterEl.value,
+      schoolYearId: paymentReconYearFilterEl.value,
+      periodCode: paymentReconPeriodFilterEl.value.trim(),
+    };
+  }
   if (targetId === "paymentsTab") {
     return { periodCode: paymentPeriodEl.value.trim() };
   }
@@ -1301,6 +1341,12 @@ async function applyAppContextToTab(targetId, reloadData = false) {
     notificationPeriodEl.value = appContext.periodCode;
     renderNotificationGradeOptions();
     renderNotificationClassOptions();
+  } else if (targetId === "reconciliationTab") {
+    paymentReconSchoolFilterEl.value = optionValueOrEmpty(paymentReconSchoolFilterEl, appContext.schoolId);
+    paymentReconYearFilterEl.value = optionValueOrEmpty(paymentReconYearFilterEl, appContext.schoolYearId);
+    paymentReconPeriodFilterEl.value = appContext.periodCode;
+    renderPaymentReconFilters(paymentReconciliationData);
+    if (reloadData) await loadPaymentReconciliation(true);
   } else if (targetId === "paymentsTab") {
     paymentPeriodEl.value = appContext.periodCode;
   }
@@ -2412,6 +2458,7 @@ function adminFilterElements(kind) {
       period: adminReportsPeriodEl,
       month: adminReportsMonthEl,
       status: adminReportsInvoiceStatusEl,
+      provider: adminReportsProviderEl,
     };
   }
   return {
@@ -2477,7 +2524,23 @@ function renderAdminFilters(kind) {
     ...classes.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.schoolYearCode)} · ${escapeHtml(item.name)}</option>`),
   ].join("");
   elements.classEl.value = optionValueOrEmpty(elements.classEl, selectedClass);
+  if (elements.provider) {
+    renderAdminReportProviderFilter();
+  }
   renderAppContextControls();
+}
+
+function renderAdminReportProviderFilter() {
+  if (!adminReportsProviderEl) return;
+  const selected = adminReportsProviderEl.value;
+  adminReportsProviderEl.innerHTML = [
+    `<option value="">Tất cả provider</option>`,
+    ...adminReportProviders.map((provider) => {
+      const suffix = provider.configured ? "" : " · thiếu cấu hình";
+      return `<option value="${escapeAttr(provider.code)}">${escapeHtml(provider.displayName || provider.code)}${suffix}</option>`;
+    }),
+  ].join("");
+  adminReportsProviderEl.value = optionValueOrEmpty(adminReportsProviderEl, selected);
 }
 
 function adminFilterParams(kind) {
@@ -2490,6 +2553,7 @@ function adminFilterParams(kind) {
   if (elements.period.value.trim()) params.set("periodCode", elements.period.value.trim());
   if (elements.month.value) params.set("month", elements.month.value);
   if (elements.status.value) params.set("status", elements.status.value);
+  if (elements.provider?.value) params.set("provider", elements.provider.value);
   return params;
 }
 
@@ -2887,6 +2951,13 @@ async function applyReadinessIssueTargetFilters(tabId, issue) {
     renderFeeScheduleClassFilter(issue.classId || "");
     await loadFeeScheduleList();
   } else if (tabId === "reconciliationTab") {
+    paymentReconSchoolFilterEl.value = optionValueOrEmpty(paymentReconSchoolFilterEl, issue.schoolId || appContext.schoolId);
+    paymentReconYearFilterEl.value = optionValueOrEmpty(paymentReconYearFilterEl, issue.schoolYearId || appContext.schoolYearId);
+    paymentReconPeriodFilterEl.value = issue.periodCode || appContext.periodCode || paymentReconPeriodFilterEl.value;
+    renderPaymentReconFilters(paymentReconciliationData);
+    paymentReconGradeFilterEl.value = optionValueOrEmpty(paymentReconGradeFilterEl, issue.grade || "");
+    renderPaymentReconFilters(paymentReconciliationData);
+    paymentReconClassFilterEl.value = optionValueOrEmpty(paymentReconClassFilterEl, issue.classId || "");
     if (issue.type === "incoming_transaction_unmatched") {
       paymentTransactionStatusFilterEl.value = optionValueOrEmpty(paymentTransactionStatusFilterEl, "unmatched");
     } else if (issue.type === "transaction_manual_review") {
@@ -2983,6 +3054,8 @@ async function loadAdminReports(force = false) {
   }
   const data = JSON.parse(text);
   adminOptions = data.options || adminOptions;
+  adminReportProviders = data.providers || adminReportProviders;
+  adminReportsData = data;
   adminReportsLoaded = true;
   renderAdminFilters("reports");
   renderAdminReports(data);
@@ -2990,9 +3063,11 @@ async function loadAdminReports(force = false) {
 }
 
 function renderAdminReports(data) {
+  adminReportsData = data || null;
   renderAdminMetrics(adminReportsSummaryEl, data?.summary || null);
   renderAdminReportClasses(data?.classRows || []);
   renderAdminReportInvoices(data?.invoiceRows || []);
+  renderAdminReportTransactions(data?.transactions || []);
 }
 
 function renderAdminReportClasses(rows) {
@@ -3026,14 +3101,34 @@ function renderAdminReportInvoices(rows) {
           <td>${escapeHtml(invoice.studentCode || "")}<small>${escapeHtml(invoice.studentName || "")}</small></td>
           <td>${escapeHtml(invoice.className || "")}<small>${escapeHtml(invoice.periodCode || "")}</small></td>
           <td class="money">${formatMoney(invoice.totalAmount || 0)}</td>
-          <td class="money">${formatMoney(invoice.paidAmount || 0)}</td>
-          <td><span class="tag">${escapeHtml(invoice.status || "")}</span></td>
+          <td class="money">${formatMoney(invoice.paidAmount || 0)}<small>Còn ${formatMoney(invoice.outstandingAmount || 0)}</small></td>
+          <td><span class="tag ${paymentReconStatusTone(invoice.status)}">${escapeHtml(invoice.status || "")}</span><small>${Number(invoice.sentCount || 0)} sent · ${Number(invoice.paymentIntentCount || 0)} intent · ${Number(invoice.matchedPaymentCount || 0)} match</small></td>
         </tr>
       `,
     )
     .join("");
   if (!rows.length) {
     adminReportInvoiceRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có hóa đơn trong bộ lọc</td></tr>`;
+  }
+}
+
+function renderAdminReportTransactions(rows) {
+  adminReportTransactionCountEl.textContent = `${rows.length} giao dịch`;
+  adminReportTransactionRowsEl.innerHTML = rows
+    .map(
+      (transaction) => `
+        <tr>
+          <td><strong>${escapeHtml(transaction.provider || transaction.providerCode || "")}</strong><small>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</small></td>
+          <td class="money">${formatMoney(transaction.amount || 0)}<small>${escapeHtml(formatDateTime(transaction.transactionTime))}</small></td>
+          <td>${escapeHtml(transaction.matchReason || transaction.description || "-")}<small>${escapeHtml(paymentMatchMeta(transaction) || transaction.accountNumber || "")}</small></td>
+          <td>${escapeHtml(transaction.invoiceCode || "Chưa match")}<small>${escapeHtml([transaction.studentCode || "", transaction.studentName || ""].filter(Boolean).join(" · "))}</small></td>
+          <td><span class="tag ${paymentReconStatusTone(transaction.matchStatus || transaction.status)}">${escapeHtml(transaction.status || "")}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  if (!rows.length) {
+    adminReportTransactionRowsEl.innerHTML = `<tr><td colspan="5" class="empty-cell">Chưa có giao dịch trong bộ lọc</td></tr>`;
   }
 }
 
@@ -3061,8 +3156,13 @@ async function loadOperations(force = false) {
   const operationParams = new URLSearchParams();
   if (operationSourceFilterEl.value) operationParams.set("source", operationSourceFilterEl.value);
   if (operationLevelFilterEl.value) operationParams.set("level", operationLevelFilterEl.value);
+  if (operationNameFilterEl.value.trim()) operationParams.set("operation", operationNameFilterEl.value.trim());
+  if (operationStatusFilterEl.value.trim()) operationParams.set("status", operationStatusFilterEl.value.trim());
+  if (operationEntityTypeFilterEl.value.trim()) operationParams.set("entityType", operationEntityTypeFilterEl.value.trim());
   operationParams.set("limit", String(limit));
   const auditParams = new URLSearchParams({ limit: String(limit) });
+  if (auditActionFilterEl.value.trim()) auditParams.set("action", auditActionFilterEl.value.trim());
+  if (operationEntityTypeFilterEl.value.trim()) auditParams.set("entityType", operationEntityTypeFilterEl.value.trim());
   const [operationRes, auditRes] = await Promise.all([
     fetch(`/api/v1/admin/operation-logs?${operationParams.toString()}`),
     fetch(`/api/v1/admin/audit-logs?${auditParams.toString()}`),
@@ -3077,13 +3177,44 @@ async function loadOperations(force = false) {
   const operationData = JSON.parse(operationText);
   const auditData = JSON.parse(auditText);
   operationsLoaded = true;
-  renderOperations({ operationLogs: operationData.logs || [], auditLogs: auditData.logs || [] });
+  renderOperations({
+    operationLogs: operationData.logs || [],
+    auditLogs: auditData.logs || [],
+    operationSummary: operationData.summary || {},
+    auditSummary: auditData.summary || {},
+  });
   setAdminStatus(operationsStatusEl, "Sẵn sàng", "ready");
 }
 
 function renderOperations(data) {
+  operationsData = data || { operationLogs: [], auditLogs: [], operationSummary: {}, auditSummary: {} };
+  renderOperationsSummary(operationsData.operationSummary || {}, operationsData.auditSummary || {});
   renderOperationLogs(data?.operationLogs || []);
   renderAuditLogs(data?.auditLogs || []);
+  if (selectedOperationLog.id) {
+    const rows = selectedOperationLog.type === "audit" ? operationsData.auditLogs : operationsData.operationLogs;
+    const selected = (rows || []).find((row) => row.id === selectedOperationLog.id);
+    if (selected) {
+      renderOperationLogDetail(selectedOperationLog.type, selected);
+      return;
+    }
+  }
+  renderOperationLogDetail("", null);
+}
+
+function renderOperationsSummary(operationSummary = {}, auditSummary = {}) {
+  if (!operationsSummaryEl) return;
+  const cards = [
+    { label: "Webhook errors", value: Number(operationSummary.webhookErrorCount || 0) },
+    { label: "Email errors", value: Number(operationSummary.emailErrorCount || 0) },
+    { label: "Cron errors", value: Number(operationSummary.cronErrorCount || 0) },
+    { label: "Background failures", value: Number(operationSummary.backgroundJobErrorCount || 0) },
+    { label: "Audit actions", value: Number(auditSummary.totalCount || 0) },
+    { label: "Money actions", value: Number(auditSummary.moneyActionCount || 0) },
+    { label: "Fee actions", value: Number(auditSummary.feeActionCount || 0) },
+    { label: "User actions", value: Number(auditSummary.userActionCount || 0) },
+  ];
+  operationsSummaryEl.innerHTML = cards.map((card) => `<div><strong>${escapeHtml(card.value)}</strong><span>${escapeHtml(card.label)}</span></div>`).join("");
 }
 
 function renderOperationLogs(rows) {
@@ -3091,7 +3222,7 @@ function renderOperationLogs(rows) {
   operationLogRowsEl.innerHTML = rows
     .map(
       (row) => `
-        <tr>
+        <tr data-operation-log-row="${escapeAttr(row.id || "")}">
           <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml(row.operation || "")}</small></td>
           <td><span class="tag">${escapeHtml(row.source || "")}</span><small>${escapeHtml(row.level || "")}</small></td>
           <td><span class="tag">${escapeHtml(row.status || "")}</span></td>
@@ -3104,6 +3235,15 @@ function renderOperationLogs(rows) {
   if (!rows.length) {
     operationLogRowsEl.innerHTML = `<tr><td colspan="5" class="empty-cell">Chưa có operational log</td></tr>`;
   }
+  operationLogRowsEl.querySelectorAll("[data-operation-log-row]").forEach((row) => {
+    row.classList.toggle("is-selected", selectedOperationLog.type === "operation" && selectedOperationLog.id === row.dataset.operationLogRow);
+    row.addEventListener("click", () => {
+      const log = (operationsData.operationLogs || []).find((item) => item.id === row.dataset.operationLogRow);
+      selectedOperationLog = { type: "operation", id: row.dataset.operationLogRow };
+      renderOperationLogDetail("operation", log);
+      updateOperationActiveRows();
+    });
+  });
 }
 
 function renderAuditLogs(rows) {
@@ -3111,7 +3251,7 @@ function renderAuditLogs(rows) {
   auditLogRowsEl.innerHTML = rows
     .map(
       (row) => `
-        <tr>
+        <tr data-audit-log-row="${escapeAttr(row.id || "")}">
           <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml(row.requestId || "")}</small></td>
           <td>${escapeHtml(row.actorName || row.actorUserId || "-")}<small>${escapeHtml(row.ipAddress || "")}</small></td>
           <td><span class="tag">${escapeHtml(row.action || "")}</span></td>
@@ -3124,11 +3264,109 @@ function renderAuditLogs(rows) {
   if (!rows.length) {
     auditLogRowsEl.innerHTML = `<tr><td colspan="5" class="empty-cell">Chưa có audit log</td></tr>`;
   }
+  auditLogRowsEl.querySelectorAll("[data-audit-log-row]").forEach((row) => {
+    row.classList.toggle("is-selected", selectedOperationLog.type === "audit" && selectedOperationLog.id === row.dataset.auditLogRow);
+    row.addEventListener("click", () => {
+      const log = (operationsData.auditLogs || []).find((item) => item.id === row.dataset.auditLogRow);
+      selectedOperationLog = { type: "audit", id: row.dataset.auditLogRow };
+      renderOperationLogDetail("audit", log);
+      updateOperationActiveRows();
+    });
+  });
 }
 
 function metadataReason(metadata) {
   if (!metadata || typeof metadata !== "object") return "";
   return String(metadata.reason || "");
+}
+
+function updateOperationActiveRows() {
+  operationLogRowsEl.querySelectorAll("[data-operation-log-row]").forEach((row) => {
+    row.classList.toggle("is-selected", selectedOperationLog.type === "operation" && selectedOperationLog.id === row.dataset.operationLogRow);
+  });
+  auditLogRowsEl.querySelectorAll("[data-audit-log-row]").forEach((row) => {
+    row.classList.toggle("is-selected", selectedOperationLog.type === "audit" && selectedOperationLog.id === row.dataset.auditLogRow);
+  });
+}
+
+function renderOperationLogDetail(type, log) {
+  if (!operationLogDetailEl) return;
+  if (!log) {
+    operationLogDetailEl.innerHTML = `<div class="detail-placeholder">${muiIcon("manage_search")}<span>Chọn một operation hoặc audit log để xem metadata đã lọc secret và mở workflow liên quan.</span></div>`;
+    return;
+  }
+  const isAudit = type === "audit";
+  const title = isAudit ? log.action || "Audit" : log.operation || "Operation";
+  const status = isAudit ? log.entityType || "audit" : log.status || log.level || "operation";
+  const message = isAudit ? log.reason || metadataReason(log.metadata) || "-" : log.message || "-";
+  const metadata = JSON.stringify(log.metadata || {}, null, 2);
+  const drilldown = operationDrilldownTarget(log);
+  operationLogDetailEl.innerHTML = `
+    <div class="detail-hero">
+      ${muiIcon(isAudit ? "policy" : "running_with_errors")}
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(formatDateTime(log.occurredAt))}</span>
+      </div>
+    </div>
+    <div class="reconciliation-detail-grid">
+      <span>Type</span><strong>${escapeHtml(isAudit ? "Audit log" : "Operation log")}</strong>
+      <span>Status</span><strong>${escapeHtml(status)}</strong>
+      <span>Actor/source</span><strong>${escapeHtml(isAudit ? log.actorName || log.actorUserId || "-" : log.source || "-")}</strong>
+      <span>Entity</span><strong>${escapeHtml([log.entityType || "", log.entityId || ""].filter(Boolean).join(" · ") || "-")}</strong>
+      <span>Request</span><strong>${escapeHtml(log.requestId || "-")}</strong>
+      <span>Message</span><strong>${escapeHtml(message)}</strong>
+    </div>
+    <div class="detail-section">
+      <h3 class="detail-section-title">Sanitized metadata</h3>
+      <textarea class="payload" readonly>${escapeHtml(metadata)}</textarea>
+    </div>
+    <div class="detail-actions">
+      ${drilldown ? `<button type="button" data-operation-drilldown="${escapeAttr(drilldown.tabId)}">${muiIcon(drilldown.icon)}<span>${escapeHtml(drilldown.label)}</span></button>` : ""}
+    </div>
+  `;
+  operationLogDetailEl.querySelectorAll("[data-operation-drilldown]").forEach((button) => {
+    button.addEventListener("click", () => openOperationDrilldown(log));
+  });
+}
+
+function operationDrilldownTarget(log) {
+  const entityType = log?.entityType || "";
+  if (["invoice", "manual_cash_receipt"].includes(entityType)) {
+    return { tabId: "invoiceTab", label: "Open invoice", icon: "receipt_long" };
+  }
+  if (["payment_transaction", "provider_event", "reconciliation_match"].includes(entityType)) {
+    return { tabId: "reconciliationTab", label: "Open reconciliation", icon: "account_balance_wallet" };
+  }
+  if (["notification_campaign", "notification_recipient", "notification_log"].includes(entityType)) {
+    return { tabId: "notificationTab", label: "Open notifications", icon: "campaign" };
+  }
+  if (["student", "parent", "class"].includes(entityType)) {
+    return { tabId: "masterDataTab", label: "Open master data", icon: "account_tree" };
+  }
+  if (["fee_schedule", "student_fee_adjustment"].includes(entityType)) {
+    return { tabId: "feeTemplateTab", label: "Open fees", icon: "format_list_bulleted" };
+  }
+  return null;
+}
+
+async function openOperationDrilldown(log) {
+  const target = operationDrilldownTarget(log);
+  if (!target) return;
+  await activateTab(target.tabId);
+  if (target.tabId === "invoiceTab" && log.entityId) {
+    selectedInvoiceId = log.entityId;
+    await loadInvoices(true);
+    selectInvoice(log.entityId);
+  } else if (target.tabId === "reconciliationTab") {
+    await loadPaymentReconciliation(true);
+  } else if (target.tabId === "notificationTab") {
+    await loadNotifications(true);
+  } else if (target.tabId === "masterDataTab") {
+    await loadMasterData(true);
+  } else if (target.tabId === "feeTemplateTab") {
+    await loadFeeSchedules(true);
+  }
 }
 
 async function loadAdminUsers(force = false) {
@@ -5081,6 +5319,21 @@ async function loadPaymentReconciliation(force = false) {
   }
   setPaymentReconStatus("Đang tải", "busy");
   const params = new URLSearchParams();
+  if (paymentReconSchoolFilterEl.value) {
+    params.set("schoolId", paymentReconSchoolFilterEl.value);
+  }
+  if (paymentReconYearFilterEl.value) {
+    params.set("schoolYearId", paymentReconYearFilterEl.value);
+  }
+  if (paymentReconGradeFilterEl.value) {
+    params.set("grade", paymentReconGradeFilterEl.value);
+  }
+  if (paymentReconClassFilterEl.value) {
+    params.set("classId", paymentReconClassFilterEl.value);
+  }
+  if (paymentReconPeriodFilterEl.value.trim()) {
+    params.set("periodCode", paymentReconPeriodFilterEl.value.trim());
+  }
   if (paymentProviderFilterEl.value) {
     params.set("provider", paymentProviderFilterEl.value);
   }
@@ -5106,11 +5359,70 @@ async function loadPaymentReconciliation(force = false) {
 }
 
 function renderPaymentReconciliation(data) {
-  const providers = data?.providers || paymentReconciliationData.providers || [];
-  renderPaymentProviderFilter(providers);
+  renderPaymentReconFilters(data || paymentReconciliationData);
   renderPaymentReconSummary(data?.summary || null);
   renderPaymentReconInvoices(data?.invoices || [], data?.intents || {});
   renderPaymentReconTransactions(data?.transactions || []);
+  renderPaymentReconReviewQueue(data?.invoices || [], data?.transactions || []);
+}
+
+function renderPaymentReconFilters(data = paymentReconciliationData) {
+  const selectedSchool = paymentReconSchoolFilterEl.value;
+  const selectedYear = paymentReconYearFilterEl.value;
+  const selectedGrade = paymentReconGradeFilterEl.value;
+  const selectedClass = paymentReconClassFilterEl.value;
+  const schools = data?.schools || [];
+  const years = data?.schoolYears || [];
+  const classes = data?.classes || [];
+
+  paymentReconSchoolFilterEl.innerHTML = [
+    `<option value="">Tất cả trường</option>`,
+    ...schools.map((school) => {
+      const label = [school.code, school.name && school.name !== school.code ? school.name : ""].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(school.id)}">${escapeHtml(label || school.id)}</option>`;
+    }),
+  ].join("");
+  paymentReconSchoolFilterEl.value = optionValueOrEmpty(paymentReconSchoolFilterEl, selectedSchool);
+
+  const activeSchool = paymentReconSchoolFilterEl.value;
+  const scopedYears = years
+    .filter((year) => !activeSchool || year.schoolId === activeSchool)
+    .sort((a, b) => String(a.code || a.name || "").localeCompare(String(b.code || b.name || ""), "vi", { numeric: true }));
+  paymentReconYearFilterEl.innerHTML = [
+    `<option value="">Tất cả năm học</option>`,
+    ...scopedYears.map((year) => {
+      const label = [year.schoolCode, year.code || year.name].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(year.id)}">${escapeHtml(label || year.id)}</option>`;
+    }),
+  ].join("");
+  paymentReconYearFilterEl.value = optionValueOrEmpty(paymentReconYearFilterEl, selectedYear);
+
+  const activeYear = paymentReconYearFilterEl.value;
+  const scopedClasses = classes.filter((item) => {
+    return (!activeSchool || item.schoolId === activeSchool) && (!activeYear || item.schoolYearId === activeYear);
+  });
+  const grades = [...new Set(scopedClasses.map((item) => item.grade).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "vi", { numeric: true }));
+  paymentReconGradeFilterEl.innerHTML = [
+    `<option value="">Tất cả khối</option>`,
+    ...grades.map((grade) => `<option value="${escapeAttr(grade)}">Khối ${escapeHtml(grade)}</option>`),
+  ].join("");
+  paymentReconGradeFilterEl.value = optionValueOrEmpty(paymentReconGradeFilterEl, selectedGrade);
+
+  const activeGrade = paymentReconGradeFilterEl.value;
+  const classOptions = scopedClasses
+    .filter((item) => !activeGrade || item.grade === activeGrade)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "vi", { numeric: true }));
+  paymentReconClassFilterEl.innerHTML = [
+    `<option value="">Tất cả lớp</option>`,
+    ...classOptions.map((item) => {
+      const label = [item.schoolCode, item.schoolYearCode, item.name].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.id)}</option>`;
+    }),
+  ].join("");
+  paymentReconClassFilterEl.value = optionValueOrEmpty(paymentReconClassFilterEl, selectedClass);
+
+  renderPaymentProviderFilter(data?.providers || paymentReconciliationData.providers || []);
+  renderAppContextControls();
 }
 
 function renderPaymentProviderFilter(providers) {
@@ -5131,13 +5443,18 @@ function renderPaymentReconSummary(summary) {
     return;
   }
   const outstanding = summary.outstandingAmount || 0;
+  const manualReview = Number(summary.manualReviewCount || 0);
   paymentReconSummaryEl.innerHTML = `
-    <div><strong>${formatMoney(summary.totalReceivable || 0)}</strong><span>Cần thu</span></div>
-    <div><strong>${formatMoney(summary.totalCollected || 0)}</strong><span>Đã nhận</span></div>
-    <div><strong>${formatMoney(outstanding)}</strong><span>Còn thiếu</span></div>
+    <div><strong>${formatMoney(summary.totalReceivable || 0)}</strong><span>Receivable</span></div>
+    <div><strong>${formatMoney(summary.totalCollected || 0)}</strong><span>Collected</span></div>
+    <div><strong>${formatMoney(outstanding)}</strong><span>Outstanding</span></div>
+    <div><strong>${formatPercent(summary.collectionRate || 0)}</strong><span>Collection rate</span></div>
+    <div><strong>${Number(summary.unpaidCount || 0)}</strong><span>Unpaid</span></div>
     <div><strong>${Number(summary.partialCount || 0)}</strong><span>Partial</span></div>
+    <div><strong>${Number(summary.paidCount || 0)}</strong><span>Paid</span></div>
     <div><strong>${Number(summary.overpaidCount || 0)}</strong><span>Overpaid</span></div>
-    <div><strong>${Number(summary.unmatchedCount || 0) + Number(summary.manualReviewCount || 0)}</strong><span>Cần xử lý</span></div>
+    <div><strong>${manualReview}</strong><span>Manual review</span></div>
+    <div><strong>${Number(summary.unmatchedCount || 0)}</strong><span>Unmatched</span></div>
   `;
 }
 
@@ -5145,30 +5462,40 @@ function renderPaymentReconInvoices(invoices, intents) {
   paymentReconInvoiceCountEl.textContent = `${invoices.length} hóa đơn`;
   const hasPayOS = (paymentReconciliationData.providers || []).some((provider) => provider.code === "payos");
   const canWritePayments = hasPermission("payment.create");
+  const canNotify = hasPermission("notification.view") || hasPermission("notification.send");
   paymentReconInvoiceRowsEl.innerHTML = invoices
     .map((invoice) => {
       const paid = Number(invoice.paidAmount || 0);
       const total = Number(invoice.totalAmount || 0);
-      const outstanding = Math.max(total - paid, 0);
+      const outstanding = Number(invoice.outstandingAmount ?? Math.max(total - paid, 0));
       const intent = intents?.[invoice.id];
       const intentLabel = intent?.provider ? `${intent.provider}: ${intent.status}` : "";
-      const actions = canWritePayments
+      const matches = paymentReconMatchesForInvoice(invoice.id);
+      const matchLabel = matches.length ? `${matches.length} match` : invoice.matchedPaymentCount ? `${Number(invoice.matchedPaymentCount || 0)} matched` : "Chưa match";
+      const notifyAction = canNotify && isInvoiceNotificationCandidate(invoice) ? `<button type="button" data-recon-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>` : "";
+      const paymentActions = canWritePayments
         ? `
-          <div class="invoice-actions">
-            <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
-            ${hasPayOS ? `<button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
-            <button type="button" data-recon-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Tiền mặt</span></button>
-          </div>
+          <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
+          ${hasPayOS ? `<button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
+          <button type="button" data-recon-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Cash</span></button>
         `
         : "";
+      const actions = `
+        <div class="invoice-actions">
+          <button type="button" data-recon-detail="${escapeAttr(invoice.id || "")}">${muiIcon("manage_search")}<span>Detail</span></button>
+          ${paymentActions}
+          <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
+          ${notifyAction}
+        </div>
+      `;
       return `
         <tr data-recon-invoice-row="${escapeAttr(invoice.id || "")}">
           <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong>${intentLabel ? `<small>${escapeHtml(intentLabel)}</small>` : ""}</td>
-          <td>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</td>
-          <td>${escapeHtml(invoice.className || "")}</td>
+          <td>${escapeHtml(invoice.studentCode || "")}<small>${escapeHtml(invoice.studentName || "")}</small></td>
+          <td>${escapeHtml(invoice.className || "")}<small>${escapeHtml(invoice.periodCode || invoice.schoolYearCode || "")}</small></td>
           <td class="money">${formatMoney(total)}</td>
-          <td class="money">${formatMoney(paid)}</td>
-          <td><span class="tag">${escapeHtml(invoice.status || "unpaid")}</span></td>
+          <td class="money">${formatMoney(paid)}<small>Còn ${formatMoney(outstanding)}</small></td>
+          <td><span class="tag ${paymentReconStatusTone(invoice.status)}">${escapeHtml(invoice.status || "unpaid")}</span><small>${escapeHtml(matchLabel)}</small></td>
           <td>${actions}</td>
         </tr>
       `;
@@ -5177,18 +5504,23 @@ function renderPaymentReconInvoices(invoices, intents) {
   if (!invoices.length) {
     paymentReconInvoiceRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có hóa đơn để đối soát</td></tr>`;
   }
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-detail]").forEach((button) => {
+    button.addEventListener("click", () => showPaymentReconInvoiceDetail(button.dataset.reconDetail, { focusDetail: true }));
+  });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-intent]").forEach((button) => {
     button.addEventListener("click", () => createPaymentIntent(button.dataset.reconIntent, button.dataset.reconProvider));
   });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-cash]").forEach((button) => {
     button.addEventListener("click", () => recordManualCashReceipt(button.dataset.reconCash, Number(button.dataset.reconDefaultAmount || 0)));
   });
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-notify]").forEach((button) => {
+    button.addEventListener("click", () => openNotificationFromInvoice((paymentReconciliationData.invoices || []).find((item) => item.id === button.dataset.reconNotify)));
+  });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-invoice-row]").forEach((row) => {
     row.classList.toggle("is-selected", paymentReconSelection.type === "invoice" && paymentReconSelection.id === row.dataset.reconInvoiceRow);
     row.addEventListener("click", (event) => {
       if (event.target.closest("button, a")) return;
-      const invoice = (paymentReconciliationData.invoices || []).find((item) => item.id === row.dataset.reconInvoiceRow);
-      renderPaymentReconDetail(invoiceDetailTemplate(invoice), { type: "invoice", id: row.dataset.reconInvoiceRow });
+      showPaymentReconInvoiceDetail(row.dataset.reconInvoiceRow);
     });
   });
 }
@@ -5199,26 +5531,129 @@ function renderPaymentReconTransactions(transactions) {
     .map(
       (transaction) => `
         <tr data-recon-transaction-row="${escapeAttr(transaction.id || "")}">
-          <td><strong>${escapeHtml(transaction.provider || "")}</strong><small>${escapeHtml(transaction.providerTransactionId || "")}</small></td>
+          <td><strong>${escapeHtml(transaction.provider || "")}</strong><small>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</small></td>
           <td>${escapeHtml(formatDateTime(transaction.transactionTime))}</td>
           <td class="money">${formatMoney(transaction.amount || 0)}</td>
-          <td>${escapeHtml(transaction.accountNumber || "")}</td>
+          <td>${escapeHtml(transaction.accountNumber || "")}<small>${escapeHtml(transaction.bankName || "")}</small></td>
           <td>${escapeHtml(transaction.description || transaction.referenceCode || "")}</td>
-          <td><span class="tag">${escapeHtml(transaction.invoiceCode || transaction.status || "unmatched")}</span></td>
+          <td>${escapeHtml(transaction.matchReason || transaction.referenceCode || "-")}<small>${escapeHtml(paymentMatchMeta(transaction))}</small></td>
+          <td><span class="tag ${paymentReconStatusTone(transaction.matchStatus || transaction.status)}">${escapeHtml(transaction.invoiceCode || transaction.status || "unmatched")}</span></td>
         </tr>
       `,
     )
     .join("");
   if (!transactions.length) {
-    paymentReconTransactionRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có giao dịch vào</td></tr>`;
+    paymentReconTransactionRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có giao dịch vào</td></tr>`;
   }
   paymentReconTransactionRowsEl.querySelectorAll("[data-recon-transaction-row]").forEach((row) => {
     row.classList.toggle("is-selected", paymentReconSelection.type === "transaction" && paymentReconSelection.id === row.dataset.reconTransactionRow);
     row.addEventListener("click", () => {
-      const transaction = (paymentReconciliationData.transactions || []).find((item) => item.id === row.dataset.reconTransactionRow);
-      renderPaymentReconDetail(transactionDetailTemplate(transaction), { type: "transaction", id: row.dataset.reconTransactionRow });
+      showPaymentReconTransactionDetail(row.dataset.reconTransactionRow);
     });
   });
+}
+
+function renderPaymentReconReviewQueue(invoices, transactions) {
+  const invoiceItems = (invoices || [])
+    .filter((invoice) => ["partial", "overpaid", "manual_review"].includes(invoice.status || ""))
+    .map((invoice) => {
+      const outstanding = Number(invoice.outstandingAmount ?? Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0));
+      return {
+        type: "invoice",
+        id: invoice.id || "",
+        title: invoice.invoiceCode || "Invoice",
+        status: invoice.status || "review",
+        amount: outstanding,
+        meta: [invoice.studentName, invoice.className, invoice.periodCode].filter(Boolean).join(" · "),
+      };
+    });
+  const transactionItems = (transactions || [])
+    .filter((transaction) => ["unmatched", "manual_review"].includes(transaction.status || ""))
+    .map((transaction) => ({
+      type: "transaction",
+      id: transaction.id || "",
+      title: transaction.providerTransactionId || transaction.referenceCode || transaction.provider || "Transaction",
+      status: transaction.status || "review",
+      amount: Number(transaction.amount || 0),
+      meta: transaction.description || transaction.matchReason || "Chưa match hóa đơn",
+    }));
+  const items = [...invoiceItems, ...transactionItems];
+  paymentReconReviewCountEl.textContent = `${items.length} mục`;
+  if (!items.length) {
+    paymentReconReviewRowsEl.innerHTML = `<div class="detail-placeholder">${muiIcon("task_alt")}<span>Không có mục cần xử lý trong scope hiện tại.</span></div>`;
+    return;
+  }
+  paymentReconReviewRowsEl.innerHTML = items
+    .map((item) => {
+      const selected = paymentReconSelection.type === item.type && paymentReconSelection.id === item.id;
+      const dataAttr = item.type === "invoice" ? `data-review-invoice="${escapeAttr(item.id)}"` : `data-review-transaction="${escapeAttr(item.id)}"`;
+      return `
+        <button class="reconciliation-review-item ${selected ? "is-selected" : ""}" type="button" ${dataAttr}>
+          <span class="tag ${paymentReconStatusTone(item.status)}">${escapeHtml(item.type === "invoice" ? "Invoice" : "Transaction")}</span>
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.meta || "-")}</span>
+          <small>${escapeHtml(item.status)} · ${formatMoney(item.amount || 0)}</small>
+        </button>
+      `;
+    })
+    .join("");
+  paymentReconReviewRowsEl.querySelectorAll("[data-review-invoice]").forEach((button) => {
+    button.addEventListener("click", () => showPaymentReconInvoiceDetail(button.dataset.reviewInvoice, { focusDetail: true }));
+  });
+  paymentReconReviewRowsEl.querySelectorAll("[data-review-transaction]").forEach((button) => {
+    button.addEventListener("click", () => showPaymentReconTransactionDetail(button.dataset.reviewTransaction, { focusDetail: true }));
+  });
+}
+
+function showPaymentReconInvoiceDetail(invoiceId, options = {}) {
+  const invoice = (paymentReconciliationData.invoices || []).find((item) => item.id === invoiceId);
+  renderPaymentReconDetail(invoiceDetailTemplate(invoice), { type: "invoice", id: invoiceId || "" });
+  if (options.focusDetail) {
+    setPaymentReconWorkbenchStep("detail");
+  }
+}
+
+function showPaymentReconTransactionDetail(transactionId, options = {}) {
+  const transaction = (paymentReconciliationData.transactions || []).find((item) => item.id === transactionId);
+  renderPaymentReconDetail(transactionDetailTemplate(transaction), { type: "transaction", id: transactionId || "" });
+  if (options.focusDetail) {
+    setPaymentReconWorkbenchStep("detail");
+  }
+}
+
+function setPaymentReconWorkbenchStep(step) {
+  paymentReconStepsEl?.querySelectorAll("[data-reconciliation-step]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.reconciliationStep === step);
+  });
+  const panel = document.querySelector(`[data-reconciliation-step-panel="${step}"]`);
+  panel?.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function reloadPaymentReconFromScopeFilters({ rerenderFilters = false } = {}) {
+  if (rerenderFilters) {
+    renderPaymentReconFilters(paymentReconciliationData);
+  }
+  syncAppContextFromActiveTab("reconciliationTab");
+  return loadPaymentReconciliation(true);
+}
+
+function paymentReconMatchesForInvoice(invoiceId) {
+  return paymentReconciliationData.matches?.[invoiceId] || [];
+}
+
+function paymentReconStatusTone(status) {
+  if (["paid", "matched", "completed", "active"].includes(status || "")) return "tag-ready";
+  if (["partial", "pending", "unpaid"].includes(status || "")) return "tag-warning";
+  if (["overpaid", "manual_review", "unmatched", "failed", "cancelled"].includes(status || "")) return "tag-danger";
+  return "tag-info";
+}
+
+function paymentMatchMeta(item) {
+  const parts = [];
+  if (item.matchType) parts.push(item.matchType);
+  if (item.matchScore) parts.push(`score ${Number(item.matchScore || 0)}`);
+  if (item.amountApplied) parts.push(`applied ${formatMoney(item.amountApplied)}`);
+  return parts.join(" · ");
 }
 
 async function createPaymentIntent(invoiceId, provider) {
@@ -5244,6 +5679,7 @@ async function createPaymentIntent(invoiceId, provider) {
     return;
   }
   renderPaymentReconDetail(paymentIntentDetailTemplate(data), { type: "invoice", id: invoiceId });
+  setPaymentReconWorkbenchStep("detail");
   paymentReconciliationLoaded = false;
   await loadPaymentReconciliation(true);
 }
@@ -5343,6 +5779,7 @@ async function recordManualCashReceipt(invoiceId, defaultAmount) {
   paymentReconciliationLoaded = false;
   await loadPaymentReconciliation(true);
   renderPaymentReconDetail(transactionDetailTemplate(data.transaction), { type: "transaction", id: data.transaction?.id || "" });
+  setPaymentReconWorkbenchStep("detail");
   setPaymentReconStatus("Đã ghi nhận", "ready");
   return true;
 }
@@ -5353,6 +5790,7 @@ function renderPaymentReconDetail(html, selection = null) {
     updatePaymentReconActiveRows();
   }
   paymentReconDetailEl.innerHTML = html || "Chưa chọn hóa đơn hoặc giao dịch";
+  bindPaymentReconDetailActions();
 }
 
 function updatePaymentReconActiveRows() {
@@ -5362,18 +5800,104 @@ function updatePaymentReconActiveRows() {
   paymentReconTransactionRowsEl.querySelectorAll("[data-recon-transaction-row]").forEach((row) => {
     row.classList.toggle("is-selected", paymentReconSelection.type === "transaction" && paymentReconSelection.id === row.dataset.reconTransactionRow);
   });
+  paymentReconReviewRowsEl?.querySelectorAll("[data-review-invoice]").forEach((row) => {
+    row.classList.toggle("is-selected", paymentReconSelection.type === "invoice" && paymentReconSelection.id === row.dataset.reviewInvoice);
+  });
+  paymentReconReviewRowsEl?.querySelectorAll("[data-review-transaction]").forEach((row) => {
+    row.classList.toggle("is-selected", paymentReconSelection.type === "transaction" && paymentReconSelection.id === row.dataset.reviewTransaction);
+  });
+}
+
+function bindPaymentReconDetailActions() {
+  paymentReconDetailEl.querySelectorAll("[data-recon-detail-intent]").forEach((button) => {
+    button.addEventListener("click", () => createPaymentIntent(button.dataset.reconDetailIntent, button.dataset.reconDetailProvider || "manual_vietqr"));
+  });
+  paymentReconDetailEl.querySelectorAll("[data-recon-detail-cash]").forEach((button) => {
+    button.addEventListener("click", () => recordManualCashReceipt(button.dataset.reconDetailCash, Number(button.dataset.reconDefaultAmount || 0)));
+  });
+  paymentReconDetailEl.querySelectorAll("[data-recon-detail-notify]").forEach((button) => {
+    button.addEventListener("click", () => openNotificationFromInvoice((paymentReconciliationData.invoices || []).find((item) => item.id === button.dataset.reconDetailNotify)));
+  });
 }
 
 function invoiceDetailTemplate(invoice) {
   if (!invoice) return "Không tìm thấy hóa đơn";
+  const total = Number(invoice.totalAmount || 0);
+  const paid = Number(invoice.paidAmount || 0);
+  const outstanding = Number(invoice.outstandingAmount ?? Math.max(total - paid, 0));
+  const intent = paymentReconciliationData.intents?.[invoice.id];
+  const matches = paymentReconMatchesForInvoice(invoice.id);
+  const hasPayOS = (paymentReconciliationData.providers || []).some((provider) => provider.code === "payos");
+  const paymentActions = hasPermission("payment.create")
+    ? `
+      <button type="button" data-recon-detail-intent="${escapeAttr(invoice.id || "")}" data-recon-detail-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR/Intent</span></button>
+      ${hasPayOS ? `<button type="button" data-recon-detail-intent="${escapeAttr(invoice.id || "")}" data-recon-detail-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
+      <button type="button" data-recon-detail-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Cash receipt</span></button>
+    `
+    : "";
+  const notificationAction = (hasPermission("notification.view") || hasPermission("notification.send")) && isInvoiceNotificationCandidate(invoice) ? `<button type="button" data-recon-detail-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>` : "";
+  const intentDetail = intent
+    ? `
+      <div class="reconciliation-detail-grid">
+        <span>Provider</span><strong>${escapeHtml(intent.provider || "")}</strong>
+        <span>Intent</span><strong>${escapeHtml(intent.intentCode || "")}</strong>
+        <span>Reference</span><strong>${escapeHtml(intent.providerReference || "-")}</strong>
+        <span>Status</span><strong>${escapeHtml(intent.status || "")}</strong>
+        <span>Created</span><strong>${escapeHtml(formatDateTime(intent.createdAt))}</strong>
+      </div>
+      ${intent.paymentUrl ? `<a class="button-link" href="${escapeAttr(intent.paymentUrl)}" target="_blank" rel="noreferrer">${muiIcon("open_in_new")}<span>Mở link thanh toán</span></a>` : ""}
+    `
+    : `<div class="invoice-detail-loading">${muiIcon("add_card")}<span>Chưa có payment intent trong scope hiện tại.</span></div>`;
+  const matchList = matches.length
+    ? matches
+        .map(
+          (match) => `
+            <li>
+              <strong>${escapeHtml(match.provider || "")} · ${escapeHtml(match.providerTransactionId || match.transactionId || "")}</strong>
+              <span>${escapeHtml(match.reason || match.matchType || "Matched")}</span>
+              <small>${escapeHtml(match.status || "")} · score ${Number(match.score || 0)} · ${formatMoney(match.amountApplied || 0)} · ${escapeHtml(formatDateTime(match.createdAt))}</small>
+            </li>
+          `,
+        )
+        .join("")
+    : `<li><span>Chưa có reconciliation match.</span></li>`;
   return `
+    <div class="detail-hero">
+      ${muiIcon("receipt_long")}
+      <div>
+        <strong>${escapeHtml(invoice.invoiceCode || "-")}</strong>
+        <span>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</span>
+      </div>
+    </div>
     <div class="reconciliation-detail-grid">
-      <span>Mã hóa đơn</span><strong>${escapeHtml(invoice.invoiceCode || "")}</strong>
-      <span>Học sinh</span><strong>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</strong>
       <span>Lớp / kỳ</span><strong>${escapeHtml(invoice.className || "")} · ${escapeHtml(invoice.periodCode || "")}</strong>
-      <span>Phải thu</span><strong>${formatMoney(invoice.totalAmount || 0)}</strong>
-      <span>Đã thu</span><strong>${formatMoney(invoice.paidAmount || 0)}</strong>
+      <span>Phải thu</span><strong>${formatMoney(total)}</strong>
+      <span>Đã thu</span><strong>${formatMoney(paid)}</strong>
+      <span>Còn thiếu</span><strong>${formatMoney(outstanding)}</strong>
       <span>Status</span><strong>${escapeHtml(invoice.status || "")}</strong>
+      <span>Tài khoản thu</span><strong>${escapeHtml([invoice.bankBin || "", invoice.bankAccount || ""].filter(Boolean).join(" / ") || "-")}</strong>
+      <span>QR reference</span><strong>${escapeHtml([invoice.qrBillNumber || "", invoice.qrNote || ""].filter(Boolean).join(" · ") || "-")}</strong>
+    </div>
+    <div class="invoice-mini-grid">
+      <div><strong>${Number(invoice.paymentIntentCount || (intent ? 1 : 0))}</strong><span>intent</span></div>
+      <div><strong>${matches.length || Number(invoice.matchedPaymentCount || 0)}</strong><span>matched</span></div>
+      <div><strong>${Number(invoice.sentCount || 0)}</strong><span>sent</span></div>
+      <div><strong>${invoice.qrReady ? "Ready" : "Missing"}</strong><span>QR</span></div>
+      <div><strong>${invoice.pdfReady ? "Ready" : "Missing"}</strong><span>PDF</span></div>
+      <div><strong>${escapeHtml(invoice.dueDate || "-")}</strong><span>due</span></div>
+    </div>
+    <div class="detail-section">
+      <h3 class="detail-section-title">Payment intent</h3>
+      ${intentDetail}
+    </div>
+    <div class="detail-section">
+      <h3 class="detail-section-title">Reconciliation matches</h3>
+      <ul class="detail-list invoice-detail-list">${matchList}</ul>
+    </div>
+    <div class="detail-actions">
+      ${paymentActions}
+      <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
+      ${notificationAction}
     </div>
   `;
 }
@@ -5381,14 +5905,25 @@ function invoiceDetailTemplate(invoice) {
 function transactionDetailTemplate(transaction) {
   if (!transaction) return "Không tìm thấy giao dịch";
   return `
+    <div class="detail-hero">
+      ${muiIcon("sync_alt")}
+      <div>
+        <strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || transaction.provider || "-")}</strong>
+        <span>${escapeHtml(transaction.description || "Giao dịch vào")}</span>
+      </div>
+    </div>
     <div class="reconciliation-detail-grid">
       <span>Provider</span><strong>${escapeHtml(transaction.provider || "")}</strong>
       <span>Reference</span><strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</strong>
       <span>Hóa đơn</span><strong>${escapeHtml(transaction.invoiceCode || "Chưa match")}</strong>
       <span>Số tiền</span><strong>${formatMoney(transaction.amount || 0)}</strong>
+      <span>Applied</span><strong>${formatMoney(transaction.amountApplied || 0)}</strong>
       <span>Thời gian</span><strong>${escapeHtml(formatDateTime(transaction.transactionTime))}</strong>
+      <span>Tài khoản</span><strong>${escapeHtml([transaction.bankName || "", transaction.accountNumber || ""].filter(Boolean).join(" / ") || "-")}</strong>
       <span>Nội dung</span><strong>${escapeHtml(transaction.description || "")}</strong>
-      <span>Status</span><strong>${escapeHtml(transaction.status || "")}</strong>
+      <span>Match reason</span><strong>${escapeHtml(transaction.matchReason || "-")}</strong>
+      <span>Match score</span><strong>${escapeHtml(paymentMatchMeta(transaction) || "-")}</strong>
+      <span>Status</span><strong>${escapeHtml(transaction.matchStatus || transaction.status || "")}</strong>
     </div>
   `;
 }
@@ -5407,6 +5942,7 @@ function paymentIntentDetailTemplate(data) {
         <span>Reference</span><strong>${escapeHtml(intent.providerReference || "")}</strong>
         <span>Số tiền</span><strong>${formatMoney(intent.amount || 0)}</strong>
         <span>Status</span><strong>${escapeHtml(intent.status || "")}</strong>
+        <span>Created</span><strong>${escapeHtml(formatDateTime(intent.createdAt))}</strong>
       </div>
       ${link}
       ${qr.vietqr ? `<textarea class="payload" readonly>${escapeHtml(qr.vietqr)}</textarea>` : ""}
@@ -5417,9 +5953,11 @@ function paymentIntentDetailTemplate(data) {
 async function loadNotifications(force = false) {
   if (notificationLoaded && !force) return;
   setNotificationStatus("Đang tải", "busy");
-  const [optionsRes, logsRes] = await Promise.all([
+  const cronRequest = hasPermission("email_cron.view") || hasPermission("email_cron.update") ? fetch("/api/v1/email/cron") : Promise.resolve(null);
+  const [optionsRes, logsRes, cronRes] = await Promise.all([
     fetch("/api/v1/notifications/options"),
     fetch("/api/v1/notifications/logs?limit=50"),
+    cronRequest,
   ]);
   const optionsText = await optionsRes.text();
   if (!optionsRes.ok) {
@@ -5428,6 +5966,7 @@ async function loadNotifications(force = false) {
     renderNotificationPreview(null);
     renderNotificationCampaigns([]);
     renderNotificationLogs([]);
+    renderNotificationCronSnapshot(null);
     return;
   }
   notificationOptions = JSON.parse(optionsText);
@@ -5438,6 +5977,12 @@ async function loadNotifications(force = false) {
     renderNotificationLogs(logsData.logs || []);
   } else {
     renderNotificationLogs([]);
+  }
+  if (cronRes?.ok) {
+    notificationCronData = await cronRes.json();
+    renderNotificationCronSnapshot(notificationCronData);
+  } else {
+    renderNotificationCronSnapshot(null);
   }
   notificationLoaded = true;
   setNotificationStatus("Sẵn sàng", "ready");
@@ -5517,10 +6062,12 @@ function collectNotificationInput() {
     periodCode: notificationPeriodEl.value.trim(),
     invoiceStatus: notificationInvoiceStatusEl.value || "",
     dueOnOrBefore: notificationDueBeforeEl.value || "",
+    forceResend: notificationForceResendEl.value === "true",
   };
 }
 
 function openNotificationDialog() {
+  setNotificationWorkbenchStep("target");
   openAppDialog({
     title: "Cấu hình campaign",
     kicker: "Invoice campaigns",
@@ -5533,6 +6080,14 @@ function openNotificationDialog() {
       { label: "Lưu campaign", icon: "save", variant: "primary", onClick: saveNotificationCampaign },
     ],
   });
+}
+
+function setNotificationWorkbenchStep(step) {
+  notificationWorkbenchStepsEl?.querySelectorAll("[data-notification-step]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.notificationStep === step);
+  });
+  const panel = document.querySelector(`[data-notification-step-panel="${step}"]`);
+  panel?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 async function previewNotifications() {
@@ -5551,6 +6106,7 @@ async function previewNotifications() {
   notificationPreviewData = data;
   renderNotificationPreview(data);
   if (data.campaign?.id) currentNotificationCampaignId = data.campaign.id;
+  setNotificationWorkbenchStep((data.issues || []).length ? "target" : "recipients");
   setNotificationStatus((data.issues || []).length ? "Cần xử lý" : "Preview xong", (data.issues || []).length ? "error" : "ready");
   return data;
 }
@@ -5573,6 +6129,7 @@ async function saveNotificationCampaign() {
   renderNotificationPreview(notificationPreviewData);
   renderNotificationCampaigns(data.campaigns || notificationOptions.campaigns || []);
   notificationLoaded = false;
+  setNotificationWorkbenchStep("recipients");
   setNotificationStatus("Đã lưu", "ready");
   return data.campaign;
 }
@@ -5602,7 +6159,57 @@ async function sendNotificationCampaign() {
   currentNotificationCampaignId = data.campaign?.id || currentNotificationCampaignId;
   renderNotificationResults(data);
   notificationLoaded = false;
+  setNotificationWorkbenchStep("send");
   setNotificationStatus("Đã xử lý gửi", "ready");
+  return true;
+}
+
+async function retrySelectedNotificationRecipients() {
+  const recipientIds = Array.from(selectedNotificationRecipientIds);
+  if (!currentNotificationCampaignId) {
+    setNotificationStatus("Chọn hoặc lưu campaign trước khi retry", "error");
+    setNotificationWorkbenchStep("send");
+    return false;
+  }
+  if (!recipientIds.length) {
+    setNotificationStatus("Chọn recipient cần retry", "error");
+    setNotificationWorkbenchStep("recipients");
+    return false;
+  }
+  const confirmed = await confirmDialog({
+    title: "Retry recipient đã chọn?",
+    message: `Thao tác này sẽ gửi lại email thật cho ${recipientIds.length} recipient đã chọn và bỏ qua trạng thái đã gửi trước đó.`,
+    confirmLabel: "Retry selected",
+    confirmIcon: "replay",
+    danger: true,
+  });
+  if (!confirmed) return false;
+  setNotificationStatus("Đang retry", "busy");
+  const input = {
+    ...collectNotificationInput(),
+    campaignId: currentNotificationCampaignId,
+    recipientIds,
+    forceResend: true,
+    confirmSend: true,
+    dryRun: false,
+  };
+  const res = await fetch("/api/v1/notifications/campaigns/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setNotificationStatus(text || "Không retry được recipient", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  currentNotificationCampaignId = data.campaign?.id || currentNotificationCampaignId;
+  renderNotificationResults(data);
+  await loadNotificationLogs(currentNotificationCampaignId);
+  notificationLoaded = false;
+  setNotificationWorkbenchStep("send");
+  setNotificationStatus("Đã retry selected", "ready");
   return true;
 }
 
@@ -5610,12 +6217,24 @@ function renderNotificationPreview(data) {
   const issues = data?.issues || [];
   const recipients = data?.recipients || [];
   const summary = data?.summary || {};
-  notificationRecipientCountEl.textContent = `${recipients.length} email`;
   if (!data) {
+    selectedNotificationRecipientKey = "";
+    selectedNotificationRecipientIds = new Set();
+    notificationRecipientCountEl.textContent = "0 email";
     notificationSummaryEl.textContent = "Chưa có preview";
-    notificationRecipientsEl.innerHTML = `<tr><td colspan="6">Chưa có recipient</td></tr>`;
+    notificationRecipientsEl.innerHTML = `<tr><td colspan="8" class="empty-cell">Chưa có recipient</td></tr>`;
+    renderNotificationEmailPreviewPlaceholder();
     return;
   }
+  const validRecipientIds = new Set(recipients.map((item) => item.id).filter(Boolean));
+  selectedNotificationRecipientIds = new Set(Array.from(selectedNotificationRecipientIds).filter((id) => validRecipientIds.has(id)));
+  if (selectedNotificationRecipientKey && !recipients.some((item) => notificationRecipientKey(item) === selectedNotificationRecipientKey)) {
+    selectedNotificationRecipientKey = "";
+    renderNotificationEmailPreviewPlaceholder();
+  }
+  notificationRecipientCountEl.textContent = selectedNotificationRecipientIds.size
+    ? `${recipients.length} email · ${selectedNotificationRecipientIds.size} chọn`
+    : `${recipients.length} email`;
   if (issues.length) {
     notificationSummaryEl.innerHTML = issues.map((item) => `<div><strong>${escapeHtml(item.type)}</strong><span>${escapeHtml(item.message)}</span></div>`).join("");
   } else {
@@ -5625,25 +6244,142 @@ function renderNotificationPreview(data) {
       <div><strong>${formatMoney(summary.totalAmount || 0)}</strong><span>phải thu</span></div>
       <div><strong>${formatMoney(summary.unpaidAmount || 0)}</strong><span>còn phải thu</span></div>
       <div><strong>${Number(summary.alreadySent || 0)}</strong><span>đã gửi trước</span></div>
+      <div><strong>${Number(summary.qrMissingCount || 0)}</strong><span>thiếu QR</span></div>
+      <div><strong>${Number(summary.errorCount || 0)}</strong><span>lỗi gửi</span></div>
+      <div><strong>${Number(summary.retryEligibleCount || 0)}</strong><span>retry</span></div>
     `;
   }
   notificationRecipientsEl.innerHTML = recipients.length
     ? recipients.map(notificationRecipientRowTemplate).join("")
-    : `<tr><td colspan="6">Không có recipient phù hợp</td></tr>`;
+    : `<tr><td colspan="8" class="empty-cell">Không có recipient phù hợp</td></tr>`;
+  notificationRecipientsEl.querySelectorAll("tr[data-recipient-key]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button, input, label, a, select, textarea")) return;
+      const recipient = findNotificationRecipientByKey(row.dataset.recipientKey || "");
+      if (recipient) selectNotificationRecipient(recipient);
+    });
+  });
+  notificationRecipientsEl.querySelectorAll("[data-notification-recipient-id]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const id = checkbox.dataset.notificationRecipientId || "";
+      if (!id) return;
+      if (checkbox.checked) {
+        selectedNotificationRecipientIds.add(id);
+      } else {
+        selectedNotificationRecipientIds.delete(id);
+      }
+      renderNotificationPreview({ ...notificationPreviewData, recipients, summary, issues });
+    });
+  });
+  notificationRecipientsEl.querySelectorAll("[data-notification-email-preview]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const recipient = findNotificationRecipientByKey(button.dataset.notificationEmailPreview || "");
+      if (recipient) selectNotificationRecipient(recipient);
+    });
+  });
 }
 
 function notificationRecipientRowTemplate(item) {
-  const status = item.alreadySent ? "already sent" : item.status || item.invoiceStatus || "pending";
+  const key = notificationRecipientKey(item);
+  const status = notificationRecipientStatus(item);
+  const tone = notificationRecipientTone(item);
+  const checked = item.id && selectedNotificationRecipientIds.has(item.id);
+  const selectedClass = selectedNotificationRecipientKey === key ? " class=\"is-selected\"" : "";
+  const qrLabel = item.qrReady ? "QR ready" : "No QR";
+  const sentLabel = item.sendCount ? `${Number(item.sendCount || 0)} sent` : "Chưa gửi";
+  const retryLabel = item.retryEligible ? `<span class="tag tag-warning">${muiIcon("replay")}Retry</span>` : `<span class="tag tag-info">No retry</span>`;
   return `
-    <tr>
+    <tr data-recipient-key="${escapeAttr(key)}"${selectedClass}>
+      <td>
+        <input class="notification-recipient-check" type="checkbox" data-notification-recipient-id="${escapeAttr(item.id || "")}" ${checked ? "checked" : ""} ${item.id ? "" : "disabled"} aria-label="Chọn recipient" />
+      </td>
       <td><strong>${escapeHtml(item.invoiceCode || "")}</strong><small>${escapeHtml(item.periodCode || "")}</small></td>
-      <td>${escapeHtml(item.studentCode || "")}<small>${escapeHtml(item.studentName || "")}</small></td>
-      <td>${escapeHtml(item.className || "")}<small>${escapeHtml(item.dueDate || "")}</small></td>
+      <td>${escapeHtml(item.studentCode || "")}<small>${escapeHtml(item.studentName || "")} · ${escapeHtml(item.className || "")}</small></td>
       <td>${escapeHtml(item.recipientEmail || "")}<small>${escapeHtml(item.recipientName || "")}</small></td>
-      <td>${formatMoney(item.amount || 0)}<small>Đã thu ${formatMoney(item.paidAmount || 0)}</small></td>
-      <td><span class="status-pill">${escapeHtml(status)}</span></td>
+      <td>${formatMoney(item.outstandingAmount ?? item.amount ?? 0)}<small>Tổng ${formatMoney(item.amount || 0)} · đã thu ${formatMoney(item.paidAmount || 0)}</small></td>
+      <td><span class="tag ${item.qrReady ? "tag-ready" : "tag-warning"}">${item.qrReady ? muiIcon("qr_code_2") : muiIcon("qr_code_scanner")}${escapeHtml(qrLabel)}</span></td>
+      <td>
+        <span class="tag ${item.sendCount ? "tag-ready" : "tag-info"}">${escapeHtml(sentLabel)}</span>
+        <small>${escapeHtml(item.lastSentAt ? formatDateTime(item.lastSentAt) : item.lastLogStatus || "")}</small>
+        ${retryLabel}
+      </td>
+      <td>
+        <span class="status-pill" data-tone="${escapeAttr(tone)}">${escapeHtml(status.replaceAll("_", " "))}</span>
+        ${item.lastError ? `<small>${escapeHtml(item.lastError)}</small>` : ""}
+        <button class="icon-button notification-preview-email-btn" type="button" data-notification-email-preview="${escapeAttr(key)}" title="Preview email">${muiIcon("drafts")}<span class="sr-only">Preview email</span></button>
+      </td>
     </tr>
   `;
+}
+
+function notificationRecipientKey(item) {
+  return item.id || `${item.invoiceId || ""}|${String(item.recipientEmail || "").toLowerCase()}`;
+}
+
+function findNotificationRecipientByKey(key) {
+  return (notificationPreviewData.recipients || []).find((item) => notificationRecipientKey(item) === key) || null;
+}
+
+function notificationRecipientStatus(item) {
+  if (item.status) return item.status;
+  if (item.alreadySent) return "already_sent";
+  return item.invoiceStatus || "pending";
+}
+
+function notificationRecipientTone(item) {
+  const status = notificationRecipientStatus(item);
+  if (status === "error") return "error";
+  if (status === "sent" || status === "dry_run") return "ready";
+  if (item.retryEligible || status === "skipped") return "error";
+  if (status === "already_sent") return "warning";
+  return "ready";
+}
+
+function selectNotificationRecipient(recipient) {
+  selectedNotificationRecipientKey = notificationRecipientKey(recipient);
+  notificationRecipientsEl.querySelectorAll("tr[data-recipient-key]").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.recipientKey === selectedNotificationRecipientKey);
+  });
+  previewNotificationRecipientEmail(recipient);
+}
+
+function renderNotificationEmailPreviewPlaceholder(message = "Chọn recipient để xem email preview") {
+  if (notificationEmailPreviewStatusEl) notificationEmailPreviewStatusEl.textContent = "Chưa chọn";
+  if (notificationEmailPreviewFrameEl) {
+    notificationEmailPreviewFrameEl.srcdoc = `<body style="margin:0;padding:18px;font-family:system-ui,sans-serif;color:#667168;background:#fff;">${escapeHtml(message)}</body>`;
+  }
+}
+
+async function previewNotificationRecipientEmail(recipient) {
+  if (!recipient) {
+    renderNotificationEmailPreviewPlaceholder();
+    return false;
+  }
+  notificationEmailPreviewStatusEl.textContent = "Đang render";
+  setNotificationWorkbenchStep("email");
+  const res = await fetch("/api/v1/notifications/campaigns/email-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...collectNotificationInput(),
+      campaignId: currentNotificationCampaignId,
+      recipientId: recipient.id || "",
+      invoiceId: recipient.invoiceId || "",
+      recipientEmail: recipient.recipientEmail || "",
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    notificationEmailPreviewStatusEl.textContent = "Lỗi";
+    notificationEmailPreviewFrameEl.srcdoc = `<body style="margin:0;padding:18px;font-family:system-ui,sans-serif;color:#ba2c2c;background:#fff;">${escapeHtml(text || "Không render được email preview")}</body>`;
+    setNotificationStatus(text || "Không render được email preview", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  notificationEmailPreviewStatusEl.textContent = data.to || recipient.recipientEmail || "Preview";
+  notificationEmailPreviewFrameEl.srcdoc = data.html || `<pre>${escapeHtml(data.text || data.subject || "Email preview")}</pre>`;
+  setNotificationStatus("Email preview xong", "ready");
+  return true;
 }
 
 function renderNotificationCampaigns(campaigns) {
@@ -5690,6 +6426,8 @@ async function selectNotificationCampaign(campaign) {
   if ((notificationOptions.templates || []).some((item) => item.id === campaign.templateId)) {
     notificationTemplateEl.value = campaign.templateId;
   }
+  notificationForceResendEl.value = "false";
+  setNotificationWorkbenchStep("send");
   await loadNotificationLogs(campaign.id);
 }
 
@@ -5734,7 +6472,16 @@ function renderNotificationResults(data) {
     summary: data.summary || {},
     recipients: (notificationPreviewData.recipients || []).map((recipient) => {
       const result = results.find((item) => item.id === recipient.id || item.email === recipient.recipientEmail);
-      return result ? { ...recipient, status: result.status, lastError: result.error || "" } : recipient;
+      if (!result) return recipient;
+      return {
+        ...recipient,
+        status: result.status,
+        lastError: result.error || "",
+        lastLogStatus: result.status,
+        alreadySent: result.status === "sent" ? true : recipient.alreadySent,
+        sendCount: result.status === "sent" ? Number(recipient.sendCount || 0) + 1 : Number(recipient.sendCount || 0),
+        retryEligible: result.status === "error" || result.status === "skipped",
+      };
     }),
   };
   renderNotificationPreview(notificationPreviewData);
@@ -5743,6 +6490,56 @@ function renderNotificationResults(data) {
     const campaigns = [data.campaign, ...(notificationOptions.campaigns || []).filter((item) => item.id !== data.campaign.id)];
     renderNotificationCampaigns(campaigns);
   }
+}
+
+async function loadNotificationCronSnapshot() {
+  if (!hasPermission("email_cron.view") && !hasPermission("email_cron.update")) {
+    renderNotificationCronSnapshot(null);
+    return null;
+  }
+  const res = await fetch("/api/v1/email/cron");
+  if (!res.ok) {
+    renderNotificationCronSnapshot(null);
+    return null;
+  }
+  notificationCronData = await res.json();
+  renderNotificationCronSnapshot(notificationCronData);
+  return notificationCronData;
+}
+
+function renderNotificationCronSnapshot(data) {
+  if (!notificationCronSnapshotEl) return;
+  if (!data) {
+    notificationCronSnapshotEl.textContent = hasPermission("email_cron.view") || hasPermission("email_cron.update") ? "Không tải được cron" : "Không có quyền xem cron";
+    return;
+  }
+  const sentLast24h = data.sentLast24h ?? data.sentToday ?? 0;
+  const metrics = [
+    { label: "Cron", value: data.enabled ? "ACTIVE" : "PAUSED", tone: data.enabled ? "tag-ready" : "tag-warning" },
+    { label: "Send time", value: data.sendTime || "08:00", tone: "tag-info" },
+    { label: "Daily limit", value: Number(data.dailyLimit || 0), tone: "tag-info" },
+    { label: "Queued", value: Number(data.queued || 0), tone: data.queued ? "tag-warning" : "tag-ready" },
+    { label: "Sent", value: Number(data.sent || 0), tone: "tag-ready" },
+    { label: "Errors", value: Number(data.errors || 0), tone: data.errors ? "tag-danger" : "tag-ready" },
+    { label: "Sent 24h", value: sentLast24h, tone: "tag-info" },
+  ];
+  const recent = (data.lastResults || [])
+    .slice(0, 6)
+    .map((item) => {
+      const message = item.error || item.resendId || item.messageId || item.status;
+      return `<div><strong>${escapeHtml(item.status || "-")}</strong><span>${escapeHtml(item.email || "-")} · ${escapeHtml(item.studentName || "-")}</span><small>${escapeHtml(message || "")}</small></div>`;
+    })
+    .join("");
+  notificationCronSnapshotEl.innerHTML = `
+    <div class="notification-cron-metrics">
+      ${metrics.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong class="tag ${item.tone}">${escapeHtml(item.value)}</strong></div>`).join("")}
+    </div>
+    <div class="notification-cron-times">
+      <span>Next ${escapeHtml(data.nextRunAt ? formatDateTime(data.nextRunAt) : "-")}</span>
+      <span>Last ${escapeHtml(data.lastRunAt ? formatDateTime(data.lastRunAt) : "-")}</span>
+    </div>
+    <div class="notification-cron-results">${recent || "<span>Chưa có kết quả gần đây</span>"}</div>
+  `;
 }
 
 function setNotificationStatus(message, tone = "ready") {
@@ -5975,6 +6772,8 @@ function renderCronStatus(data) {
   cronSendTimeEl.value = data.sendTime || "08:00";
   cronDailyLimitEl.value = data.dailyLimit || 500;
   cronQueueSummaryEl.value = `${data.queued || 0} chờ / ${data.sent || 0} gửi / ${data.errors || 0} lỗi`;
+  notificationCronData = data;
+  renderNotificationCronSnapshot(data);
 
   const nextRun = data.nextRunAt ? formatDateTime(data.nextRunAt) : "-";
   const lastRun = data.lastRunAt ? formatDateTime(data.lastRunAt) : "-";
@@ -6312,9 +7111,14 @@ adminReportsMonthEl.addEventListener("change", () => {
   loadAdminReports(true);
 });
 adminReportsInvoiceStatusEl.addEventListener("change", () => loadAdminReports(true));
+adminReportsProviderEl.addEventListener("change", () => loadAdminReports(true));
 refreshOperationsBtn.addEventListener("click", () => loadOperations(true));
 operationSourceFilterEl.addEventListener("change", () => loadOperations(true));
 operationLevelFilterEl.addEventListener("change", () => loadOperations(true));
+operationNameFilterEl.addEventListener("change", () => loadOperations(true));
+operationStatusFilterEl.addEventListener("change", () => loadOperations(true));
+auditActionFilterEl.addEventListener("change", () => loadOperations(true));
+operationEntityTypeFilterEl.addEventListener("change", () => loadOperations(true));
 operationLimitEl.addEventListener("change", () => loadOperations(true));
 
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
@@ -6425,11 +7229,22 @@ previewInvoicesBtn.addEventListener("click", previewInvoices);
 generateInvoicesBtn.addEventListener("click", generateInvoices);
 exportInvoiceCsvBtn.addEventListener("click", exportInvoiceCsv);
 refreshPaymentReconBtn.addEventListener("click", () => loadPaymentReconciliation(true));
+paymentReconStepsEl?.querySelectorAll("[data-reconciliation-step]").forEach((button) => {
+  button.addEventListener("click", () => setPaymentReconWorkbenchStep(button.dataset.reconciliationStep || "scope"));
+});
+paymentReconSchoolFilterEl.addEventListener("change", () => reloadPaymentReconFromScopeFilters({ rerenderFilters: true }));
+paymentReconYearFilterEl.addEventListener("change", () => reloadPaymentReconFromScopeFilters({ rerenderFilters: true }));
+paymentReconGradeFilterEl.addEventListener("change", () => reloadPaymentReconFromScopeFilters({ rerenderFilters: true }));
+paymentReconClassFilterEl.addEventListener("change", () => reloadPaymentReconFromScopeFilters());
+paymentReconPeriodFilterEl.addEventListener("change", () => reloadPaymentReconFromScopeFilters());
 paymentProviderFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 paymentInvoiceStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 paymentTransactionStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 refreshNotificationsBtn.addEventListener("click", () => loadNotifications(true));
 openNotificationDialogBtn.addEventListener("click", openNotificationDialog);
+notificationWorkbenchStepsEl?.querySelectorAll("[data-notification-step]").forEach((button) => {
+  button.addEventListener("click", () => setNotificationWorkbenchStep(button.dataset.notificationStep || "target"));
+});
 notificationCampaignTypeEl.addEventListener("change", () => {
   currentNotificationCampaignId = "";
   const match = (notificationOptions.templates || []).find((item) => item.code === notificationCampaignTypeEl.value);
@@ -6444,11 +7259,13 @@ notificationGradeEl.addEventListener("change", renderNotificationClassOptions);
 notificationPeriodEl.addEventListener("change", () => syncAppContextFromActiveTab("notificationTab"));
 previewNotificationsBtn.addEventListener("click", previewNotifications);
 saveNotificationCampaignBtn.addEventListener("click", saveNotificationCampaign);
+retryNotificationRecipientsBtn.addEventListener("click", retrySelectedNotificationRecipients);
 sendNotificationCampaignBtn.addEventListener("click", sendNotificationCampaign);
 
 saveEmailConfigBtn.addEventListener("click", saveEmailConfig);
 openEmailConfigDialogBtn.addEventListener("click", openEmailConfigDialog);
 openCronConfigDialogBtn.addEventListener("click", openCronConfigDialog);
+openNotificationCronConfigBtn.addEventListener("click", openCronConfigDialog);
 previewEmailBtn.addEventListener("click", previewEmail);
 dryRunEmailBtn.addEventListener("click", () => sendEmails(true));
 sendEmailBtn.addEventListener("click", () => sendEmails(false));

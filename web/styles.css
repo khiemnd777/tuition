@@ -649,6 +649,12 @@ textarea:focus-visible {
   color: var(--blue);
 }
 
+.status-pill[data-tone="warning"] {
+  background: #fff8ed;
+  border-color: #f3d7aa;
+  color: #8a4b00;
+}
+
 .status-pill[data-tone="error"] {
   background: #fff5f5;
   border-color: #e4b8b8;
@@ -687,6 +693,39 @@ textarea:focus-visible {
 
 .admin-workspace {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.operations-workspace {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+}
+
+.operations-workspace .admin-control-panel {
+  grid-column: 1 / -1;
+}
+
+.operation-log-panel,
+.audit-log-panel {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.operation-detail-panel {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  position: sticky;
+  top: 16px;
+  min-width: 0;
+}
+
+.operation-log-detail {
+  display: grid;
+  gap: 12px;
+  min-height: 260px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+  font-weight: 700;
 }
 
 .users-workspace {
@@ -2034,7 +2073,9 @@ tr.is-selected td:first-child {
 }
 
 .fee-guide-steps,
-.invoice-workbench-steps {
+.invoice-workbench-steps,
+.reconciliation-workbench-steps,
+.notification-workbench-steps {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2044,14 +2085,18 @@ tr.is-selected td:first-child {
 }
 
 .fee-guide-steps button,
-.invoice-workbench-steps button {
+.invoice-workbench-steps button,
+.reconciliation-workbench-steps button,
+.notification-workbench-steps button {
   min-height: 32px;
   background: #ffffff;
   color: var(--ink-soft);
 }
 
 .fee-guide-steps button.is-active,
-.invoice-workbench-steps button.is-active {
+.invoice-workbench-steps button.is-active,
+.reconciliation-workbench-steps button.is-active,
+.notification-workbench-steps button.is-active {
   border-color: var(--green);
   background: var(--green-soft);
   color: var(--green);
@@ -2469,7 +2514,8 @@ tr.is-selected td:first-child {
 
 .reconciliation-control-panel,
 .reconciliation-invoice-panel,
-.reconciliation-transaction-panel {
+.reconciliation-transaction-panel,
+.reconciliation-review-panel {
   min-width: 0;
 }
 
@@ -2477,15 +2523,22 @@ tr.is-selected td:first-child {
   grid-column: 1 / -1;
 }
 
+.reconciliation-invoice-panel,
+.reconciliation-transaction-panel,
+.reconciliation-review-panel {
+  grid-column: 1;
+}
+
 .reconciliation-detail-panel {
-  grid-row: span 2;
+  grid-column: 2;
+  grid-row: 2 / span 4;
   position: sticky;
   top: 98px;
 }
 
 .reconciliation-toolbar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
   gap: 10px;
   padding: 14px 16px;
   background: var(--surface-muted);
@@ -2500,7 +2553,8 @@ tr.is-selected td:first-child {
   font-weight: 700;
 }
 
-.reconciliation-toolbar select {
+.reconciliation-toolbar select,
+.reconciliation-toolbar input {
   width: 100%;
   min-height: 36px;
   border: 1px solid var(--line);
@@ -2512,7 +2566,7 @@ tr.is-selected td:first-child {
 
 .reconciliation-summary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  grid-template-columns: repeat(10, minmax(112px, 1fr));
   gap: 1px;
   border-top: 1px solid var(--line);
   background: var(--line);
@@ -2545,7 +2599,7 @@ tr.is-selected td:first-child {
 }
 
 .reconciliation-table {
-  min-width: 1020px;
+  min-width: 1240px;
   table-layout: fixed;
 }
 
@@ -2580,7 +2634,7 @@ tr.is-selected td:first-child {
 }
 
 .recon-action-col {
-  width: 220px;
+  width: 320px;
 }
 
 .recon-time-col {
@@ -2593,6 +2647,57 @@ tr.is-selected td:first-child {
 
 .recon-description-col {
   width: 320px;
+}
+
+.recon-match-col {
+  width: 230px;
+}
+
+.reconciliation-review-list {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+}
+
+.reconciliation-review-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: #ffffff;
+  color: var(--ink-soft);
+  text-align: left;
+}
+
+.reconciliation-review-item:hover,
+.reconciliation-review-item.is-selected {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.reconciliation-review-item strong,
+.reconciliation-review-item span,
+.reconciliation-review-item small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.reconciliation-review-item strong {
+  color: var(--ink);
+}
+
+.reconciliation-review-item > span:not(.tag),
+.reconciliation-review-item small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .reconciliation-detail {
@@ -2788,7 +2893,9 @@ tr.is-selected td:first-child {
 
 .notification-control-panel,
 .notification-recipient-panel,
-.notification-campaign-panel {
+.notification-campaign-panel,
+.notification-email-preview-panel,
+.notification-cron-panel {
   min-width: 0;
 }
 
@@ -2796,15 +2903,23 @@ tr.is-selected td:first-child {
   grid-column: 1 / -1;
 }
 
+.notification-recipient-panel,
+.notification-campaign-panel,
+.notification-email-preview-panel,
+.notification-cron-panel {
+  grid-column: 1;
+}
+
 .notification-log-panel {
-  grid-row: span 2;
+  grid-column: 2;
+  grid-row: 2 / span 4;
   position: sticky;
   top: 16px;
 }
 
 .notification-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(140px, 1fr));
+  grid-template-columns: minmax(220px, 1.5fr) repeat(5, minmax(140px, 1fr));
   gap: 10px;
   padding: 14px 16px;
   background: var(--surface-muted);
@@ -2839,7 +2954,7 @@ tr.is-selected td:first-child {
 
 .notification-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(8, minmax(110px, 1fr));
   gap: 1px;
   border-top: 1px solid var(--line);
   background: var(--line);
@@ -2872,7 +2987,7 @@ tr.is-selected td:first-child {
 }
 
 .notification-table {
-  min-width: 980px;
+  min-width: 1180px;
   table-layout: fixed;
 }
 
@@ -2882,6 +2997,10 @@ tr.is-selected td:first-child {
   color: var(--muted);
   font-size: 11px;
   overflow-wrap: anywhere;
+}
+
+.notification-select-col {
+  width: 68px;
 }
 
 .notification-invoice-col,
@@ -2898,6 +3017,90 @@ tr.is-selected td:first-child {
 .notification-class-col,
 .notification-money-col {
   width: 130px;
+}
+
+.notification-recipient-check {
+  width: 16px;
+  height: 16px;
+}
+
+.notification-preview-email-btn {
+  margin-top: 6px;
+}
+
+#notificationEmailPreviewFrame {
+  display: block;
+  width: 100%;
+  height: 420px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.notification-cron-snapshot {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.notification-cron-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 8px;
+}
+
+.notification-cron-metrics > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px;
+  background: #ffffff;
+}
+
+.notification-cron-metrics span,
+.notification-cron-times span,
+.notification-cron-results span,
+.notification-cron-results small {
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.notification-cron-metrics span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-cron-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-cron-results {
+  display: grid;
+  gap: 7px;
+}
+
+.notification-cron-results > div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.notification-cron-results strong {
+  color: var(--ink);
 }
 
 .notification-log-list {
@@ -3647,6 +3850,7 @@ td select:focus,
   .notification-toolbar,
   .admin-filter-grid,
   .admin-user-form,
+  .operations-workspace,
   .users-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3659,6 +3863,17 @@ td select:focus,
   .invoice-control-panel,
   .invoice-preview-panel,
   .reconciliation-control-panel,
+  .reconciliation-invoice-panel,
+  .reconciliation-transaction-panel,
+  .reconciliation-review-panel,
+  .notification-recipient-panel,
+  .notification-campaign-panel,
+  .notification-email-preview-panel,
+  .notification-cron-panel,
+  .notification-log-panel,
+  .operation-log-panel,
+  .audit-log-panel,
+  .operation-detail-panel,
   .admin-user-editor-panel {
     grid-column: auto;
   }
@@ -3667,8 +3882,10 @@ td select:focus,
   .invoice-payment-panel,
   .reconciliation-detail-panel,
   .notification-log-panel,
+  .operation-detail-panel,
   .admin-roles-panel {
     position: static;
+    grid-column: auto;
     grid-row: auto;
   }
 

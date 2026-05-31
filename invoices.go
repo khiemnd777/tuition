@@ -43,6 +43,7 @@ type invoiceGenerateInput struct {
 }
 
 type invoiceListFilters struct {
+	SchoolID     string
 	SchoolYearID string
 	ClassID      string
 	Grade        string
@@ -976,6 +977,13 @@ func listInvoiceSummaries(ctx context.Context, db *sql.DB, filters invoiceListFi
 	}
 	if filters.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(filters.SchoolYearID)+"::uuid")
+	}
+	if filters.SchoolID != "" {
+		conditions = append(conditions, `EXISTS (
+			SELECT 1 FROM school_years sy_filter
+			WHERE sy_filter.id = i.school_year_id
+				AND sy_filter.school_id = `+addArg(filters.SchoolID)+`::uuid
+		)`)
 	}
 	if filters.ClassID != "" {
 		conditions = append(conditions, "i.class_id = "+addArg(filters.ClassID)+"::uuid")

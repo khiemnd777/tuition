@@ -68,6 +68,7 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodGet, Path: "/api/v1/notifications/templates", Permission: "notification.view", Handler: handleNotificationTemplates},
 		{Method: http.MethodGet, Path: "/api/v1/notifications/campaigns", Permission: "notification.view", Handler: handleNotificationCampaigns},
 		{Method: http.MethodPost, Path: "/api/v1/notifications/campaigns/preview", Permission: "notification.send", Handler: handleNotificationCampaignPreview},
+		{Method: http.MethodPost, Path: "/api/v1/notifications/campaigns/email-preview", Permission: "notification.send", Handler: handleNotificationCampaignEmailPreview},
 		{Method: http.MethodPost, Path: "/api/v1/notifications/campaigns/save", Permission: "notification.create", Handler: handleNotificationCampaignSave},
 		{Method: http.MethodPost, Path: "/api/v1/notifications/campaigns/send", Permission: "notification.send", Handler: handleNotificationCampaignSend},
 		{Method: http.MethodGet, Path: "/api/v1/notifications/logs", Permission: "notification.view", Handler: handleNotificationLogs},

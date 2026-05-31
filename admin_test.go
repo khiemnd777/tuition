@@ -198,6 +198,43 @@ func TestAdminInvoiceReportCSVIncludesAccountingAmounts(t *testing.T) {
 	}
 }
 
+func TestAdminTransactionReportCSVIncludesMatchExplanation(t *testing.T) {
+	records := adminTransactionReportCSVRecords([]paymentTransactionSummary{{
+		ProviderCode:          "sepay",
+		ProviderTransactionID: "TXN-001",
+		InvoiceCode:           "INV-001",
+		StudentCode:           "S001",
+		StudentName:           "Nguyen Van A",
+		Direction:             paymentDirectionIn,
+		Amount:                1000,
+		Currency:              "VND",
+		TransactionTime:       time.Date(2026, 4, 2, 9, 0, 0, 0, time.UTC),
+		AccountNumber:         "123456789",
+		BankName:              "VIB",
+		ReferenceCode:         "INV-001",
+		Status:                paymentTransactionStatusMatched,
+		MatchType:             "invoice_code",
+		MatchStatus:           "matched",
+		MatchScore:            95,
+		AmountApplied:         1000,
+		MatchReason:           "invoice code and amount matched",
+		Description:           "INV-001 hoc phi",
+	}})
+
+	header := strings.Join(records[0], "|")
+	for _, want := range []string{"match_type", "match_status", "match_score", "amount_applied", "match_reason"} {
+		if !strings.Contains(header, want) {
+			t.Fatalf("expected transaction csv header to contain %q, got %s", want, header)
+		}
+	}
+	row := strings.Join(records[1], "|")
+	for _, want := range []string{"sepay", "INV-001", "invoice_code", "matched", "95", "1000", "invoice code and amount matched"} {
+		if !strings.Contains(row, want) {
+			t.Fatalf("expected transaction csv row to contain %q, got %s", want, row)
+		}
+	}
+}
+
 func TestFilterAdminReportTransactionsUsesFilteredInvoiceScope(t *testing.T) {
 	invoices := []adminInvoiceReportRow{
 		{invoiceSummary: invoiceSummary{ID: "invoice-1"}},
@@ -216,5 +253,47 @@ func TestFilterAdminReportTransactionsUsesFilteredInvoiceScope(t *testing.T) {
 	all := filterAdminReportTransactions(invoices, transactions, adminFilters{})
 	if len(all) != 3 {
 		t.Fatalf("expected unconstrained filters to keep all transactions, got %+v", all)
+	}
+}
+
+func TestBuildOperationLogCommandSummaryGroupsFailures(t *testing.T) {
+	summary := buildOperationLogCommandSummary([]operationLogSummary{
+		{Source: "webhook", Level: "error", Operation: "payment.webhook"},
+		{Source: "email", Level: "error", Operation: "notification.campaign.send"},
+		{Source: "background_job", Level: "error", Operation: "email.cron.send"},
+		{Source: "background_job", Level: "error", Operation: "report.export"},
+		{Source: "background_job", Level: "warn", Operation: "report.export"},
+		{Source: "background_job", Level: "info", Operation: "report.export"},
+	})
+
+	if summary.TotalCount != 6 || summary.ErrorCount != 4 || summary.WarnCount != 1 || summary.InfoCount != 1 {
+		t.Fatalf("unexpected operation summary totals: %+v", summary)
+	}
+	if summary.WebhookErrorCount != 1 || summary.EmailErrorCount != 1 || summary.CronErrorCount != 1 || summary.BackgroundJobErrorCount != 1 {
+		t.Fatalf("unexpected operation error groups: %+v", summary)
+	}
+}
+
+func TestSanitizeLogMetadataRedactsSensitiveKeys(t *testing.T) {
+	metadata := sanitizeLogMetadata(map[string]any{
+		"provider":    "payos",
+		"apiKey":      "secret-key",
+		"raw_payload": map[string]any{"token": "abc", "amount": float64(1000)},
+		"items":       []any{map[string]any{"password": "hidden", "status": "ok"}},
+	})
+
+	if metadata["provider"] != "payos" {
+		t.Fatalf("expected nonsensitive metadata to remain, got %+v", metadata)
+	}
+	if metadata["apiKey"] != "[redacted]" || metadata["raw_payload"] != "[redacted]" {
+		t.Fatalf("expected sensitive top-level keys redacted, got %+v", metadata)
+	}
+	items, ok := metadata["items"].([]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("expected sanitized nested list, got %+v", metadata["items"])
+	}
+	nested, ok := items[0].(map[string]any)
+	if !ok || nested["password"] != "[redacted]" || nested["status"] != "ok" {
+		t.Fatalf("expected nested sensitive key redacted, got %+v", nested)
 	}
 }

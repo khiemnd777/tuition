@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -81,5 +83,102 @@ func TestNotificationRecipientSummaryCountsInvoiceTotalsOnce(t *testing.T) {
 	}
 	if summary.AlreadySent != 1 {
 		t.Fatalf("expected one already-sent recipient, got %d", summary.AlreadySent)
+	}
+}
+
+func TestNotificationRecipientSummaryTracksRetryAndQRState(t *testing.T) {
+	recipients := []notificationRecipientCandidate{
+		{InvoiceID: "invoice-1", Amount: 1200, OutstandingAmount: 1000, RecipientEmail: "one@example.com", QRReady: true},
+		{InvoiceID: "invoice-2", Amount: 2000, PaidAmount: 500, RecipientEmail: "two@example.com", Status: "error", RetryEligible: true},
+		{InvoiceID: "invoice-3", Amount: 3000, PaidAmount: 3000, RecipientEmail: "three@example.com", LastLogStatus: "error", RetryEligible: true},
+	}
+
+	summary := summarizeNotificationRecipients(recipients)
+	if summary.QRMissingCount != 2 {
+		t.Fatalf("expected two missing QR recipients, got %d", summary.QRMissingCount)
+	}
+	if summary.ErrorCount != 2 {
+		t.Fatalf("expected two error recipients, got %d", summary.ErrorCount)
+	}
+	if summary.RetryEligibleCount != 2 {
+		t.Fatalf("expected two retry-eligible recipients, got %d", summary.RetryEligibleCount)
+	}
+	if summary.UnpaidAmount != 2500 {
+		t.Fatalf("expected unpaid amount 2500, got %d", summary.UnpaidAmount)
+	}
+}
+
+func TestFilterNotificationRecipientsForSend(t *testing.T) {
+	recipients := []notificationRecipientCandidate{
+		{ID: "recipient-1", RecipientEmail: "one@example.com"},
+		{ID: "recipient-2", RecipientEmail: "two@example.com"},
+		{ID: "recipient-3", RecipientEmail: "three@example.com"},
+	}
+
+	filtered := filterNotificationRecipientsForSend(recipients, []string{"recipient-2", "recipient-2", "missing", ""})
+	if len(filtered) != 1 {
+		t.Fatalf("expected one filtered recipient, got %+v", filtered)
+	}
+	if filtered[0].ID != "recipient-2" {
+		t.Fatalf("expected recipient-2, got %+v", filtered[0])
+	}
+
+	unfiltered := filterNotificationRecipientsForSend(recipients, nil)
+	if len(unfiltered) != len(recipients) {
+		t.Fatalf("expected unfiltered recipients, got %+v", unfiltered)
+	}
+}
+
+func TestSelectNotificationPreviewRecipient(t *testing.T) {
+	recipients := []notificationRecipientCandidate{
+		{ID: "recipient-1", InvoiceID: "invoice-1", RecipientEmail: "one@example.com"},
+		{ID: "recipient-2", InvoiceID: "invoice-2", RecipientEmail: "two@example.com"},
+	}
+
+	selected, ok := selectNotificationPreviewRecipient(recipients, "", "invoice-2", "TWO@example.com")
+	if !ok {
+		t.Fatal("expected recipient selection by invoice and email")
+	}
+	if selected.ID != "recipient-2" {
+		t.Fatalf("expected recipient-2, got %+v", selected)
+	}
+
+	selected, ok = selectNotificationPreviewRecipient(recipients, "", "", "")
+	if !ok || selected.ID != "recipient-1" {
+		t.Fatalf("expected first recipient fallback, got %+v ok=%v", selected, ok)
+	}
+}
+
+func TestDecodeNotificationEmailPreviewInputNormalizesCampaignFields(t *testing.T) {
+	req := httptest.NewRequest("POST", "/api/v1/notifications/campaigns/email-preview", strings.NewReader(`{
+		"campaignId": " campaign-1 ",
+		"campaignType": "reminder",
+		"invoiceStatus": "partial",
+		"forceResend": true,
+		"recipientIds": [" recipient-1 ", "recipient-1", ""],
+		"recipientId": " recipient-2 ",
+		"invoiceId": " invoice-1 ",
+		"recipientEmail": "Parent@Example.COM "
+	}`))
+	rr := httptest.NewRecorder()
+
+	input, ok := decodeNotificationEmailPreviewInput(rr, req)
+	if !ok {
+		t.Fatalf("expected decode to succeed, status %d body %q", rr.Code, rr.Body.String())
+	}
+	if input.CampaignID != "campaign-1" {
+		t.Fatalf("expected campaign id to be normalized, got %q", input.CampaignID)
+	}
+	if input.CampaignType != notificationCampaignReminder {
+		t.Fatalf("expected reminder campaign type, got %q", input.CampaignType)
+	}
+	if !input.ForceResend {
+		t.Fatal("expected forceResend to decode")
+	}
+	if len(input.RecipientIDs) != 1 || input.RecipientIDs[0] != "recipient-1" {
+		t.Fatalf("expected recipient IDs to be normalized, got %+v", input.RecipientIDs)
+	}
+	if input.RecipientID != "recipient-2" || input.InvoiceID != "invoice-1" || input.RecipientEmail != "parent@example.com" {
+		t.Fatalf("expected recipient selectors to be normalized, got %+v", input)
 	}
 }

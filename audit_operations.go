@@ -54,9 +54,17 @@ type auditLogSummary struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
+type auditLogCommandSummary struct {
+	TotalCount       int `json:"totalCount"`
+	MoneyActionCount int `json:"moneyActionCount"`
+	FeeActionCount   int `json:"feeActionCount"`
+	UserActionCount  int `json:"userActionCount"`
+}
+
 type auditLogFilters struct {
 	Action     string
 	EntityType string
+	EntityID   string
 	Limit      int
 }
 
@@ -86,10 +94,25 @@ type operationLogSummary struct {
 	Metadata   map[string]any `json:"metadata,omitempty"`
 }
 
+type operationLogCommandSummary struct {
+	TotalCount              int `json:"totalCount"`
+	ErrorCount              int `json:"errorCount"`
+	WarnCount               int `json:"warnCount"`
+	InfoCount               int `json:"infoCount"`
+	WebhookErrorCount       int `json:"webhookErrorCount"`
+	EmailErrorCount         int `json:"emailErrorCount"`
+	CronErrorCount          int `json:"cronErrorCount"`
+	BackgroundJobErrorCount int `json:"backgroundJobErrorCount"`
+}
+
 type operationLogFilters struct {
-	Source string
-	Level  string
-	Limit  int
+	Source     string
+	Level      string
+	Operation  string
+	Status     string
+	EntityType string
+	EntityID   string
+	Limit      int
 }
 
 func auditContextFromRequest(r *http.Request) requestAuditContext {
@@ -234,13 +257,14 @@ func handleAdminAuditLogs(w http.ResponseWriter, r *http.Request) {
 	logs, err := listAuditLogs(r.Context(), db, auditLogFilters{
 		Action:     strings.TrimSpace(r.URL.Query().Get("action")),
 		EntityType: strings.TrimSpace(r.URL.Query().Get("entityType")),
+		EntityID:   strings.TrimSpace(r.URL.Query().Get("entityId")),
 		Limit:      parsePositiveInt(r.URL.Query().Get("limit"), defaultAuditLogLimit),
 	})
 	if err != nil {
 		http.Error(w, "cannot load audit logs", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"logs": logs})
+	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "summary": buildAuditLogCommandSummary(logs)})
 }
 
 func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
@@ -252,15 +276,19 @@ func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	logs, err := listOperationLogs(r.Context(), db, operationLogFilters{
-		Source: headerKey(r.URL.Query().Get("source")),
-		Level:  headerKey(r.URL.Query().Get("level")),
-		Limit:  parsePositiveInt(r.URL.Query().Get("limit"), defaultOperationLogLimit),
+		Source:     headerKey(r.URL.Query().Get("source")),
+		Level:      headerKey(r.URL.Query().Get("level")),
+		Operation:  strings.TrimSpace(r.URL.Query().Get("operation")),
+		Status:     headerKey(r.URL.Query().Get("status")),
+		EntityType: strings.TrimSpace(r.URL.Query().Get("entityType")),
+		EntityID:   strings.TrimSpace(r.URL.Query().Get("entityId")),
+		Limit:      parsePositiveInt(r.URL.Query().Get("limit"), defaultOperationLogLimit),
 	})
 	if err != nil {
 		http.Error(w, "cannot load operation logs", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"logs": logs})
+	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "summary": buildOperationLogCommandSummary(logs)})
 }
 
 func listAuditLogs(ctx context.Context, db *sql.DB, filters auditLogFilters) ([]auditLogSummary, error) {
@@ -275,6 +303,9 @@ func listAuditLogs(ctx context.Context, db *sql.DB, filters auditLogFilters) ([]
 	}
 	if filters.EntityType != "" {
 		conditions = append(conditions, "entity_type = "+addArg(filters.EntityType))
+	}
+	if filters.EntityID != "" {
+		conditions = append(conditions, "entity_id = "+addArg(filters.EntityID)+"::uuid")
 	}
 	limit := filters.Limit
 	if limit <= 0 {
@@ -327,7 +358,7 @@ LIMIT `+limitArg, args...)
 		); err != nil {
 			return nil, err
 		}
-		item.Metadata = decodeMetadata(metadataBytes)
+		item.Metadata = sanitizeLogMetadata(decodeMetadata(metadataBytes))
 		logs = append(logs, item)
 	}
 	return logs, rows.Err()
@@ -345,6 +376,18 @@ func listOperationLogs(ctx context.Context, db *sql.DB, filters operationLogFilt
 	}
 	if filters.Level != "" {
 		conditions = append(conditions, "level = "+addArg(filters.Level))
+	}
+	if filters.Operation != "" {
+		conditions = append(conditions, "operation = "+addArg(filters.Operation))
+	}
+	if filters.Status != "" {
+		conditions = append(conditions, "status = "+addArg(filters.Status))
+	}
+	if filters.EntityType != "" {
+		conditions = append(conditions, "entity_type = "+addArg(filters.EntityType))
+	}
+	if filters.EntityID != "" {
+		conditions = append(conditions, "entity_id = "+addArg(filters.EntityID)+"::uuid")
 	}
 	limit := filters.Limit
 	if limit <= 0 {
@@ -395,10 +438,92 @@ LIMIT `+limitArg, args...)
 		); err != nil {
 			return nil, err
 		}
-		item.Metadata = decodeMetadata(metadataBytes)
+		item.Metadata = sanitizeLogMetadata(decodeMetadata(metadataBytes))
 		logs = append(logs, item)
 	}
 	return logs, rows.Err()
+}
+
+func buildOperationLogCommandSummary(logs []operationLogSummary) operationLogCommandSummary {
+	var summary operationLogCommandSummary
+	for _, log := range logs {
+		summary.TotalCount++
+		switch log.Level {
+		case "error":
+			summary.ErrorCount++
+			switch {
+			case log.Source == "webhook":
+				summary.WebhookErrorCount++
+			case log.Source == "email":
+				summary.EmailErrorCount++
+			case log.Source == "background_job" && strings.HasPrefix(log.Operation, "email.cron."):
+				summary.CronErrorCount++
+			case log.Source == "background_job":
+				summary.BackgroundJobErrorCount++
+			}
+		case "warn":
+			summary.WarnCount++
+		case "info":
+			summary.InfoCount++
+		}
+	}
+	return summary
+}
+
+func buildAuditLogCommandSummary(logs []auditLogSummary) auditLogCommandSummary {
+	var summary auditLogCommandSummary
+	for _, log := range logs {
+		summary.TotalCount++
+		switch log.EntityType {
+		case "manual_cash_receipt", "payment_transaction", "reconciliation_match":
+			summary.MoneyActionCount++
+		case "fee_schedule", "student_fee_adjustment":
+			summary.FeeActionCount++
+		case "app_user", "app_role":
+			summary.UserActionCount++
+		}
+	}
+	return summary
+}
+
+func sanitizeLogMetadata(metadata map[string]any) map[string]any {
+	if len(metadata) == 0 {
+		return map[string]any{}
+	}
+	sanitized := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		if isSensitiveLogMetadataKey(key) {
+			sanitized[key] = "[redacted]"
+			continue
+		}
+		sanitized[key] = sanitizeLogMetadataValue(value)
+	}
+	return sanitized
+}
+
+func sanitizeLogMetadataValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return sanitizeLogMetadata(typed)
+	case []any:
+		items := make([]any, 0, len(typed))
+		for _, item := range typed {
+			items = append(items, sanitizeLogMetadataValue(item))
+		}
+		return items
+	default:
+		return value
+	}
+}
+
+func isSensitiveLogMetadataKey(key string) bool {
+	normalized := strings.ToLower(strings.NewReplacer("-", "", "_", "", " ", "").Replace(key))
+	for _, token := range []string{"password", "secret", "token", "apikey", "authorization", "credential", "checksum", "privatekey", "rawpayload"} {
+		if strings.Contains(normalized, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func decodeMetadata(data []byte) map[string]any {

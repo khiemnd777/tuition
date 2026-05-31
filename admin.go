@@ -19,6 +19,7 @@ type adminFilters struct {
 	PeriodCode   string
 	Month        int
 	Status       string
+	Provider     string
 }
 
 type adminDashboardResponse struct {
@@ -31,12 +32,14 @@ type adminDashboardResponse struct {
 }
 
 type adminReportsResponse struct {
-	Options        masterDataOptions       `json:"options"`
-	Filters        adminFiltersPublic      `json:"filters"`
-	Summary        adminDashboardSummary   `json:"summary"`
-	ClassRows      []adminClassReportRow   `json:"classRows"`
-	InvoiceRows    []adminInvoiceReportRow `json:"invoiceRows"`
-	TransactionRow []adminTransactionRow   `json:"transactionRows"`
+	Options        masterDataOptions           `json:"options"`
+	Providers      []paymentProvider           `json:"providers"`
+	Filters        adminFiltersPublic          `json:"filters"`
+	Summary        adminDashboardSummary       `json:"summary"`
+	ClassRows      []adminClassReportRow       `json:"classRows"`
+	InvoiceRows    []adminInvoiceReportRow     `json:"invoiceRows"`
+	TransactionRow []adminTransactionRow       `json:"transactionRows"`
+	Transactions   []paymentTransactionSummary `json:"transactions"`
 }
 
 type adminFiltersPublic struct {
@@ -47,6 +50,7 @@ type adminFiltersPublic struct {
 	PeriodCode   string `json:"periodCode,omitempty"`
 	Month        int    `json:"month,omitempty"`
 	Status       string `json:"status,omitempty"`
+	Provider     string `json:"provider,omitempty"`
 }
 
 type adminDashboardSummary struct {
@@ -198,25 +202,33 @@ func handleAdminReports(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load admin options", http.StatusInternalServerError)
 		return
 	}
+	providers, err := listPaymentProviders(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load report providers", http.StatusInternalServerError)
+		return
+	}
 	filters := parseAdminFilters(r)
 	invoices, err := listAdminInvoiceRows(r.Context(), db, filters, 1000)
 	if err != nil {
 		http.Error(w, "cannot load report invoices", http.StatusInternalServerError)
 		return
 	}
-	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{Limit: 1000})
+	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{Provider: filters.Provider, Limit: 1000})
 	if err != nil {
 		http.Error(w, "cannot load report transactions", http.StatusInternalServerError)
 		return
 	}
+	transactions = filterAdminReportTransactions(invoices, transactions, filters)
 
 	writeJSON(w, http.StatusOK, adminReportsResponse{
 		Options:        options,
+		Providers:      providers,
 		Filters:        filters.public(),
 		Summary:        buildAdminDashboardSummary(invoices, transactions),
 		ClassRows:      buildAdminClassReportRows(invoices),
 		InvoiceRows:    invoices,
 		TransactionRow: buildAdminTransactionRows(transactions),
+		Transactions:   transactions,
 	})
 }
 
@@ -352,6 +364,7 @@ func parseAdminFilters(r *http.Request) adminFilters {
 		PeriodCode:   strings.TrimSpace(query.Get("periodCode")),
 		Month:        parsePositiveInt(query.Get("month"), 0),
 		Status:       headerKey(query.Get("status")),
+		Provider:     headerKey(query.Get("provider")),
 	}
 }
 
@@ -364,6 +377,7 @@ func (filters adminFilters) public() adminFiltersPublic {
 		PeriodCode:   filters.PeriodCode,
 		Month:        filters.Month,
 		Status:       filters.Status,
+		Provider:     filters.Provider,
 	}
 }
 
@@ -421,13 +435,53 @@ SELECT i.id::text,
 	i.issued_at,
 	i.due_date,
 	i.status,
+	i.base_amount,
+	i.adjustment_amount,
 	i.total_amount,
 	i.paid_amount,
+	GREATEST(i.total_amount - i.paid_amount, 0),
 	i.collection_bank_bin,
 	i.collection_bank_account,
 	i.qr_bill_number,
-	i.qr_note
+	i.qr_note,
+	COALESCE(item_counts.item_count, 0),
+	COALESCE(adjustment_counts.adjustment_count, 0),
+	COALESCE(intent_counts.intent_count, 0),
+	COALESCE(match_counts.match_count, 0),
+	COALESCE(notification_counts.sent_count, 0),
+	notification_counts.last_sent_at,
+	(i.qr_bill_number <> '' AND i.collection_bank_bin <> '' AND i.collection_bank_account <> ''),
+	true
 FROM invoices i
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS item_count
+	FROM invoice_items
+	GROUP BY invoice_id
+) item_counts ON item_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS adjustment_count
+	FROM invoice_adjustments
+	GROUP BY invoice_id
+) adjustment_counts ON adjustment_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS intent_count
+	FROM payment_intents
+	WHERE status NOT IN ('cancelled', 'expired', 'failed')
+	GROUP BY invoice_id
+) intent_counts ON intent_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS match_count
+	FROM reconciliation_matches
+	WHERE status = 'matched'
+	GROUP BY invoice_id
+) match_counts ON match_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS sent_count, MAX(sent_at) AS last_sent_at
+	FROM notification_logs
+	WHERE status = 'sent'
+		AND NOT dry_run
+	GROUP BY invoice_id
+) notification_counts ON notification_counts.invoice_id = i.id
 WHERE ` + strings.Join(conditions, " AND ") + `
 ORDER BY i.period_code DESC, i.class_name, i.student_code
 LIMIT ` + limitArg
@@ -443,6 +497,7 @@ LIMIT ` + limitArg
 		var invoice adminInvoiceReportRow
 		var month sql.NullInt64
 		var dueDate sql.NullTime
+		var lastSentAt sql.NullTime
 		if err := rows.Scan(
 			&invoice.ID,
 			&invoice.InvoiceCode,
@@ -459,12 +514,23 @@ LIMIT ` + limitArg
 			&invoice.IssuedAt,
 			&dueDate,
 			&invoice.Status,
+			&invoice.BaseAmount,
+			&invoice.AdjustmentAmount,
 			&invoice.TotalAmount,
 			&invoice.PaidAmount,
+			&invoice.OutstandingAmount,
 			&invoice.CollectionBankBIN,
 			&invoice.CollectionBankAccount,
 			&invoice.QRBillNumber,
 			&invoice.QRNote,
+			&invoice.ItemCount,
+			&invoice.AdjustmentCount,
+			&invoice.PaymentIntentCount,
+			&invoice.MatchedPaymentCount,
+			&invoice.SentCount,
+			&lastSentAt,
+			&invoice.QRReady,
+			&invoice.PDFReady,
 		); err != nil {
 			return nil, err
 		}
@@ -474,7 +540,10 @@ LIMIT ` + limitArg
 		if dueDate.Valid {
 			invoice.DueDate = dueDate.Time.Format("2006-01-02")
 		}
-		invoice.OutstandingAmount = outstandingAmount(invoice.TotalAmount, invoice.PaidAmount)
+		if lastSentAt.Valid {
+			invoice.LastSentAt = lastSentAt.Time.UTC().Format(time.RFC3339)
+		}
+		invoice.IssueState = invoiceSummaryIssueState(invoice.invoiceSummary)
 		invoices = append(invoices, invoice)
 	}
 	return invoices, rows.Err()

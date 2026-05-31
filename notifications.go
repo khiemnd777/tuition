@@ -33,20 +33,21 @@ type notificationTemplate struct {
 }
 
 type notificationCampaignInput struct {
-	ID            string `json:"id,omitempty"`
-	CampaignID    string `json:"campaignId,omitempty"`
-	Name          string `json:"name"`
-	CampaignType  string `json:"campaignType"`
-	TemplateID    string `json:"templateId"`
-	SchoolYearID  string `json:"schoolYearId,omitempty"`
-	ClassID       string `json:"classId,omitempty"`
-	Grade         string `json:"grade,omitempty"`
-	PeriodCode    string `json:"periodCode,omitempty"`
-	InvoiceStatus string `json:"invoiceStatus,omitempty"`
-	DueOnOrBefore string `json:"dueOnOrBefore,omitempty"`
-	DryRun        bool   `json:"dryRun,omitempty"`
-	ForceResend   bool   `json:"forceResend,omitempty"`
-	ConfirmSend   bool   `json:"confirmSend,omitempty"`
+	ID            string   `json:"id,omitempty"`
+	CampaignID    string   `json:"campaignId,omitempty"`
+	Name          string   `json:"name"`
+	CampaignType  string   `json:"campaignType"`
+	TemplateID    string   `json:"templateId"`
+	SchoolYearID  string   `json:"schoolYearId,omitempty"`
+	ClassID       string   `json:"classId,omitempty"`
+	Grade         string   `json:"grade,omitempty"`
+	PeriodCode    string   `json:"periodCode,omitempty"`
+	InvoiceStatus string   `json:"invoiceStatus,omitempty"`
+	DueOnOrBefore string   `json:"dueOnOrBefore,omitempty"`
+	DryRun        bool     `json:"dryRun,omitempty"`
+	ForceResend   bool     `json:"forceResend,omitempty"`
+	ConfirmSend   bool     `json:"confirmSend,omitempty"`
+	RecipientIDs  []string `json:"recipientIds,omitempty"`
 }
 
 type notificationCampaignSummary struct {
@@ -74,35 +75,44 @@ type notificationCampaignSummary struct {
 }
 
 type notificationRecipientCandidate struct {
-	ID             string `json:"id,omitempty"`
-	CampaignID     string `json:"campaignId,omitempty"`
-	InvoiceID      string `json:"invoiceId"`
-	ParentID       string `json:"parentId,omitempty"`
-	RecipientName  string `json:"recipientName"`
-	RecipientEmail string `json:"recipientEmail"`
-	InvoiceCode    string `json:"invoiceCode"`
-	StudentCode    string `json:"studentCode"`
-	StudentName    string `json:"studentName"`
-	ClassName      string `json:"className"`
-	Grade          string `json:"grade"`
-	SchoolYearID   string `json:"schoolYearId"`
-	SchoolYearCode string `json:"schoolYearCode"`
-	PeriodCode     string `json:"periodCode"`
-	DueDate        string `json:"dueDate,omitempty"`
-	InvoiceStatus  string `json:"invoiceStatus"`
-	Amount         int    `json:"amount"`
-	PaidAmount     int    `json:"paidAmount"`
-	Status         string `json:"status,omitempty"`
-	LastError      string `json:"lastError,omitempty"`
-	AlreadySent    bool   `json:"alreadySent,omitempty"`
+	ID                string `json:"id,omitempty"`
+	CampaignID        string `json:"campaignId,omitempty"`
+	InvoiceID         string `json:"invoiceId"`
+	ParentID          string `json:"parentId,omitempty"`
+	RecipientName     string `json:"recipientName"`
+	RecipientEmail    string `json:"recipientEmail"`
+	InvoiceCode       string `json:"invoiceCode"`
+	StudentCode       string `json:"studentCode"`
+	StudentName       string `json:"studentName"`
+	ClassName         string `json:"className"`
+	Grade             string `json:"grade"`
+	SchoolYearID      string `json:"schoolYearId"`
+	SchoolYearCode    string `json:"schoolYearCode"`
+	PeriodCode        string `json:"periodCode"`
+	DueDate           string `json:"dueDate,omitempty"`
+	InvoiceStatus     string `json:"invoiceStatus"`
+	Amount            int    `json:"amount"`
+	PaidAmount        int    `json:"paidAmount"`
+	OutstandingAmount int    `json:"outstandingAmount"`
+	Status            string `json:"status,omitempty"`
+	LastError         string `json:"lastError,omitempty"`
+	AlreadySent       bool   `json:"alreadySent,omitempty"`
+	QRReady           bool   `json:"qrReady"`
+	SendCount         int    `json:"sendCount"`
+	LastSentAt        string `json:"lastSentAt,omitempty"`
+	LastLogStatus     string `json:"lastLogStatus,omitempty"`
+	RetryEligible     bool   `json:"retryEligible,omitempty"`
 }
 
 type notificationRecipientSummary struct {
-	InvoiceCount   int `json:"invoiceCount"`
-	RecipientCount int `json:"recipientCount"`
-	TotalAmount    int `json:"totalAmount"`
-	UnpaidAmount   int `json:"unpaidAmount"`
-	AlreadySent    int `json:"alreadySent"`
+	InvoiceCount       int `json:"invoiceCount"`
+	RecipientCount     int `json:"recipientCount"`
+	TotalAmount        int `json:"totalAmount"`
+	UnpaidAmount       int `json:"unpaidAmount"`
+	AlreadySent        int `json:"alreadySent"`
+	QRMissingCount     int `json:"qrMissingCount"`
+	ErrorCount         int `json:"errorCount"`
+	RetryEligibleCount int `json:"retryEligibleCount"`
 }
 
 type notificationIssue struct {
@@ -148,6 +158,23 @@ type notificationSendResponse struct {
 	Summary  notificationRecipientSummary `json:"summary"`
 	Results  []emailSendResult            `json:"results"`
 	Logs     []notificationLogSummary     `json:"logs"`
+}
+
+type notificationEmailPreviewInput struct {
+	notificationCampaignInput
+	RecipientID    string `json:"recipientId,omitempty"`
+	InvoiceID      string `json:"invoiceId,omitempty"`
+	RecipientEmail string `json:"recipientEmail,omitempty"`
+}
+
+type notificationEmailPreviewResponse struct {
+	Subject   string                         `json:"subject"`
+	HTML      string                         `json:"html"`
+	Text      string                         `json:"text"`
+	To        string                         `json:"to"`
+	Template  notificationTemplate           `json:"template"`
+	Recipient notificationRecipientCandidate `json:"recipient"`
+	QRReady   bool                           `json:"qrReady"`
 }
 
 func handleNotificationOptions(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +253,75 @@ func handleNotificationCampaignPreview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, preview)
 }
 
+func handleNotificationCampaignEmailPreview(w http.ResponseWriter, r *http.Request) {
+	req, ok := decodeNotificationEmailPreviewInput(w, r)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	input := req.notificationCampaignInput
+	if input.CampaignID != "" {
+		stored, err := loadNotificationCampaignInput(r.Context(), db, input.CampaignID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		stored.ForceResend = input.ForceResend
+		input = stored
+	}
+	template, err := loadNotificationTemplateForInput(r.Context(), db, input)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	recipients, err := notificationPreviewRecipientsForEmailPreview(r.Context(), db, input, template)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	recipient, ok := selectNotificationPreviewRecipient(recipients, req.RecipientID, req.InvoiceID, req.RecipientEmail)
+	if !ok {
+		http.Error(w, "notification recipient not found", http.StatusBadRequest)
+		return
+	}
+	invoice, err := loadInvoiceDocument(r.Context(), db, recipient.InvoiceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cfg, err := loadEmailConfig()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	emailCfg := notificationEmailConfig(cfg, template, invoice)
+	item := buildQRItem(notificationPaymentRow(invoice, recipient), 512)
+	if len(item.Errors) > 0 {
+		http.Error(w, strings.Join(item.Errors, "; "), http.StatusBadRequest)
+		return
+	}
+	email, err := renderPaymentEmail(emailCfg, item, template.EmailTemplate, appBaseURL(r, emailCfg), "data")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, notificationEmailPreviewResponse{
+		Subject:   email.Subject,
+		HTML:      email.HTML,
+		Text:      email.Text,
+		To:        item.Email,
+		Template:  template,
+		Recipient: recipient,
+		QRReady:   recipient.QRReady,
+	})
+}
+
 func handleNotificationCampaignSave(w http.ResponseWriter, r *http.Request) {
 	input, ok := decodeNotificationCampaignInput(w, r)
 	if !ok {
@@ -266,6 +362,7 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	recipientIDs := input.RecipientIDs
 	if !input.DryRun && !input.ConfirmSend {
 		http.Error(w, "confirmSend is required for real notification sends", http.StatusBadRequest)
 		return
@@ -287,6 +384,7 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 		stored.DryRun = input.DryRun
 		stored.ForceResend = input.ForceResend
 		stored.ConfirmSend = input.ConfirmSend
+		stored.RecipientIDs = recipientIDs
 		input = stored
 	}
 
@@ -312,7 +410,12 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load notification recipients", http.StatusInternalServerError)
 		return
 	}
+	recipients = filterNotificationRecipientsForSend(recipients, input.RecipientIDs)
 	if len(recipients) == 0 {
+		if len(input.RecipientIDs) > 0 {
+			http.Error(w, "selected notification recipients were not found", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "campaign has no recipients", http.StatusBadRequest)
 		return
 	}
@@ -377,6 +480,20 @@ func decodeNotificationCampaignInput(w http.ResponseWriter, r *http.Request) (no
 	return normalizeNotificationCampaignInput(input), true
 }
 
+func decodeNotificationEmailPreviewInput(w http.ResponseWriter, r *http.Request) (notificationEmailPreviewInput, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+	var input notificationEmailPreviewInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return input, false
+	}
+	input.notificationCampaignInput = normalizeNotificationCampaignInput(input.notificationCampaignInput)
+	input.RecipientID = strings.TrimSpace(input.RecipientID)
+	input.InvoiceID = strings.TrimSpace(input.InvoiceID)
+	input.RecipientEmail = strings.ToLower(strings.TrimSpace(input.RecipientEmail))
+	return input, true
+}
+
 func buildNotificationPreview(ctx context.Context, input notificationCampaignInput) (notificationPreviewResponse, error) {
 	db, err := openMasterDataDatabase(ctx)
 	if err != nil {
@@ -427,6 +544,7 @@ func normalizeNotificationCampaignInput(input notificationCampaignInput) notific
 	input.PeriodCode = strings.TrimSpace(input.PeriodCode)
 	input.InvoiceStatus = headerKey(input.InvoiceStatus)
 	input.DueOnOrBefore = strings.TrimSpace(input.DueOnOrBefore)
+	input.RecipientIDs = normalizeStringList(input.RecipientIDs)
 	if input.Name == "" {
 		label := "Thông báo thanh toán"
 		if input.CampaignType == notificationCampaignReminder {
@@ -435,6 +553,67 @@ func normalizeNotificationCampaignInput(input notificationCampaignInput) notific
 		input.Name = strings.TrimSpace(label + " " + firstNonEmpty(input.PeriodCode, time.Now().Format("2006-01-02")))
 	}
 	return input
+}
+
+func notificationPreviewRecipientsForEmailPreview(ctx context.Context, db *sql.DB, input notificationCampaignInput, template notificationTemplate) ([]notificationRecipientCandidate, error) {
+	if input.CampaignID != "" {
+		return loadNotificationRecipients(ctx, db, input.CampaignID)
+	}
+	issues := validateNotificationCampaignInput(input)
+	if len(issues) > 0 {
+		return nil, errors.New(issues[0].Message)
+	}
+	return listNotificationRecipientCandidates(ctx, db, input, template)
+}
+
+func selectNotificationPreviewRecipient(recipients []notificationRecipientCandidate, recipientID string, invoiceID string, recipientEmail string) (notificationRecipientCandidate, bool) {
+	recipientEmail = strings.ToLower(strings.TrimSpace(recipientEmail))
+	for _, recipient := range recipients {
+		if recipientID != "" && recipient.ID == recipientID {
+			return recipient, true
+		}
+		if invoiceID != "" && recipient.InvoiceID == invoiceID {
+			if recipientEmail == "" || strings.EqualFold(recipient.RecipientEmail, recipientEmail) {
+				return recipient, true
+			}
+		}
+	}
+	if recipientID == "" && invoiceID == "" && recipientEmail == "" && len(recipients) > 0 {
+		return recipients[0], true
+	}
+	return notificationRecipientCandidate{}, false
+}
+
+func normalizeStringList(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}
+
+func filterNotificationRecipientsForSend(recipients []notificationRecipientCandidate, recipientIDs []string) []notificationRecipientCandidate {
+	recipientIDs = normalizeStringList(recipientIDs)
+	if len(recipientIDs) == 0 {
+		return recipients
+	}
+	allowed := make(map[string]bool, len(recipientIDs))
+	for _, id := range recipientIDs {
+		allowed[id] = true
+	}
+	filtered := make([]notificationRecipientCandidate, 0, len(recipientIDs))
+	for _, recipient := range recipients {
+		if allowed[recipient.ID] {
+			filtered = append(filtered, recipient)
+		}
+	}
+	return filtered
 }
 
 func validateNotificationCampaignInput(input notificationCampaignInput) []notificationIssue {
@@ -615,7 +794,7 @@ func loadNotificationCampaignInput(ctx context.Context, db *sql.DB, campaignID s
 	var input notificationCampaignInput
 	var dueDate sql.NullTime
 	err := db.QueryRowContext(ctx, `
-SELECT id::text,
+SELECT r.id::text,
 	name,
 	campaign_type,
 	template_id::text,
@@ -665,6 +844,7 @@ func listNotificationRecipientCandidates(ctx context.Context, db *sql.DB, input 
 		args = append(args, value)
 		return fmt.Sprintf("$%d", len(args))
 	}
+	templateArg := addArg(template.ID)
 	if input.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(input.SchoolYearID)+"::uuid")
 	}
@@ -706,18 +886,27 @@ SELECT i.id::text,
 	i.status,
 	i.total_amount,
 	i.paid_amount,
-	EXISTS (
-		SELECT 1
-		FROM notification_logs nl
-		WHERE nl.template_id = ` + addArg(template.ID) + `::uuid
-			AND nl.invoice_id = i.id
-			AND lower(nl.recipient_email) = lower(p.email)
-			AND nl.status = 'sent'
-	) AS already_sent
+	GREATEST(i.total_amount - i.paid_amount, 0),
+	(i.qr_bill_number <> '' AND i.collection_bank_bin <> '' AND i.collection_bank_account <> ''),
+	COALESCE(log_counts.send_count, 0),
+	log_counts.last_sent_at,
+	COALESCE(log_counts.last_status, ''),
+	COALESCE(log_counts.last_error, '')
 FROM invoices i
 JOIN students s ON s.id = i.student_id
 JOIN student_parents sp ON sp.student_id = s.id
 JOIN parents p ON p.id = sp.parent_id
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (WHERE nl.status = 'sent')::integer AS send_count,
+		MAX(nl.sent_at) FILTER (WHERE nl.status = 'sent') AS last_sent_at,
+		(ARRAY_AGG(nl.status ORDER BY nl.sent_at DESC, nl.id DESC))[1] AS last_status,
+		(ARRAY_AGG(nl.error_message ORDER BY nl.sent_at DESC, nl.id DESC))[1] AS last_error
+	FROM notification_logs nl
+	WHERE nl.template_id = ` + templateArg + `::uuid
+		AND nl.invoice_id = i.id
+		AND lower(nl.recipient_email) = lower(p.email)
+) log_counts ON true
 WHERE ` + strings.Join(conditions, " AND ") + `
 ORDER BY i.period_code DESC, i.class_name, i.student_code, sp.is_primary DESC, p.full_name
 LIMIT 2000`
@@ -733,6 +922,7 @@ LIMIT 2000`
 	for rows.Next() {
 		var item notificationRecipientCandidate
 		var dueDate sql.NullTime
+		var lastSentAt sql.NullTime
 		if err := rows.Scan(
 			&item.InvoiceID,
 			&item.ParentID,
@@ -750,7 +940,12 @@ LIMIT 2000`
 			&item.InvoiceStatus,
 			&item.Amount,
 			&item.PaidAmount,
-			&item.AlreadySent,
+			&item.OutstandingAmount,
+			&item.QRReady,
+			&item.SendCount,
+			&lastSentAt,
+			&item.LastLogStatus,
+			&item.LastError,
 		); err != nil {
 			return nil, err
 		}
@@ -762,7 +957,10 @@ LIMIT 2000`
 		if dueDate.Valid {
 			item.DueDate = dueDate.Time.Format("2006-01-02")
 		}
-		item.Status = "pending"
+		if lastSentAt.Valid {
+			item.LastSentAt = lastSentAt.Time.UTC().Format(time.RFC3339)
+		}
+		item = finalizeNotificationRecipientState(item)
 		recipients = append(recipients, item)
 	}
 	return recipients, rows.Err()
@@ -852,6 +1050,26 @@ WHERE id = $1::uuid`,
 	return campaign, nil
 }
 
+func finalizeNotificationRecipientState(item notificationRecipientCandidate) notificationRecipientCandidate {
+	item.RecipientEmail = strings.ToLower(strings.TrimSpace(item.RecipientEmail))
+	if item.OutstandingAmount == 0 && item.Amount > item.PaidAmount {
+		item.OutstandingAmount = item.Amount - item.PaidAmount
+	}
+	item.AlreadySent = item.SendCount > 0 || item.AlreadySent
+	if item.Status == "" {
+		if item.AlreadySent {
+			item.Status = "already_sent"
+		} else {
+			item.Status = "pending"
+		}
+	}
+	item.RetryEligible = item.Status == "error" || item.Status == "skipped" || item.LastLogStatus == "error" || item.LastError != ""
+	if item.Status == "sent" || item.Status == "already_sent" {
+		item.RetryEligible = false
+	}
+	return item
+}
+
 func insertNotificationRecipient(ctx context.Context, exec masterDataExecutor, campaignID string, recipient notificationRecipientCandidate) error {
 	_, err := exec.ExecContext(ctx, `
 INSERT INTO notification_recipients (
@@ -900,23 +1118,47 @@ func loadNotificationCampaignSummary(ctx context.Context, db *sql.DB, campaignID
 
 func loadNotificationRecipients(ctx context.Context, db *sql.DB, campaignID string) ([]notificationRecipientCandidate, error) {
 	rows, err := db.QueryContext(ctx, `
-SELECT id::text,
-	campaign_id::text,
-	invoice_id::text,
+SELECT r.id::text,
+	r.campaign_id::text,
+	r.invoice_id::text,
 	COALESCE(parent_id::text, ''),
-	recipient_name,
-	recipient_email,
-	invoice_code,
-	student_code,
-	student_name,
-	class_name,
-	period_code,
-	amount,
-	status,
-	last_error
-FROM notification_recipients
-WHERE campaign_id = $1::uuid
-ORDER BY class_name, student_code, recipient_name`, campaignID)
+	r.recipient_name,
+	r.recipient_email,
+	r.invoice_code,
+	r.student_code,
+	r.student_name,
+	r.class_name,
+	i.grade,
+	i.school_year_id::text,
+	i.school_year_code,
+	r.period_code,
+	i.due_date,
+	i.status,
+	r.amount,
+	i.paid_amount,
+	GREATEST(r.amount - i.paid_amount, 0),
+	r.status,
+	r.last_error,
+	(i.qr_bill_number <> '' AND i.collection_bank_bin <> '' AND i.collection_bank_account <> ''),
+	COALESCE(log_counts.send_count, 0),
+	log_counts.last_sent_at,
+	COALESCE(log_counts.last_status, ''),
+	COALESCE(log_counts.last_error, '')
+FROM notification_recipients r
+JOIN invoices i ON i.id = r.invoice_id
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (WHERE nl.status = 'sent')::integer AS send_count,
+		MAX(nl.sent_at) FILTER (WHERE nl.status = 'sent') AS last_sent_at,
+		(ARRAY_AGG(nl.status ORDER BY nl.sent_at DESC, nl.id DESC))[1] AS last_status,
+		(ARRAY_AGG(nl.error_message ORDER BY nl.sent_at DESC, nl.id DESC))[1] AS last_error
+	FROM notification_logs nl
+	WHERE nl.campaign_id = r.campaign_id
+		AND nl.invoice_id = r.invoice_id
+		AND lower(nl.recipient_email) = lower(r.recipient_email)
+) log_counts ON true
+WHERE r.campaign_id = $1::uuid
+ORDER BY r.class_name, r.student_code, r.recipient_name`, campaignID)
 	if err != nil {
 		return nil, err
 	}
@@ -925,6 +1167,10 @@ ORDER BY class_name, student_code, recipient_name`, campaignID)
 	recipients := []notificationRecipientCandidate{}
 	for rows.Next() {
 		var item notificationRecipientCandidate
+		var dueDate sql.NullTime
+		var lastSentAt sql.NullTime
+		var recipientLastError string
+		var logLastError string
 		if err := rows.Scan(
 			&item.ID,
 			&item.CampaignID,
@@ -936,14 +1182,33 @@ ORDER BY class_name, student_code, recipient_name`, campaignID)
 			&item.StudentCode,
 			&item.StudentName,
 			&item.ClassName,
+			&item.Grade,
+			&item.SchoolYearID,
+			&item.SchoolYearCode,
 			&item.PeriodCode,
+			&dueDate,
+			&item.InvoiceStatus,
 			&item.Amount,
+			&item.PaidAmount,
+			&item.OutstandingAmount,
 			&item.Status,
-			&item.LastError,
+			&recipientLastError,
+			&item.QRReady,
+			&item.SendCount,
+			&lastSentAt,
+			&item.LastLogStatus,
+			&logLastError,
 		); err != nil {
 			return nil, err
 		}
-		recipients = append(recipients, item)
+		item.LastError = firstNonEmpty(recipientLastError, logLastError)
+		if dueDate.Valid {
+			item.DueDate = dueDate.Time.Format("2006-01-02")
+		}
+		if lastSentAt.Valid {
+			item.LastSentAt = lastSentAt.Time.UTC().Format(time.RFC3339)
+		}
+		recipients = append(recipients, finalizeNotificationRecipientState(item))
 	}
 	return recipients, rows.Err()
 }
@@ -1276,13 +1541,26 @@ func summarizeNotificationRecipients(recipients []notificationRecipientCandidate
 		if recipient.AlreadySent {
 			summary.AlreadySent++
 		}
+		if !recipient.QRReady {
+			summary.QRMissingCount++
+		}
+		if recipient.Status == "error" || recipient.LastLogStatus == "error" {
+			summary.ErrorCount++
+		}
+		if recipient.RetryEligible {
+			summary.RetryEligibleCount++
+		}
 		if seenInvoices[recipient.InvoiceID] {
 			continue
 		}
 		seenInvoices[recipient.InvoiceID] = true
 		summary.InvoiceCount++
 		summary.TotalAmount += recipient.Amount
-		if outstanding := recipient.Amount - recipient.PaidAmount; outstanding > 0 {
+		outstanding := recipient.OutstandingAmount
+		if outstanding == 0 && recipient.Amount > recipient.PaidAmount {
+			outstanding = recipient.Amount - recipient.PaidAmount
+		}
+		if outstanding > 0 {
 			summary.UnpaidAmount += outstanding
 		}
 	}

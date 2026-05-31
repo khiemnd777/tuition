@@ -4,15 +4,15 @@ Last updated: 2026-05-31
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, production Web Admin screens, reports/export, audit review, and operational readiness complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, and operational readiness complete.
 
 Advanced Production work is continuing through the next usability, workflow, data-relationship, reporting, and operations initiatives one initiative at a time.
 
-Current phase: `advanced_11_planned`
+Current phase: `advanced_14_planned`
 
-Current initiative: Advanced 10 - Invoice Issuance Workbench is complete.
+Current initiative: Advanced 13 - Reports, Audit, And Operations Command Center is complete.
 
-Next recommended initiative: start Advanced 11 - Communication Campaign Workbench.
+Next recommended initiative: start Advanced 14 - Responsive, Accessibility, And UI Polish.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -120,6 +120,30 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Expanded issued invoice list metadata with base/adjusted totals, outstanding amount, item/adjustment counts, payment intent/match counts, sent counts, QR/PDF readiness, and issue state.
   - Added invoice detail API and UI snapshot for immutable line items, adjustments, operational counts, PDF/QR actions, notification handoff, payment intent handoff, and status history.
   - Added invoice CSV export handoff through the existing report export API and regression tests for invoice preview idempotency.
+- Advanced 11: Communication Campaign Workbench is complete:
+  - Added notification recipient metadata for outstanding amount, QR readiness, send count, last sent time, last log status, and retry eligibility.
+  - Added selected-recipient email preview API and UI rendering for subject/HTML without sending real email.
+  - Added step-based notification workbench states for target filters, recipients, email preview, send/logs, and cron.
+  - Expanded recipient preview with parent email/name, student, invoice, outstanding amount, QR state, sent/retry state, status, and per-recipient selection.
+  - Added explicit retry selected flow using saved campaign recipients, confirm dialog, `recipientIds`, `confirmSend=true`, and `forceResend=true`.
+  - Added read-only cron snapshot in the notification workflow for enabled state, send time, daily limit, queued/sent/errors, rolling 24h sent count, next/last run, and recent results.
+  - Kept reminder paid-invoice safeguards and real-send confirmation intact, with focused tests for summary retry/QR state, recipient filtering, and email-preview recipient selection.
+- Advanced 12: Collection And Reconciliation Workbench is complete:
+  - Added school, school year, grade, class, period, provider, invoice status, and transaction status filters to the reconciliation workflow.
+  - Expanded reconciliation summary with receivable, collected, outstanding, collection rate, unpaid, partial, paid, overpaid, manual-review, and unmatched counts.
+  - Added reconciliation match metadata to transaction rows and invoice detail: match type, status, score, applied amount, reason, and matched provider reference.
+  - Added step-based reconciliation workbench states for scope, invoice ledger, transactions, match detail, and manual review.
+  - Expanded invoice ledger actions for detail, QR/payment intent, payOS when configured, cash receipt, PDF, and notification handoff.
+  - Added a manual-review queue for partial, overpaid, manual-review invoices, unmatched transactions, and transaction manual review.
+  - Preserved idempotent payment ledger behavior and added focused tests for collection summary counts and stable invoice match scope.
+- Advanced 13: Reports, Audit, And Operations Command Center is complete:
+  - Added provider-aware report filtering and provider options to the reports API.
+  - Expanded invoice report rows with outstanding amount, QR/PDF readiness, payment intent count, match count, notification sent count, and issue state.
+  - Added detailed payment transaction rows to the reports response and CSV export, including match type, match status, score, applied amount, and match reason.
+  - Expanded operation and audit log filters for operation/status/action/entity type/entity id and added command-center summary counts.
+  - Sanitized operation/audit metadata before returning it to the UI so secret-like keys and raw payloads are redacted.
+  - Added Reports UI transaction table and Operations UI summary/detail panel with sanitized metadata and workflow drilldown actions.
+  - Added focused tests for transaction export match explanation, operation grouping, and metadata redaction.
 
 ## Advanced Production Roadmap
 
@@ -135,9 +159,9 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 | Advanced 8 | Data Quality And Readiness Center | Surface blocking and warning issues before fee setup, invoice generation, notification sending, and reconciliation. | Complete |
 | Advanced 9 | Tuition Setup Guided Workflow | Guide operators from school-tree scope selection through fee items, adjustments, preview, save, audit reason, and invoice handoff. | Complete |
 | Advanced 10 | Invoice Issuance Workbench | Turn invoice generation into a step-based workbench with preview, blocking issues, idempotency visibility, QR/PDF detail, and bulk actions. | Complete |
-| Advanced 11 | Communication Campaign Workbench | Make campaign targeting, billing-recipient resolution, dry-run preview, real-send confirmation, send logs, retries, and cron queues explicit. | Planned |
-| Advanced 12 | Collection And Reconciliation Workbench | Center collection and reconciliation around invoices, payment intents, cash receipts, transaction matching, and manual-review queues. | Planned |
-| Advanced 13 | Reports, Audit, And Operations Command Center | Consolidate filtered reports, exports, audit trails, provider/email/cron failures, and operational drilldowns. | Planned |
+| Advanced 11 | Communication Campaign Workbench | Make campaign targeting, billing-recipient resolution, dry-run preview, real-send confirmation, send logs, retries, and cron queues explicit. | Complete |
+| Advanced 12 | Collection And Reconciliation Workbench | Center collection and reconciliation around invoices, payment intents, cash receipts, transaction matching, and manual-review queues. | Complete |
+| Advanced 13 | Reports, Audit, And Operations Command Center | Consolidate filtered reports, exports, audit trails, provider/email/cron failures, and operational drilldowns. | Complete |
 | Advanced 14 | Responsive, Accessibility, And UI Polish | Verify and harden all production workflows on desktop and mobile with stable layouts, dialogs, states, and accessible controls. | Planned |
 | Advanced 15 | Onboarding And Operator Guardrails | Add first-run/operator guardrails, role clarity, session recovery, risky-action confirmations, and audit-bound action context. | Planned |
 
@@ -547,6 +571,12 @@ Advanced 11 planning:
 - Cron controls should show enabled state, send time, daily limit, queued count, sent count, error count, and recent results.
 - Acceptance: operators know exactly which parent email receives which invoice before sending.
 
+Advanced 11 completion prompt:
+
+```text
+Advanced 11 is complete. Continue with Advanced 12 from docs/initiatives/current-state.md when ready.
+```
+
 Advanced 12 launch prompt:
 
 ```text
@@ -570,6 +600,12 @@ Advanced 12 planning:
 - Duplicate webhook/event should not duplicate ledger entries.
 - Acceptance: unmatched and manual-review items are easy to find and do not hide among paid invoices.
 
+Advanced 12 completion prompt:
+
+```text
+Advanced 12 is complete. Continue with Advanced 13 from docs/initiatives/current-state.md when ready.
+```
+
 Advanced 13 launch prompt:
 
 ```text
@@ -589,6 +625,12 @@ Advanced 13 planning:
 - Log detail should avoid secrets and raw credentials.
 - Drilldowns should open the related invoice, student, class, campaign, or transaction when ids are available.
 - Acceptance: operator can explain who changed data, what failed, and what still needs action.
+
+Advanced 13 completion prompt:
+
+```text
+Advanced 13 is complete. Continue with Advanced 14 from docs/initiatives/current-state.md when ready.
+```
 
 Advanced 14 launch prompt:
 
@@ -658,9 +700,6 @@ Completed:
 
 ## Not Started
 
-- Advanced 11 - Communication Campaign Workbench.
-- Advanced 12 - Collection And Reconciliation Workbench.
-- Advanced 13 - Reports, Audit, And Operations Command Center.
 - Advanced 14 - Responsive, Accessibility, And UI Polish.
 - Advanced 15 - Onboarding And Operator Guardrails.
 
@@ -696,7 +735,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-Advanced 10 is complete. Continue with Advanced 11 from docs/initiatives/current-state.md when ready.
+Advanced 13 is complete. Continue with Advanced 14 from docs/initiatives/current-state.md when ready.
 ```
 
 ## Known Safety Constraints

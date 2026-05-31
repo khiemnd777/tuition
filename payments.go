@@ -93,25 +93,53 @@ type paymentTransactionSummary struct {
 	Description           string    `json:"description,omitempty"`
 	ReferenceCode         string    `json:"referenceCode,omitempty"`
 	Status                string    `json:"status"`
+	MatchType             string    `json:"matchType,omitempty"`
+	MatchStatus           string    `json:"matchStatus,omitempty"`
+	MatchScore            int       `json:"matchScore,omitempty"`
+	AmountApplied         int       `json:"amountApplied,omitempty"`
+	MatchReason           string    `json:"matchReason,omitempty"`
 }
 
 type paymentReconciliationSummary struct {
-	InvoiceCount      int `json:"invoiceCount"`
-	TotalReceivable   int `json:"totalReceivable"`
-	TotalCollected    int `json:"totalCollected"`
-	OutstandingAmount int `json:"outstandingAmount"`
-	UnmatchedCount    int `json:"unmatchedCount"`
-	PartialCount      int `json:"partialCount"`
-	OverpaidCount     int `json:"overpaidCount"`
-	ManualReviewCount int `json:"manualReviewCount"`
+	InvoiceCount      int     `json:"invoiceCount"`
+	TotalReceivable   int     `json:"totalReceivable"`
+	TotalCollected    int     `json:"totalCollected"`
+	OutstandingAmount int     `json:"outstandingAmount"`
+	CollectionRate    float64 `json:"collectionRate"`
+	UnpaidCount       int     `json:"unpaidCount"`
+	PaidCount         int     `json:"paidCount"`
+	UnmatchedCount    int     `json:"unmatchedCount"`
+	MatchedCount      int     `json:"matchedCount"`
+	PartialCount      int     `json:"partialCount"`
+	OverpaidCount     int     `json:"overpaidCount"`
+	ManualReviewCount int     `json:"manualReviewCount"`
+}
+
+type paymentMatchSummary struct {
+	ID                    string    `json:"id"`
+	InvoiceID             string    `json:"invoiceId"`
+	InvoiceCode           string    `json:"invoiceCode"`
+	TransactionID         string    `json:"transactionId"`
+	ProviderCode          string    `json:"provider"`
+	ProviderTransactionID string    `json:"providerTransactionId,omitempty"`
+	MatchType             string    `json:"matchType"`
+	Status                string    `json:"status"`
+	Score                 int       `json:"score"`
+	AmountApplied         int       `json:"amountApplied"`
+	Reason                string    `json:"reason,omitempty"`
+	CreatedAt             time.Time `json:"createdAt"`
 }
 
 type paymentReconciliationResponse struct {
-	Providers    []paymentProvider               `json:"providers"`
-	Summary      paymentReconciliationSummary    `json:"summary"`
-	Invoices     []invoiceSummary                `json:"invoices"`
-	Transactions []paymentTransactionSummary     `json:"transactions"`
-	Intents      map[string]paymentIntentSummary `json:"intents,omitempty"`
+	Providers    []paymentProvider                `json:"providers"`
+	Schools      []masterDataSchoolOption         `json:"schools,omitempty"`
+	SchoolYears  []masterDataSchoolYearOption     `json:"schoolYears,omitempty"`
+	Classes      []masterDataClassOption          `json:"classes,omitempty"`
+	Summary      paymentReconciliationSummary     `json:"summary"`
+	Invoices     []invoiceSummary                 `json:"invoices"`
+	Transactions []paymentTransactionSummary      `json:"transactions"`
+	Intents      map[string]paymentIntentSummary  `json:"intents,omitempty"`
+	Matches      map[string][]paymentMatchSummary `json:"matches,omitempty"`
 }
 
 type paymentTransactionListFilters struct {
@@ -300,9 +328,15 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load payment providers", http.StatusInternalServerError)
 		return
 	}
+	options, err := listMasterDataOptions(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load master data options", http.StatusInternalServerError)
+		return
+	}
 
 	query := r.URL.Query()
 	invoices, err := listInvoiceSummaries(r.Context(), db, invoiceListFilters{
+		SchoolID:     strings.TrimSpace(query.Get("schoolId")),
 		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
 		ClassID:      strings.TrimSpace(query.Get("classId")),
 		Grade:        normalizeGrade(query.Get("grade")),
@@ -329,13 +363,22 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load payment intents", http.StatusInternalServerError)
 		return
 	}
+	matches, err := listPaymentMatchesByInvoice(r.Context(), db, invoiceIDsFromSummaries(invoices))
+	if err != nil {
+		http.Error(w, "cannot load reconciliation matches", http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, paymentReconciliationResponse{
 		Providers:    providers,
+		Schools:      options.Schools,
+		SchoolYears:  options.SchoolYears,
+		Classes:      options.Classes,
 		Summary:      summarizePaymentReconciliation(invoices, transactions),
 		Invoices:     invoices,
 		Transactions: transactions,
 		Intents:      intents,
+		Matches:      matches,
 	})
 }
 
@@ -753,10 +796,23 @@ SELECT pt.id::text,
 	pt.bank_name,
 	pt.description,
 	pt.reference_code,
-	pt.status
+	pt.status,
+	COALESCE(match_detail.match_type, ''),
+	COALESCE(match_detail.status, ''),
+	COALESCE(match_detail.score, 0),
+	COALESCE(match_detail.amount_applied, 0),
+	COALESCE(match_detail.reason, '')
 FROM payment_transactions pt
 JOIN payment_providers pp ON pp.id = pt.provider_id
 LEFT JOIN invoices i ON i.id = pt.invoice_id
+LEFT JOIN LATERAL (
+	SELECT rm.match_type, rm.status, rm.score, rm.amount_applied, rm.reason
+	FROM reconciliation_matches rm
+	WHERE rm.transaction_id = pt.id
+		AND rm.status <> 'reversed'
+	ORDER BY CASE WHEN rm.status = 'matched' THEN 0 ELSE 1 END, rm.created_at DESC
+	LIMIT 1
+) match_detail ON true
 WHERE ` + strings.Join(conditions, " AND ") + `
 ORDER BY pt.transaction_time DESC, pt.created_at DESC
 LIMIT ` + limitArg
@@ -787,12 +843,87 @@ LIMIT ` + limitArg
 			&item.Description,
 			&item.ReferenceCode,
 			&item.Status,
+			&item.MatchType,
+			&item.MatchStatus,
+			&item.MatchScore,
+			&item.AmountApplied,
+			&item.MatchReason,
 		); err != nil {
 			return nil, err
 		}
 		transactions = append(transactions, item)
 	}
 	return transactions, rows.Err()
+}
+
+func invoiceIDsFromSummaries(invoices []invoiceSummary) []string {
+	ids := make([]string, 0, len(invoices))
+	for _, invoice := range invoices {
+		id := strings.TrimSpace(invoice.ID)
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func listPaymentMatchesByInvoice(ctx context.Context, db *sql.DB, invoiceIDs []string) (map[string][]paymentMatchSummary, error) {
+	matches := map[string][]paymentMatchSummary{}
+	invoiceIDs = normalizeStringList(invoiceIDs)
+	if len(invoiceIDs) == 0 {
+		return matches, nil
+	}
+	args := make([]any, 0, len(invoiceIDs))
+	placeholders := make([]string, 0, len(invoiceIDs))
+	for _, id := range invoiceIDs {
+		args = append(args, id)
+		placeholders = append(placeholders, fmt.Sprintf("$%d::uuid", len(args)))
+	}
+	rows, err := db.QueryContext(ctx, `
+SELECT rm.id::text,
+	rm.invoice_id::text,
+	i.invoice_code,
+	rm.transaction_id::text,
+	pp.code,
+	pt.provider_transaction_id,
+	rm.match_type,
+	rm.status,
+	rm.score,
+	rm.amount_applied,
+	rm.reason,
+	rm.created_at
+FROM reconciliation_matches rm
+JOIN invoices i ON i.id = rm.invoice_id
+JOIN payment_transactions pt ON pt.id = rm.transaction_id
+JOIN payment_providers pp ON pp.id = pt.provider_id
+WHERE rm.status <> 'reversed'
+	AND rm.invoice_id IN (`+strings.Join(placeholders, ", ")+`)
+ORDER BY rm.created_at DESC`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item paymentMatchSummary
+		if err := rows.Scan(
+			&item.ID,
+			&item.InvoiceID,
+			&item.InvoiceCode,
+			&item.TransactionID,
+			&item.ProviderCode,
+			&item.ProviderTransactionID,
+			&item.MatchType,
+			&item.Status,
+			&item.Score,
+			&item.AmountApplied,
+			&item.Reason,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		matches[item.InvoiceID] = append(matches[item.InvoiceID], item)
+	}
+	return matches, rows.Err()
 }
 
 func insertProviderEvent(ctx context.Context, db *sql.DB, providerID string, body []byte, rawPayload map[string]any, headers map[string]any) (providerEventRecord, error) {
@@ -1410,16 +1541,25 @@ func summarizePaymentReconciliation(invoices []invoiceSummary, transactions []pa
 			summary.OutstandingAmount += invoice.TotalAmount - invoice.PaidAmount
 		}
 		switch invoice.Status {
+		case invoiceStatusUnpaid:
+			summary.UnpaidCount++
 		case invoiceStatusPartial:
 			summary.PartialCount++
+		case invoiceStatusPaid:
+			summary.PaidCount++
 		case invoiceStatusOverpaid:
 			summary.OverpaidCount++
 		case invoiceStatusManualReview:
 			summary.ManualReviewCount++
 		}
 	}
+	if summary.TotalReceivable > 0 {
+		summary.CollectionRate = float64(summary.TotalCollected) / float64(summary.TotalReceivable)
+	}
 	for _, transaction := range transactions {
 		switch transaction.Status {
+		case paymentTransactionStatusMatched:
+			summary.MatchedCount++
 		case paymentTransactionStatusUnmatched:
 			summary.UnmatchedCount++
 		case paymentTransactionStatusManualReview:
