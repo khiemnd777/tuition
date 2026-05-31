@@ -171,7 +171,7 @@ Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong
 }
 ```
 
-Trong UI, workflow được tách thành các tab: `Dashboard`, `Học sinh`, `Bảng phí`, `Hóa đơn`, `Đối soát`, `Thông báo`, `Báo cáo`, `Người dùng`, `Thanh toán`, và `Email & Cron`. Tab `Học sinh` có cây trường để quản lý trường, năm học/cohort, khối, lớp, sĩ số, bảng phí và điều chỉnh theo lớp. Tab `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Các tab production và admin dùng PostgreSQL đã cấu hình.
+Trong UI, workflow được nhóm theo tác vụ production: `Tổng quan`, `Thiết lập`, `Học phí`, `Thu tiền`, `Liên lạc`, và `Báo cáo & vận hành`. Top bar có breadcrumb và bối cảnh trường/năm học/kỳ thu/tháng để đồng bộ nhanh với filter của màn hình đang mở. Mục `Tổng quan` hiển thị việc cần xử lý, bước nhanh theo quyền hiện tại, và Data Quality & Readiness Center để gom blocking/warning/info issue trước khi lập phí, sinh hóa đơn, gửi thông báo hoặc đối soát. Readiness có filter theo severity/loại issue và nút mở nhanh sang học sinh, bảng phí, hóa đơn, thông báo, đối soát, email/cron hoặc operation logs. `Công cụ QR/import` là công cụ phụ cho record thanh toán legacy, không phải nguồn dữ liệu production chính. Màn hình `Học sinh & phụ huynh` có cây trường để quản lý trường, năm học/cohort, khối, lớp, sĩ số, bảng phí và điều chỉnh theo lớp. Cây trường là relationship workspace: mỗi node hiển thị readiness theo kỳ/tháng đang chọn, gồm người nhận billing, bảng phí active, hóa đơn, công nợ đang mở, roster học sinh, và quick action sang danh sách học sinh, thiết lập bảng phí hoặc sinh hóa đơn. Màn hình `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Các tab production và admin dùng PostgreSQL đã cấu hình.
 
 ## Excel/CSV master data
 
@@ -180,7 +180,7 @@ File mẫu: `samples/master_data.csv`
 Header production master data:
 
 ```csv
-student_code,student_name,school,school_year,grade,class_name,parent_name,parent_email,parent_primary,parent_active,receives_billing_email
+student_code,student_name,school,school_year,grade,class_name,parent_name,parent_email,parent_phone,relationship,parent_primary,parent_active,receives_billing_email
 ```
 
 Quy tắc import:
@@ -190,14 +190,15 @@ Quy tắc import:
 - `school` là tùy chọn; nếu bỏ trống app dùng trường mặc định `ABC_SUN`.
 - `school_year` và `class_name` là bắt buộc. `grade` có thể bỏ trống nếu app suy ra được từ `class_name`, ví dụ `3.02` -> `3`.
 - Một học sinh có thể có nhiều phụ huynh; mỗi học sinh chỉ có một phụ huynh chính đang active.
-- `parent_email` được chuẩn hóa lowercase. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
+- `parent_email` được chuẩn hóa lowercase. `parent_phone` được chuẩn hóa về dạng số/SĐT gọn. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
+- `relationship` là nhãn quan hệ như `mother`, `father`, `guardian`, `grandparent`, hoặc `other`; nếu bỏ trống app dùng `guardian`.
 - Import preview sẽ báo conflict nếu CSV hoặc database hiện có mâu thuẫn; apply import không tự overwrite dữ liệu khác biệt.
 - UI sẽ scan header Excel/CSV trước và cho map cột, ví dụ `Họ và tên` -> `Họ, tên`, `Phụ huynh` -> `Tên ba mẹ`.
-- Ngoài import batch, tab `Học sinh` có form tạo/sửa thủ công từng học sinh. Manual save upsert theo `studentCode`, chọn lớp hiện có, cập nhật thông tin phụ huynh/link nhận billing, không xóa phụ huynh cũ nếu không được đánh dấu inactive hoặc bỏ nhận billing. Nếu học sinh đã có invoice hoặc điều chỉnh phí đang active, app chặn đổi lớp để tránh lệch dữ liệu đã phát hành.
+- Ngoài import batch, tab `Học sinh` có relationship workspace cho học sinh, phụ huynh, người nhận billing, cảnh báo contact, sibling dùng chung phụ huynh, và hóa đơn cần xử lý. Form tạo/sửa thủ công dùng app dialog, upsert theo `studentCode`, chọn lớp hiện có, cập nhật quan hệ phụ huynh/link nhận billing, không xóa phụ huynh cũ nếu không được đánh dấu inactive hoặc bỏ nhận billing. Nếu học sinh đã có invoice hoặc điều chỉnh phí đang active, app chặn đổi lớp để tránh lệch dữ liệu đã phát hành.
 
 ## Bảng phí theo kỳ
 
-Bảng phí theo kỳ dùng master data production để thiết lập các khoản phải thu mặc định theo năm học, khối hoặc lớp trước khi sinh invoice. Fee type mặc định gồm `tuition`, `lunch`, `shuttle`, `uniform`, `insurance`, `materials`, `previous_fees`, và `custom`; mỗi loại có nhãn tiếng Việt và tiếng Anh.
+Bảng phí theo kỳ dùng master data production để thiết lập các khoản phải thu mặc định theo trường, năm học, khối hoặc lớp trước khi sinh invoice. Fee type mặc định gồm `tuition`, `lunch`, `shuttle`, `uniform`, `insurance`, `materials`, `previous_fees`, và `custom`; mỗi loại có nhãn tiếng Việt và tiếng Anh.
 
 Mỗi bảng phí có `periodCode`, `month` tùy chọn, trạng thái `draft` hoặc `active`, các khoản phí mặc định, và điều chỉnh theo học sinh. Điều chỉnh hỗ trợ:
 
@@ -206,7 +207,7 @@ Mỗi bảng phí có `periodCode`, `month` tùy chọn, trạng thái `draft` h
 - `waiver`: miễn giảm; nếu `amount=0` và có `fee_type_code`, app miễn toàn bộ khoản phí mặc định đó.
 - `carry_over`: chuyển phí kỳ trước sang kỳ hiện tại.
 
-Ô điều chỉnh trong UI nhận CSV ngắn:
+UI có bảng điều chỉnh theo học sinh cho mã học sinh, loại điều chỉnh, khoản phí, số tiền, và lý do bắt buộc. Ô CSV vẫn hỗ trợ paste nhanh:
 
 ```csv
 student_code,adjustment_type,fee_type_code,amount,reason
@@ -214,11 +215,13 @@ S001,discount,tuition,500000,Ưu đãi anh chị em
 S002,waiver,shuttle,0,Không sử dụng xe
 ```
 
-Preview bảng phí trả tổng mặc định, tổng điều chỉnh và tổng phải thu cho từng học sinh. Khi có điều chỉnh, payment items dùng cho QR/payment data được gom thành `Tổng phí sau điều chỉnh` để giữ invariant tổng `PaymentItems` quyết định `Amount`.
+Preview bảng phí trả tổng mặc định, tổng điều chỉnh, tổng phải thu, và trạng thái người nhận phí cho từng học sinh. Preview báo scope rỗng, class/khối không có học sinh, số tiền không hợp lệ, điều chỉnh thiếu lý do, và học sinh chưa có billing recipient hợp lệ. Danh sách bảng phí đã lưu hiển thị scope, kỳ thu, số khoản, số học sinh, tổng preview, actor/time cập nhật, và có quick action sang preview/generation hóa đơn. Khi có điều chỉnh, payment items dùng cho QR/payment data được gom thành `Tổng phí sau điều chỉnh` để giữ invariant tổng `PaymentItems` quyết định `Amount`.
 
 ## Hóa đơn và PDF receipt
 
-Tab `Hóa đơn` sinh payment request production từ một bảng phí đã lưu. Mỗi học sinh trong phạm vi bảng phí có một hóa đơn active theo `feeScheduleId`; chạy lại cùng bảng phí sẽ trả hóa đơn hiện có để giữ idempotent. Nếu chọn regenerate, app chỉ cập nhật lại hóa đơn chưa có `paid_amount`.
+Tab `Hóa đơn` là workbench sinh payment request production từ một bảng phí đã lưu. Luồng chính đi theo các bước scope, preview, issues, generate: chọn bảng phí, xem từng dòng hóa đơn dự kiến, xử lý blocking/warning, rồi xác nhận ghi DB. Mỗi học sinh trong phạm vi bảng phí có một hóa đơn active theo `feeScheduleId`; chạy lại cùng bảng phí sẽ trả hóa đơn hiện có để giữ idempotent. Nếu chọn regenerate, app chỉ cập nhật lại hóa đơn chưa có `paid_amount`; hóa đơn đã có tiền thu sẽ bị chặn trong preview.
+
+Preview hóa đơn hiển thị mã hóa đơn, học sinh, lớp, số line item, tổng tiền, trạng thái billing recipient, idempotency state và issue state. Danh sách hóa đơn đã sinh hiển thị tổng tiền, đã thu, còn thiếu, trạng thái, số lần gửi thông báo, QR/PDF readiness và các thao tác QR, PDF, payment intent, notification handoff, export CSV. Panel chi tiết đọc snapshot bất biến từ API detail, gồm line items, adjustments, payment intent/match count, notification sent count và status history.
 
 Hóa đơn snapshot các dữ liệu sau tại thời điểm sinh:
 
@@ -266,7 +269,7 @@ Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải t
 
 ## Web Admin
 
-Tab `Dashboard` tổng hợp công nợ production từ hóa đơn và ledger thanh toán: tổng cần thu, đã thu, còn thiếu, tỷ lệ thu, số học sinh unpaid, partial, overpaid/manual review, giao dịch chưa match và top lớp còn phải thu. Bộ lọc hỗ trợ năm học, khối, lớp, kỳ thu, tháng và trạng thái invoice.
+Mục `Tổng quan` tổng hợp công nợ production từ hóa đơn và ledger thanh toán: tổng cần thu, đã thu, còn thiếu, tỷ lệ thu, số học sinh unpaid, partial, overpaid/manual review, giao dịch chưa match và top lớp còn phải thu. Dashboard cũng hiển thị work queue và quick actions theo permission để mở nhanh học sinh, bảng phí, hóa đơn, thông báo, đối soát hoặc công cụ QR/import legacy. Bộ lọc hỗ trợ năm học, khối, lớp, kỳ thu, tháng và trạng thái invoice.
 
 Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi tiết hóa đơn, và export CSV cho lớp, hóa đơn, giao dịch. Tab `Vận hành` đọc `operation_logs` và `audit_logs` để kiểm tra lỗi webhook/email/background job và audit thay đổi tiền/phí. Tab `Người dùng` đọc bảng `app_users`, `app_roles`, `app_permissions`, cho phép tạo/cập nhật user, đặt password tùy chọn, và gán role qua API. Web Admin yêu cầu đăng nhập bằng access/refresh token trước khi gọi API production; backend kiểm tra permission từ role của user đăng nhập cho từng route và trả `403` khi thiếu quyền. UI ẩn menu/action không đủ quyền nhưng không thay thế enforcement backend.
 
@@ -290,14 +293,15 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/school-tree/schools/save`: tạo/cập nhật trường.
 - `POST /api/v1/school-tree/school-years/save`: tạo/cập nhật năm học/cohort trong một trường.
 - `POST /api/v1/school-tree/classes/save`: tạo/cập nhật lớp trong một năm học/cohort.
-- `GET /api/v1/fee-schedules/options`: danh sách năm học/lớp và fee type cho bảng phí theo kỳ.
-- `GET /api/v1/fee-schedules`: danh sách bảng phí đã lưu, hỗ trợ `schoolYearId`, `classId`, `grade`, `status`.
+- `GET /api/v1/fee-schedules/options`: danh sách trường, năm học/lớp và fee type cho bảng phí theo kỳ.
+- `GET /api/v1/fee-schedules`: danh sách bảng phí đã lưu, hỗ trợ `schoolId`, `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
 - `POST /api/v1/fee-schedules/preview`: preview bảng phí theo kỳ trước khi sinh invoice.
 - `POST /api/v1/fee-schedules/save`: lưu bảng phí theo kỳ và trả preview mới.
 - `GET /api/v1/invoices/options`: danh sách bảng phí, năm học, lớp cho tab hóa đơn.
 - `GET /api/v1/invoices`: danh sách hóa đơn, hỗ trợ `schoolYearId`, `classId`, `grade`, `periodCode`, `status`.
 - `POST /api/v1/invoices/preview`: preview hóa đơn từ `feeScheduleId` trước khi ghi DB.
 - `POST /api/v1/invoices/generate`: sinh hóa đơn idempotent từ bảng phí đã lưu.
+- `GET /api/v1/invoices/detail?id=...`: trả snapshot chi tiết, trạng thái QR/PDF, payment/notification counts và status history cho một hóa đơn.
 - `GET /api/v1/invoices/payment?id=...`: trả payment row đã sinh QR cho một hóa đơn.
 - `GET /api/v1/invoices/pdf?id=...`: trả PDF receipt cho một hóa đơn.
 - `GET /api/v1/payments/providers`: danh sách provider thanh toán và trạng thái cấu hình.
@@ -314,7 +318,7 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật.
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
 - `GET /api/v1/healthz`: healthcheck public cho Docker/API liveness.
-- `GET /api/v1/admin/dashboard`: dashboard công nợ, hỗ trợ `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
+- `GET /api/v1/admin/dashboard`: dashboard công nợ và readiness center, hỗ trợ `schoolId`, `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
 - `GET /api/v1/admin/reports`: báo cáo theo lớp và hóa đơn, hỗ trợ cùng bộ lọc dashboard.
 - `GET /api/v1/admin/reports/export?dataset=classes|invoices|transactions`: export CSV theo bộ lọc báo cáo.
 - `GET /api/v1/admin/audit-logs`: đọc audit log bất biến, hỗ trợ `action`, `entityType`, `limit`.

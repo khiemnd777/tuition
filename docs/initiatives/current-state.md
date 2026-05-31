@@ -4,15 +4,15 @@ Last updated: 2026-05-31
 
 ## Current Status
 
-Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, payment/reconciliation ledger, notification campaigns, production Web Admin screens, reports/export, audit review, and operational readiness complete.
+Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, production Web Admin screens, reports/export, audit review, and operational readiness complete.
 
-Advanced Production planning now defines the next usability, workflow, data-relationship, reporting, and operations initiatives so the project can continue one initiative at a time.
+Advanced Production work is continuing through the next usability, workflow, data-relationship, reporting, and operations initiatives one initiative at a time.
 
-Current phase: `advanced_5_planned`
+Current phase: `advanced_11_planned`
 
-Current initiative: Advanced 5 - Task-Based Workflow And Navigation is planned.
+Current initiative: Advanced 10 - Invoice Issuance Workbench is complete.
 
-Next recommended initiative: start Advanced 5 - Task-Based Workflow And Navigation.
+Next recommended initiative: start Advanced 11 - Communication Campaign Workbench.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -107,6 +107,19 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added `operation_logs` and the `Vận hành` UI for webhook, notification email, and email cron/background job failure review.
   - Required manual cash receipt reasons and UI operator names for saved fee adjustments.
   - Added operation/audit APIs, report export permissions, tests, README/API docs, glossary terms, backup verification notes, and production operations runbook.
+- Advanced 9: Tuition Setup Guided Workflow is complete:
+  - Added school-aware fee schedule setup, filters, and saved schedule summaries with scope, period, item count, student count, preview total, updated actor, and updated timestamp.
+  - Added guided setup steps, structured per-student adjustment rows, CSV paste fallback, preview issue rendering, and billing-recipient readiness in fee preview rows.
+  - Added preview issues for empty/missing student scope and missing active billing recipients while preserving existing validation for invalid amounts and adjustment reasons.
+  - Added quick handoff from a saved fee schedule into invoice preview/generation.
+  - Added tests that keep fee preview totals aligned with invoice/payment item totals.
+- Advanced 10: Invoice Issuance Workbench is complete:
+  - Added step-based invoice workbench states for scope, preview, issues, and generation.
+  - Added invoice preview idempotency metadata for ready-to-generate, already-generated, ready-to-regenerate, and blocked paid regeneration states.
+  - Added blocking/warning issue rendering for paid regeneration and missing billing recipients.
+  - Expanded issued invoice list metadata with base/adjusted totals, outstanding amount, item/adjustment counts, payment intent/match counts, sent counts, QR/PDF readiness, and issue state.
+  - Added invoice detail API and UI snapshot for immutable line items, adjustments, operational counts, PDF/QR actions, notification handoff, payment intent handoff, and status history.
+  - Added invoice CSV export handoff through the existing report export API and regression tests for invoice preview idempotency.
 
 ## Advanced Production Roadmap
 
@@ -116,12 +129,12 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 | Advanced 2 | Access/Refresh Token Authentication | Add production-grade login with short-lived access tokens, refresh token rotation/revocation, logout, and session expiry. | Complete |
 | Advanced 3 | RBAC Enforcement | Enforce roles and permissions at the API level, map permissions to routes/actions, hide unauthorized UI actions, and preserve authenticated audit actors. | Complete |
 | Advanced 4 | School Tree Management | Manage the hierarchy `school > school year/cohort > class > tuition/fee schedule/surcharges > students/parents`. | Complete |
-| Advanced 5 | Task-Based Workflow And Navigation | Reframe the admin UI around daily school-accounting tasks, production navigation, context selectors, breadcrumbs, and permission-aware quick actions. | Planned |
-| Advanced 6 | School Tree Relationship Workspace | Make `school > school year/cohort > grade > class` visible, navigable, editable, and connected to students, fee schedules, invoices, and readiness counts. | Planned |
-| Advanced 7 | Student And Parent Relationship Workspace | Make student, parent, guardian, sibling, and billing-recipient relationships explicit with a clear list/detail UI and app-dialog editing. | Planned |
-| Advanced 8 | Data Quality And Readiness Center | Surface blocking and warning issues before fee setup, invoice generation, notification sending, and reconciliation. | Planned |
-| Advanced 9 | Tuition Setup Guided Workflow | Guide operators from school-tree scope selection through fee items, adjustments, preview, save, audit reason, and invoice handoff. | Planned |
-| Advanced 10 | Invoice Issuance Workbench | Turn invoice generation into a step-based workbench with preview, blocking issues, idempotency visibility, QR/PDF detail, and bulk actions. | Planned |
+| Advanced 5 | Task-Based Workflow And Navigation | Reframe the admin UI around daily school-accounting tasks, production navigation, context selectors, breadcrumbs, and permission-aware quick actions. | Complete |
+| Advanced 6 | School Tree Relationship Workspace | Make `school > school year/cohort > grade > class` visible, navigable, editable, and connected to students, fee schedules, invoices, and readiness counts. | Complete |
+| Advanced 7 | Student And Parent Relationship Workspace | Make student, parent, guardian, sibling, and billing-recipient relationships explicit with a clear list/detail UI and app-dialog editing. | Complete |
+| Advanced 8 | Data Quality And Readiness Center | Surface blocking and warning issues before fee setup, invoice generation, notification sending, and reconciliation. | Complete |
+| Advanced 9 | Tuition Setup Guided Workflow | Guide operators from school-tree scope selection through fee items, adjustments, preview, save, audit reason, and invoice handoff. | Complete |
+| Advanced 10 | Invoice Issuance Workbench | Turn invoice generation into a step-based workbench with preview, blocking issues, idempotency visibility, QR/PDF detail, and bulk actions. | Complete |
 | Advanced 11 | Communication Campaign Workbench | Make campaign targeting, billing-recipient resolution, dry-run preview, real-send confirmation, send logs, retries, and cron queues explicit. | Planned |
 | Advanced 12 | Collection And Reconciliation Workbench | Center collection and reconciliation around invoices, payment intents, cash receipts, transaction matching, and manual-review queues. | Planned |
 | Advanced 13 | Reports, Audit, And Operations Command Center | Consolidate filtered reports, exports, audit trails, provider/email/cron failures, and operational drilldowns. | Planned |
@@ -276,6 +289,23 @@ Tổng quan / Việc cần xử lý
 └───────────────┴────────────────────────────────────────────────────┘
 ```
 
+Advanced 5 progress:
+
+- Advanced 5 is complete.
+  - Reframed the sidebar into task-based production groups: `Tổng quan`, `Thiết lập`, `Học phí`, `Thu tiền`, `Liên lạc`, and `Báo cáo & vận hành`.
+  - Renamed the dashboard entry to `Việc cần xử lý` and added dashboard work queue rows derived from existing receivable/reconciliation summary data.
+  - Added permission-aware quick actions for student setup, fee schedule setup, invoice generation, notification campaign work, reconciliation, and the legacy QR/import tool.
+  - Demoted the legacy `Thanh toán` tab into `Công cụ QR/import` under `Thu tiền`; legacy import/generate top-bar actions now only show on that tool.
+  - Added top-bar breadcrumbs and compact school/year/period/month context controls that sync into the active workflow's existing filters where supported.
+  - Preserved existing tab IDs, API contracts, app dialogs, confirmation components, and backend RBAC enforcement.
+  - Updated README operator notes for the task-based Web Admin navigation.
+
+Advanced 5 completion prompt:
+
+```text
+Advanced 5 is complete. Continue with Advanced 6 from docs/initiatives/current-state.md when ready.
+```
+
 Advanced 6 launch prompt:
 
 ```text
@@ -317,6 +347,22 @@ Thiết lập / Trường & lớp
 │ [+ Năm học]        │ [Xem học sinh] [Lập bảng phí] [Sinh hóa đơn]  │
 │ [+ Lớp]            │                                               │
 └────────────────────┴───────────────────────────────────────────────┘
+```
+
+Advanced 6 progress:
+
+- Advanced 6 is complete.
+  - Extended the school tree API with period/month-aware readiness counts for billing recipients, active fee schedules, invoices, open invoice attention, and issue totals.
+  - Aggregated readiness from class to grade, school year, and school levels while preserving existing school/year/class/student/fee aggregate behavior.
+  - Upgraded the `Cây trường` panel into a relationship workspace with scan-friendly node badges, detail metrics, readiness rows, roster preview, and quick actions.
+  - Connected class/year/grade detail actions to filtered students, scoped fee schedule setup, and invoice generation using the existing app dialog flows.
+  - Kept school, school year, and class create/update forms in app dialogs instead of inline production upsert panels.
+  - Updated README operator notes and added focused tests for readiness aggregation and period/month request validation.
+
+Advanced 6 completion prompt:
+
+```text
+Advanced 6 is complete. Continue with Advanced 7 from docs/initiatives/current-state.md when ready.
 ```
 
 Advanced 7 launch prompt:
@@ -366,6 +412,22 @@ Thiết lập / Học sinh & phụ huynh
 └────────────────────┴──────────────────────────┴──────────────────────┘
 ```
 
+Advanced 7 progress:
+
+- Advanced 7 is complete.
+  - Extended the master-data student API with parent count, billing-recipient count, missing billing state, contact warning, invoice attention count, relationship labels, parent phone, parent billing-ready flags, and sibling links through shared active parents.
+  - Extended master-data import mapping for parent phone and relationship while preserving existing CSV compatibility.
+  - Upgraded the `Học sinh & phụ huynh` table into a relationship scan view with billing/contact/invoice attention indicators and a billing readiness filter.
+  - Upgraded student detail with relationship metrics, visible billing-recipient rule, parent relationship table, sibling links, and quick actions to invoices, notifications, and class tree scope.
+  - Updated the app-dialog student editor to capture parent phone and relationship labels, and to warn when no valid billing recipient remains.
+  - Added focused tests for relationship-state derivation, parent contact normalization, and UUID placeholder generation.
+
+Advanced 7 completion prompt:
+
+```text
+Advanced 7 is complete. Continue with Advanced 8 from docs/initiatives/current-state.md when ready.
+```
+
 Advanced 8 launch prompt:
 
 ```text
@@ -400,6 +462,21 @@ Advanced 8 planning:
 - Filters: school, school year, grade, class, period/month, issue type, severity.
 - Each issue row should deep-link to the relevant edit/detail workflow with the right filters preselected.
 - Acceptance: operators can resolve readiness blockers before generating invoices or sending email.
+
+Advanced 8 progress:
+
+- Advanced 8 is complete.
+  - Extended `/api/v1/admin/dashboard` with a `readiness` payload that groups issues by blocking, warning, and info severity.
+  - Added school-aware dashboard/report filters and preserved existing school year, grade, class, period, month, and invoice status filters.
+  - Added readiness checks for missing student relationships, invalid billing recipients, inactive billing contacts, empty classes, missing active fee schedules for the selected period, empty/zero-value fee schedules, invoice payment/status issues, unmatched/manual-review transactions, failed notification recipients, email provider readiness, cron queue/quota problems, and recent cron operation errors.
+  - Added dashboard UI for the Data Quality & Readiness Center with summary cards, severity/type filters, grouped issue rows, and action handoff to students, fees, invoices, notification, reconciliation, email/cron, and operation logs.
+  - Added focused tests for readiness summary ordering and invoice issue classification.
+
+Advanced 8 completion prompt:
+
+```text
+Advanced 8 is complete. Continue with Advanced 9 from docs/initiatives/current-state.md when ready.
+```
 
 Advanced 9 launch prompt:
 
@@ -441,6 +518,12 @@ Advanced 10 planning:
 - Invoice detail should show immutable line-item snapshot, adjustments, QR, bill number, PDF link, payment history, notification history, and status history.
 - Bulk actions: export CSV, open PDF, generate missing QR/payment intent, open notification flow for selected unpaid invoices.
 - Acceptance: no duplicate invoices for the same class/period/default generation path.
+
+Advanced 10 completion prompt:
+
+```text
+Advanced 10 is complete. Continue with Advanced 11 from docs/initiatives/current-state.md when ready.
+```
 
 Advanced 11 launch prompt:
 
@@ -575,12 +658,6 @@ Completed:
 
 ## Not Started
 
-- Advanced 5 - Task-Based Workflow And Navigation.
-- Advanced 6 - School Tree Relationship Workspace.
-- Advanced 7 - Student And Parent Relationship Workspace.
-- Advanced 8 - Data Quality And Readiness Center.
-- Advanced 9 - Tuition Setup Guided Workflow.
-- Advanced 10 - Invoice Issuance Workbench.
 - Advanced 11 - Communication Campaign Workbench.
 - Advanced 12 - Collection And Reconciliation Workbench.
 - Advanced 13 - Reports, Audit, And Operations Command Center.
@@ -619,7 +696,7 @@ The agent must:
 Use this when the user says to continue without specifying a module:
 
 ```text
-The production module roadmap is complete through Initiative 8 and Advanced 4 is complete. Review docs/initiatives/current-state.md and define the next Advanced Production initiative before implementation.
+Advanced 10 is complete. Continue with Advanced 11 from docs/initiatives/current-state.md when ready.
 ```
 
 ## Known Safety Constraints

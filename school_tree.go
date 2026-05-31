@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -16,59 +17,93 @@ type schoolTreeResponse struct {
 }
 
 type schoolTreeSchool struct {
-	ID               string                 `json:"id"`
-	Code             string                 `json:"code"`
-	Name             string                 `json:"name"`
-	Status           string                 `json:"status"`
-	StudentCount     int                    `json:"studentCount"`
-	ClassCount       int                    `json:"classCount"`
-	FeeScheduleCount int                    `json:"feeScheduleCount"`
-	AdjustmentCount  int                    `json:"adjustmentCount"`
-	SchoolYears      []schoolTreeSchoolYear `json:"schoolYears"`
+	ID                           string                 `json:"id"`
+	Code                         string                 `json:"code"`
+	Name                         string                 `json:"name"`
+	Status                       string                 `json:"status"`
+	StudentCount                 int                    `json:"studentCount"`
+	ClassCount                   int                    `json:"classCount"`
+	FeeScheduleCount             int                    `json:"feeScheduleCount"`
+	AdjustmentCount              int                    `json:"adjustmentCount"`
+	BillingReadyStudentCount     int                    `json:"billingReadyStudentCount"`
+	MissingBillingRecipientCount int                    `json:"missingBillingRecipientCount"`
+	CurrentFeeScheduleCount      int                    `json:"currentFeeScheduleCount"`
+	CurrentActiveScheduleCount   int                    `json:"currentActiveScheduleCount"`
+	CurrentInvoiceCount          int                    `json:"currentInvoiceCount"`
+	OpenInvoiceCount             int                    `json:"openInvoiceCount"`
+	IssueCount                   int                    `json:"issueCount"`
+	SchoolYears                  []schoolTreeSchoolYear `json:"schoolYears"`
 }
 
 type schoolTreeSchoolYear struct {
-	ID               string            `json:"id"`
-	SchoolID         string            `json:"schoolId"`
-	SchoolCode       string            `json:"schoolCode"`
-	Code             string            `json:"code"`
-	Name             string            `json:"name"`
-	Status           string            `json:"status"`
-	StudentCount     int               `json:"studentCount"`
-	ClassCount       int               `json:"classCount"`
-	FeeScheduleCount int               `json:"feeScheduleCount"`
-	AdjustmentCount  int               `json:"adjustmentCount"`
-	Grades           []schoolTreeGrade `json:"grades"`
+	ID                           string            `json:"id"`
+	SchoolID                     string            `json:"schoolId"`
+	SchoolCode                   string            `json:"schoolCode"`
+	Code                         string            `json:"code"`
+	Name                         string            `json:"name"`
+	Status                       string            `json:"status"`
+	StudentCount                 int               `json:"studentCount"`
+	ClassCount                   int               `json:"classCount"`
+	FeeScheduleCount             int               `json:"feeScheduleCount"`
+	AdjustmentCount              int               `json:"adjustmentCount"`
+	BillingReadyStudentCount     int               `json:"billingReadyStudentCount"`
+	MissingBillingRecipientCount int               `json:"missingBillingRecipientCount"`
+	CurrentFeeScheduleCount      int               `json:"currentFeeScheduleCount"`
+	CurrentActiveScheduleCount   int               `json:"currentActiveScheduleCount"`
+	CurrentInvoiceCount          int               `json:"currentInvoiceCount"`
+	OpenInvoiceCount             int               `json:"openInvoiceCount"`
+	IssueCount                   int               `json:"issueCount"`
+	Grades                       []schoolTreeGrade `json:"grades"`
 }
 
 type schoolTreeGrade struct {
-	SchoolYearID     string            `json:"schoolYearId"`
-	SchoolYearCode   string            `json:"schoolYearCode"`
-	Grade            string            `json:"grade"`
-	StudentCount     int               `json:"studentCount"`
-	ClassCount       int               `json:"classCount"`
-	FeeScheduleCount int               `json:"feeScheduleCount"`
-	AdjustmentCount  int               `json:"adjustmentCount"`
-	Classes          []schoolTreeClass `json:"classes"`
+	SchoolYearID                 string            `json:"schoolYearId"`
+	SchoolYearCode               string            `json:"schoolYearCode"`
+	Grade                        string            `json:"grade"`
+	StudentCount                 int               `json:"studentCount"`
+	ClassCount                   int               `json:"classCount"`
+	FeeScheduleCount             int               `json:"feeScheduleCount"`
+	AdjustmentCount              int               `json:"adjustmentCount"`
+	BillingReadyStudentCount     int               `json:"billingReadyStudentCount"`
+	MissingBillingRecipientCount int               `json:"missingBillingRecipientCount"`
+	CurrentFeeScheduleCount      int               `json:"currentFeeScheduleCount"`
+	CurrentActiveScheduleCount   int               `json:"currentActiveScheduleCount"`
+	CurrentInvoiceCount          int               `json:"currentInvoiceCount"`
+	OpenInvoiceCount             int               `json:"openInvoiceCount"`
+	IssueCount                   int               `json:"issueCount"`
+	Classes                      []schoolTreeClass `json:"classes"`
 }
 
 type schoolTreeClass struct {
-	ID                     string `json:"id"`
-	SchoolID               string `json:"schoolId"`
-	SchoolCode             string `json:"schoolCode"`
-	SchoolYearID           string `json:"schoolYearId"`
-	SchoolYearCode         string `json:"schoolYearCode"`
-	Grade                  string `json:"grade"`
-	Name                   string `json:"name"`
-	Status                 string `json:"status"`
-	StudentCount           int    `json:"studentCount"`
-	FeeScheduleCount       int    `json:"feeScheduleCount"`
-	ActiveFeeScheduleCount int    `json:"activeFeeScheduleCount"`
-	AdjustmentCount        int    `json:"adjustmentCount"`
-	LatestFeeScheduleID    string `json:"latestFeeScheduleId,omitempty"`
-	LatestFeeScheduleName  string `json:"latestFeeScheduleName,omitempty"`
-	LatestPeriodCode       string `json:"latestPeriodCode,omitempty"`
-	LatestScheduleStatus   string `json:"latestScheduleStatus,omitempty"`
+	ID                           string `json:"id"`
+	SchoolID                     string `json:"schoolId"`
+	SchoolCode                   string `json:"schoolCode"`
+	SchoolYearID                 string `json:"schoolYearId"`
+	SchoolYearCode               string `json:"schoolYearCode"`
+	Grade                        string `json:"grade"`
+	Name                         string `json:"name"`
+	Status                       string `json:"status"`
+	StudentCount                 int    `json:"studentCount"`
+	FeeScheduleCount             int    `json:"feeScheduleCount"`
+	ActiveFeeScheduleCount       int    `json:"activeFeeScheduleCount"`
+	AdjustmentCount              int    `json:"adjustmentCount"`
+	BillingReadyStudentCount     int    `json:"billingReadyStudentCount"`
+	MissingBillingRecipientCount int    `json:"missingBillingRecipientCount"`
+	CurrentFeeScheduleCount      int    `json:"currentFeeScheduleCount"`
+	CurrentActiveScheduleCount   int    `json:"currentActiveScheduleCount"`
+	CurrentInvoiceCount          int    `json:"currentInvoiceCount"`
+	OpenInvoiceCount             int    `json:"openInvoiceCount"`
+	IssueCount                   int    `json:"issueCount"`
+	LatestFeeScheduleID          string `json:"latestFeeScheduleId,omitempty"`
+	LatestFeeScheduleName        string `json:"latestFeeScheduleName,omitempty"`
+	LatestPeriodCode             string `json:"latestPeriodCode,omitempty"`
+	LatestScheduleStatus         string `json:"latestScheduleStatus,omitempty"`
+}
+
+type schoolTreeReadinessScope struct {
+	PeriodCode string
+	Month      int
+	HasMonth   bool
 }
 
 type schoolTreeSchoolInput struct {
@@ -104,12 +139,35 @@ func handleSchoolTree(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	tree, err := loadSchoolTree(r.Context(), db)
+	scope, err := schoolTreeReadinessScopeFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	tree, err := loadSchoolTree(r.Context(), db, scope)
 	if err != nil {
 		http.Error(w, "cannot load school tree", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, schoolTreeResponse{Schools: tree})
+}
+
+func schoolTreeReadinessScopeFromRequest(r *http.Request) (schoolTreeReadinessScope, error) {
+	query := r.URL.Query()
+	scope := schoolTreeReadinessScope{
+		PeriodCode: strings.TrimSpace(query.Get("periodCode")),
+	}
+	monthRaw := strings.TrimSpace(query.Get("month"))
+	if monthRaw == "" {
+		return scope, nil
+	}
+	month, err := strconv.Atoi(monthRaw)
+	if err != nil || month < 1 || month > 12 {
+		return scope, errors.New("month must be between 1 and 12")
+	}
+	scope.Month = month
+	scope.HasMonth = true
+	return scope, nil
 }
 
 func handleSchoolTreeSchoolSave(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +254,7 @@ func handleSchoolTreeClassSave(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"class": saved})
 }
 
-func loadSchoolTree(ctx context.Context, db *sql.DB) ([]schoolTreeSchool, error) {
+func loadSchoolTree(ctx context.Context, db *sql.DB, scope schoolTreeReadinessScope) ([]schoolTreeSchool, error) {
 	schools, err := listSchoolTreeSchools(ctx, db)
 	if err != nil {
 		return nil, err
@@ -205,7 +263,7 @@ func loadSchoolTree(ctx context.Context, db *sql.DB) ([]schoolTreeSchool, error)
 	if err != nil {
 		return nil, err
 	}
-	classes, err := listSchoolTreeClasses(ctx, db)
+	classes, err := listSchoolTreeClasses(ctx, db, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +362,7 @@ ORDER BY sc.code, sy.code DESC`)
 	return items, rows.Err()
 }
 
-func listSchoolTreeClasses(ctx context.Context, db *sql.DB) ([]schoolTreeClass, error) {
+func listSchoolTreeClasses(ctx context.Context, db *sql.DB, scope schoolTreeReadinessScope) ([]schoolTreeClass, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT
 	c.id::text,
@@ -319,6 +377,12 @@ SELECT
 	COALESCE(schedule_counts.schedule_count, 0),
 	COALESCE(schedule_counts.active_schedule_count, 0),
 	COALESCE(adjustment_counts.adjustment_count, 0),
+	COALESCE(billing_counts.billing_ready_student_count, 0),
+	COALESCE(billing_counts.missing_billing_recipient_count, 0),
+	COALESCE(current_schedule_counts.current_schedule_count, 0),
+	COALESCE(current_schedule_counts.current_active_schedule_count, 0),
+	COALESCE(invoice_counts.current_invoice_count, 0),
+	COALESCE(invoice_counts.open_invoice_count, 0),
 	COALESCE(latest_schedule.id::text, ''),
 	COALESCE(latest_schedule.name, ''),
 	COALESCE(latest_schedule.period_code, ''),
@@ -349,13 +413,70 @@ LEFT JOIN (
 	GROUP BY fs.class_id
 ) adjustment_counts ON adjustment_counts.class_id = c.id
 LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (
+			WHERE EXISTS (
+				SELECT 1
+				FROM student_parents sp
+				JOIN parents p ON p.id = sp.parent_id
+				WHERE sp.student_id = s.id
+					AND sp.is_active
+					AND sp.receives_billing_email
+					AND p.email_active
+					AND p.status = 'active'
+					AND p.email <> ''
+			)
+		)::integer AS billing_ready_student_count,
+		COUNT(*) FILTER (
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM student_parents sp
+				JOIN parents p ON p.id = sp.parent_id
+				WHERE sp.student_id = s.id
+					AND sp.is_active
+					AND sp.receives_billing_email
+					AND p.email_active
+					AND p.status = 'active'
+					AND p.email <> ''
+			)
+		)::integer AS missing_billing_recipient_count
+	FROM students s
+	WHERE s.class_id = c.id
+		AND s.status <> 'inactive'
+) billing_counts ON true
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*)::integer AS current_schedule_count,
+		COUNT(*) FILTER (WHERE fs.status = 'active')::integer AS current_active_schedule_count
+	FROM fee_schedules fs
+	WHERE fs.school_year_id = c.school_year_id
+		AND fs.status <> 'archived'
+		AND ($1 = '' OR lower(fs.period_code) = lower($1))
+		AND (NOT $2::boolean OR fs.month = $3::integer)
+		AND (
+			fs.class_id = c.id
+			OR (fs.scope_type = 'grade' AND fs.class_id IS NULL AND lower(fs.grade) = lower(c.grade))
+			OR (fs.scope_type = 'school_year' AND fs.class_id IS NULL AND btrim(fs.grade) = '')
+		)
+) current_schedule_counts ON true
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*)::integer AS current_invoice_count,
+		COUNT(*) FILTER (WHERE i.status IN ('unpaid', 'partial', 'overpaid', 'manual_review'))::integer AS open_invoice_count
+	FROM invoices i
+	WHERE i.class_id = c.id
+		AND i.status <> 'void'
+		AND ($1 = '' OR lower(i.period_code) = lower($1))
+		AND (NOT $2::boolean OR i.month = $3::integer)
+) invoice_counts ON true
+LEFT JOIN LATERAL (
 	SELECT id, name, period_code, status
 	FROM fee_schedules fs
 	WHERE fs.class_id = c.id AND fs.status <> 'archived'
 	ORDER BY (fs.status = 'active') DESC, fs.created_at DESC
 	LIMIT 1
 ) latest_schedule ON true
-ORDER BY sc.code, sy.code DESC, c.grade, c.name`)
+ORDER BY sc.code, sy.code DESC, c.grade, c.name`, scope.PeriodCode, scope.HasMonth, scope.Month)
 	if err != nil {
 		return nil, err
 	}
@@ -377,6 +498,12 @@ ORDER BY sc.code, sy.code DESC, c.grade, c.name`)
 			&item.FeeScheduleCount,
 			&item.ActiveFeeScheduleCount,
 			&item.AdjustmentCount,
+			&item.BillingReadyStudentCount,
+			&item.MissingBillingRecipientCount,
+			&item.CurrentFeeScheduleCount,
+			&item.CurrentActiveScheduleCount,
+			&item.CurrentInvoiceCount,
+			&item.OpenInvoiceCount,
 			&item.LatestFeeScheduleID,
 			&item.LatestFeeScheduleName,
 			&item.LatestPeriodCode,
@@ -423,6 +550,7 @@ func buildSchoolTree(schools []schoolTreeSchool, years []schoolTreeSchoolYear, c
 		if year == nil {
 			continue
 		}
+		class.IssueCount = schoolTreeIssueCount(class.StudentCount, class.MissingBillingRecipientCount, class.CurrentActiveScheduleCount, class.CurrentInvoiceCount)
 		key := class.SchoolYearID + "|" + class.Grade
 		grade := gradeByKey[key]
 		if grade == nil {
@@ -439,6 +567,30 @@ func buildSchoolTree(schools []schoolTreeSchool, years []schoolTreeSchoolYear, c
 		grade.StudentCount += class.StudentCount
 		grade.FeeScheduleCount += class.FeeScheduleCount
 		grade.AdjustmentCount += class.AdjustmentCount
+		grade.BillingReadyStudentCount += class.BillingReadyStudentCount
+		grade.MissingBillingRecipientCount += class.MissingBillingRecipientCount
+		grade.CurrentFeeScheduleCount += class.CurrentFeeScheduleCount
+		grade.CurrentActiveScheduleCount += class.CurrentActiveScheduleCount
+		grade.CurrentInvoiceCount += class.CurrentInvoiceCount
+		grade.OpenInvoiceCount += class.OpenInvoiceCount
+		grade.IssueCount += class.IssueCount
+		year.BillingReadyStudentCount += class.BillingReadyStudentCount
+		year.MissingBillingRecipientCount += class.MissingBillingRecipientCount
+		year.CurrentFeeScheduleCount += class.CurrentFeeScheduleCount
+		year.CurrentActiveScheduleCount += class.CurrentActiveScheduleCount
+		year.CurrentInvoiceCount += class.CurrentInvoiceCount
+		year.OpenInvoiceCount += class.OpenInvoiceCount
+		year.IssueCount += class.IssueCount
+		school := schoolByID[class.SchoolID]
+		if school != nil {
+			school.BillingReadyStudentCount += class.BillingReadyStudentCount
+			school.MissingBillingRecipientCount += class.MissingBillingRecipientCount
+			school.CurrentFeeScheduleCount += class.CurrentFeeScheduleCount
+			school.CurrentActiveScheduleCount += class.CurrentActiveScheduleCount
+			school.CurrentInvoiceCount += class.CurrentInvoiceCount
+			school.OpenInvoiceCount += class.OpenInvoiceCount
+			school.IssueCount += class.IssueCount
+		}
 		grade.Classes = append(grade.Classes, class)
 	}
 
@@ -460,6 +612,20 @@ func buildSchoolTree(schools []schoolTreeSchool, years []schoolTreeSchoolYear, c
 		}
 	}
 	return schools
+}
+
+func schoolTreeIssueCount(studentCount int, missingBillingRecipientCount int, currentActiveScheduleCount int, currentInvoiceCount int) int {
+	if studentCount == 0 {
+		return 0
+	}
+	issueCount := missingBillingRecipientCount
+	if currentActiveScheduleCount == 0 {
+		issueCount++
+	}
+	if currentInvoiceCount < studentCount {
+		issueCount += studentCount - currentInvoiceCount
+	}
+	return issueCount
 }
 
 func saveSchoolTreeSchool(ctx context.Context, db *sql.DB, input schoolTreeSchoolInput, auditCtx requestAuditContext) (masterDataSchoolOption, error) {

@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -38,21 +40,27 @@ type feeTypeOption struct {
 }
 
 type feeScheduleOptionsResponse struct {
+	Schools     []masterDataSchoolOption     `json:"schools"`
 	FeeTypes    []feeTypeOption              `json:"feeTypes"`
 	SchoolYears []masterDataSchoolYearOption `json:"schoolYears"`
 	Classes     []masterDataClassOption      `json:"classes"`
 }
 
 type feeScheduleListFilters struct {
+	SchoolID     string
 	SchoolYearID string
 	ClassID      string
 	Grade        string
+	PeriodCode   string
+	Month        int
 	Status       string
 }
 
 type feeScheduleSummary struct {
 	ID              string `json:"id"`
 	Name            string `json:"name"`
+	SchoolID        string `json:"schoolId,omitempty"`
+	SchoolCode      string `json:"schoolCode,omitempty"`
 	SchoolYearID    string `json:"schoolYearId"`
 	SchoolYearCode  string `json:"schoolYearCode"`
 	ScopeType       string `json:"scopeType"`
@@ -62,8 +70,13 @@ type feeScheduleSummary struct {
 	PeriodCode      string `json:"periodCode"`
 	Month           int    `json:"month,omitempty"`
 	Status          string `json:"status"`
+	ItemCount       int    `json:"itemCount"`
 	ItemTotal       int    `json:"itemTotal"`
+	StudentCount    int    `json:"studentCount"`
+	PreviewTotal    int    `json:"previewTotal"`
 	AdjustmentCount int    `json:"adjustmentCount"`
+	UpdatedActor    string `json:"updatedActor,omitempty"`
+	UpdatedAt       string `json:"updatedAt,omitempty"`
 }
 
 type feeScheduleInput struct {
@@ -103,13 +116,15 @@ type studentFeeAdjustmentInput struct {
 }
 
 type feeScheduleStudent struct {
-	ID             string `json:"id"`
-	StudentCode    string `json:"studentCode"`
-	StudentName    string `json:"studentName"`
-	ClassID        string `json:"classId"`
-	ClassName      string `json:"className"`
-	Grade          string `json:"grade"`
-	SchoolYearCode string `json:"schoolYearCode"`
+	ID                      string `json:"id"`
+	StudentCode             string `json:"studentCode"`
+	StudentName             string `json:"studentName"`
+	ClassID                 string `json:"classId"`
+	ClassName               string `json:"className"`
+	Grade                   string `json:"grade"`
+	SchoolYearCode          string `json:"schoolYearCode"`
+	BillingRecipientReady   bool   `json:"billingRecipientReady"`
+	BillingRecipientChecked bool   `json:"billingRecipientChecked"`
 }
 
 type feeSchedulePreview struct {
@@ -133,6 +148,7 @@ type feeSchedulePreviewRow struct {
 	ClassName        string                         `json:"className"`
 	Grade            string                         `json:"grade"`
 	SchoolYearCode   string                         `json:"schoolYearCode"`
+	BillingReady     bool                           `json:"billingRecipientReady"`
 	BaseAmount       int                            `json:"baseAmount"`
 	AdjustmentAmount int                            `json:"adjustmentAmount"`
 	TotalAmount      int                            `json:"totalAmount"`
@@ -199,6 +215,7 @@ func handleFeeScheduleOptions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, feeScheduleOptionsResponse{
+		Schools:     masterOptions.Schools,
 		FeeTypes:    feeTypes,
 		SchoolYears: masterOptions.SchoolYears,
 		Classes:     masterOptions.Classes,
@@ -214,10 +231,14 @@ func handleFeeScheduleList(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	query := r.URL.Query()
+	month, _ := strconv.Atoi(strings.TrimSpace(query.Get("month")))
 	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{
+		SchoolID:     strings.TrimSpace(query.Get("schoolId")),
 		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
 		ClassID:      strings.TrimSpace(query.Get("classId")),
 		Grade:        normalizeGrade(query.Get("grade")),
+		PeriodCode:   strings.TrimSpace(query.Get("periodCode")),
+		Month:        month,
 		Status:       strings.TrimSpace(query.Get("status")),
 	})
 	if err != nil {
@@ -296,7 +317,11 @@ func handleFeeScheduleSave(w http.ResponseWriter, r *http.Request) {
 	preview, issues := buildFeeSchedulePreview(input, students)
 	preview.Issues = issues
 
-	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{SchoolYearID: input.SchoolYearID})
+	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{
+		SchoolYearID: input.SchoolYearID,
+		PeriodCode:   input.PeriodCode,
+		Month:        input.Month,
+	})
 	if err != nil {
 		http.Error(w, "cannot load fee schedules", http.StatusInternalServerError)
 		return
@@ -318,6 +343,19 @@ func buildFeeSchedulePreview(input feeScheduleInput, students []feeScheduleStude
 			Type:    "missing_fee_items",
 			Field:   "items",
 			Message: "at least one fee schedule item with a positive amount is required",
+		})
+	}
+	if len(students) == 0 {
+		issueType := "missing_students"
+		message := "no active students were found for the selected school year"
+		if input.ClassID != "" || input.Grade != "" {
+			issueType = "empty_class"
+			message = "no active students were found for the selected class or grade scope"
+		}
+		issues = append(issues, feeSchedulePreviewIssue{
+			Type:    issueType,
+			Field:   "scope",
+			Message: message,
 		})
 	}
 
@@ -369,6 +407,14 @@ func buildFeeSchedulePreview(input feeScheduleInput, students []feeScheduleStude
 		Rows: []feeSchedulePreviewRow{},
 	}
 	for _, student := range students {
+		if student.BillingRecipientChecked && !student.BillingRecipientReady {
+			issues = append(issues, feeSchedulePreviewIssue{
+				Type:        "missing_billing_recipient",
+				Field:       "billingRecipient",
+				StudentCode: student.StudentCode,
+				Message:     "student has no active billing recipient email",
+			})
+		}
 		baseItems := feePreviewItems(lines)
 		baseAmount := feePreviewItemsTotal(baseItems)
 		baseByFeeTypeCode := feeBaseAmountByFeeType(lines)
@@ -407,6 +453,7 @@ func buildFeeSchedulePreview(input feeScheduleInput, students []feeScheduleStude
 			ClassName:        student.ClassName,
 			Grade:            student.Grade,
 			SchoolYearCode:   student.SchoolYearCode,
+			BillingReady:     student.BillingRecipientReady,
 			BaseAmount:       baseAmount,
 			AdjustmentAmount: totalAmount - baseAmount,
 			TotalAmount:      totalAmount,
@@ -749,6 +796,10 @@ ORDER BY default_display_order, code`)
 func listFeeScheduleSummaries(ctx context.Context, db *sql.DB, filters feeScheduleListFilters) ([]feeScheduleSummary, error) {
 	conditions := []string{"1 = 1"}
 	args := []any{}
+	if filters.SchoolID != "" {
+		args = append(args, filters.SchoolID)
+		conditions = append(conditions, fmt.Sprintf("sy.school_id = $%d::uuid", len(args)))
+	}
 	if filters.SchoolYearID != "" {
 		args = append(args, filters.SchoolYearID)
 		conditions = append(conditions, fmt.Sprintf("fs.school_year_id = $%d::uuid", len(args)))
@@ -761,6 +812,14 @@ func listFeeScheduleSummaries(ctx context.Context, db *sql.DB, filters feeSchedu
 		args = append(args, filters.Grade)
 		conditions = append(conditions, fmt.Sprintf("(fs.grade = $%d OR c.grade = $%d)", len(args), len(args)))
 	}
+	if filters.PeriodCode != "" {
+		args = append(args, filters.PeriodCode)
+		conditions = append(conditions, fmt.Sprintf("lower(fs.period_code) = lower($%d)", len(args)))
+	}
+	if filters.Month > 0 {
+		args = append(args, filters.Month)
+		conditions = append(conditions, fmt.Sprintf("fs.month = $%d", len(args)))
+	}
 	if filters.Status != "" {
 		args = append(args, filters.Status)
 		conditions = append(conditions, fmt.Sprintf("fs.status = $%d", len(args)))
@@ -769,6 +828,8 @@ func listFeeScheduleSummaries(ctx context.Context, db *sql.DB, filters feeSchedu
 	query := `
 SELECT fs.id::text,
 	fs.name,
+	sy.school_id::text,
+	sc.code,
 	fs.school_year_id::text,
 	sy.code,
 	fs.scope_type,
@@ -778,24 +839,64 @@ SELECT fs.id::text,
 	fs.period_code,
 	fs.month,
 	fs.status,
+	COALESCE(item_totals.item_count, 0),
 	COALESCE(item_totals.item_total, 0),
-	COALESCE(adjustment_counts.adjustment_count, 0)
+	COALESCE(scope_counts.student_count, 0),
+	COALESCE(scope_counts.preview_total, 0),
+	COALESCE(adjustment_counts.adjustment_count, 0),
+	COALESCE(NULLIF(actor.display_name, ''), NULLIF(actor.email, ''), NULLIF(actor.phone, ''), ''),
+	fs.updated_at
 FROM fee_schedules fs
 JOIN school_years sy ON sy.id = fs.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 LEFT JOIN classes c ON c.id = fs.class_id
 LEFT JOIN (
-	SELECT schedule_id, SUM(amount)::integer AS item_total
+	SELECT schedule_id, COUNT(*)::integer AS item_count, SUM(amount)::integer AS item_total
 	FROM fee_schedule_items
 	GROUP BY schedule_id
 ) item_totals ON item_totals.schedule_id = fs.id
+LEFT JOIN LATERAL (
+	SELECT COUNT(*)::integer AS student_count,
+		COALESCE(SUM(GREATEST(COALESCE(item_totals.item_total, 0) + COALESCE(student_adjustments.adjustment_total, 0), 0)), 0)::integer AS preview_total
+	FROM students s2
+	JOIN classes c2 ON c2.id = s2.class_id
+	LEFT JOIN (
+		SELECT sfa.student_id,
+			COALESCE(SUM(CASE
+				WHEN sfa.adjustment_type = 'discount' THEN -sfa.amount
+				WHEN sfa.adjustment_type IN ('surcharge', 'carry_over') THEN sfa.amount
+				WHEN sfa.adjustment_type = 'waiver' THEN -CASE
+					WHEN sfa.amount > 0 THEN sfa.amount
+					ELSE COALESCE(waived_item.amount, 0)
+				END
+				ELSE 0
+			END), 0)::integer AS adjustment_total
+		FROM student_fee_adjustments sfa
+		LEFT JOIN fee_schedule_items waived_item
+			ON waived_item.schedule_id = sfa.schedule_id
+			AND waived_item.fee_type_id = sfa.fee_type_id
+		WHERE sfa.schedule_id = fs.id
+			AND sfa.status = 'active'
+		GROUP BY sfa.student_id
+	) student_adjustments ON student_adjustments.student_id = s2.id
+	WHERE s2.status = 'active'
+		AND c2.status = 'active'
+		AND c2.school_year_id = fs.school_year_id
+		AND (
+			(fs.scope_type = 'class' AND c2.id = fs.class_id) OR
+			(fs.scope_type = 'grade' AND lower(c2.grade) = lower(fs.grade)) OR
+			(fs.scope_type = 'school_year')
+		)
+) scope_counts ON true
 LEFT JOIN (
 	SELECT schedule_id, COUNT(*)::integer AS adjustment_count
 	FROM student_fee_adjustments
 	WHERE status = 'active'
 	GROUP BY schedule_id
 ) adjustment_counts ON adjustment_counts.schedule_id = fs.id
+LEFT JOIN app_users actor ON actor.id = COALESCE(fs.updated_by_user_id, fs.created_by_user_id)
 WHERE ` + strings.Join(conditions, " AND ") + `
-ORDER BY sy.code DESC, fs.period_code DESC, fs.created_at DESC
+ORDER BY sy.code DESC, fs.period_code DESC, fs.updated_at DESC
 LIMIT 500`
 
 	rows, err := db.QueryContext(ctx, query, args...)
@@ -808,9 +909,12 @@ LIMIT 500`
 	for rows.Next() {
 		var schedule feeScheduleSummary
 		var month sql.NullInt64
+		var updatedAt sql.NullTime
 		if err := rows.Scan(
 			&schedule.ID,
 			&schedule.Name,
+			&schedule.SchoolID,
+			&schedule.SchoolCode,
 			&schedule.SchoolYearID,
 			&schedule.SchoolYearCode,
 			&schedule.ScopeType,
@@ -820,13 +924,21 @@ LIMIT 500`
 			&schedule.PeriodCode,
 			&month,
 			&schedule.Status,
+			&schedule.ItemCount,
 			&schedule.ItemTotal,
+			&schedule.StudentCount,
+			&schedule.PreviewTotal,
 			&schedule.AdjustmentCount,
+			&schedule.UpdatedActor,
+			&updatedAt,
 		); err != nil {
 			return nil, err
 		}
 		if month.Valid {
 			schedule.Month = int(month.Int64)
+		}
+		if updatedAt.Valid {
+			schedule.UpdatedAt = updatedAt.Time.UTC().Format(time.RFC3339)
 		}
 		schedules = append(schedules, schedule)
 	}
@@ -848,7 +960,24 @@ func loadFeeScheduleStudents(ctx context.Context, exec masterDataExecutor, input
 	}
 
 	query := `
-SELECT s.id::text, s.student_code, s.full_name, c.id::text, c.name, c.grade, sy.code
+SELECT s.id::text,
+	s.student_code,
+	s.full_name,
+	c.id::text,
+	c.name,
+	c.grade,
+	sy.code,
+	EXISTS (
+		SELECT 1
+		FROM student_parents sp
+		JOIN parents p ON p.id = sp.parent_id
+		WHERE sp.student_id = s.id
+			AND sp.is_active
+			AND sp.receives_billing_email
+			AND p.status = 'active'
+			AND p.email_active
+			AND btrim(p.email) <> ''
+	) AS billing_recipient_ready
 FROM students s
 JOIN classes c ON c.id = s.class_id
 JOIN school_years sy ON sy.id = c.school_year_id
@@ -865,9 +994,19 @@ LIMIT 2000`
 	students := []feeScheduleStudent{}
 	for rows.Next() {
 		var student feeScheduleStudent
-		if err := rows.Scan(&student.ID, &student.StudentCode, &student.StudentName, &student.ClassID, &student.ClassName, &student.Grade, &student.SchoolYearCode); err != nil {
+		if err := rows.Scan(
+			&student.ID,
+			&student.StudentCode,
+			&student.StudentName,
+			&student.ClassID,
+			&student.ClassName,
+			&student.Grade,
+			&student.SchoolYearCode,
+			&student.BillingRecipientReady,
+		); err != nil {
 			return nil, err
 		}
+		student.BillingRecipientChecked = true
 		students = append(students, student)
 	}
 	if err := rows.Err(); err != nil {

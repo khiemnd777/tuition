@@ -65,12 +65,16 @@ type invoiceScheduleMeta struct {
 }
 
 type invoicePreviewSummary struct {
-	StudentCount     int `json:"studentCount"`
-	ExistingCount    int `json:"existingCount"`
-	GeneratedCount   int `json:"generatedCount"`
-	BaseAmount       int `json:"baseAmount"`
-	AdjustmentAmount int `json:"adjustmentAmount"`
-	TotalAmount      int `json:"totalAmount"`
+	StudentCount        int `json:"studentCount"`
+	ExistingCount       int `json:"existingCount"`
+	ReadyCount          int `json:"readyCount"`
+	RegenerableCount    int `json:"regenerableCount"`
+	BlockedCount        int `json:"blockedCount"`
+	MissingBillingCount int `json:"missingBillingCount"`
+	GeneratedCount      int `json:"generatedCount"`
+	BaseAmount          int `json:"baseAmount"`
+	AdjustmentAmount    int `json:"adjustmentAmount"`
+	TotalAmount         int `json:"totalAmount"`
 }
 
 type invoicePreview struct {
@@ -91,6 +95,10 @@ type invoicePreviewRow struct {
 	InvoiceID             string                      `json:"invoiceId,omitempty"`
 	InvoiceCode           string                      `json:"invoiceCode"`
 	Existing              bool                        `json:"existing"`
+	GenerationState       string                      `json:"generationState"`
+	Regenerable           bool                        `json:"regenerable"`
+	BlocksGeneration      bool                        `json:"blocksGeneration"`
+	IssueState            string                      `json:"issueState,omitempty"`
 	StudentID             string                      `json:"studentId"`
 	StudentCode           string                      `json:"studentCode"`
 	StudentName           string                      `json:"studentName"`
@@ -109,10 +117,16 @@ type invoicePreviewRow struct {
 	AdjustmentAmount      int                         `json:"adjustmentAmount"`
 	TotalAmount           int                         `json:"totalAmount"`
 	PaidAmount            int                         `json:"paidAmount"`
+	OutstandingAmount     int                         `json:"outstandingAmount"`
 	CollectionBankBIN     string                      `json:"bankBin"`
 	CollectionBankAccount string                      `json:"bankAccount"`
 	QRBillNumber          string                      `json:"qrBillNumber"`
 	QRNote                string                      `json:"qrNote"`
+	ItemCount             int                         `json:"itemCount"`
+	AdjustmentCount       int                         `json:"adjustmentCount"`
+	BillingRecipientReady bool                        `json:"billingRecipientReady"`
+	QRReady               bool                        `json:"qrReady"`
+	PDFReady              bool                        `json:"pdfReady"`
 	Items                 []invoiceDocumentItem       `json:"items"`
 	Adjustments           []invoiceDocumentAdjustment `json:"adjustments,omitempty"`
 	PaymentItems          []paymentItem               `json:"paymentItems"`
@@ -123,6 +137,7 @@ type invoiceSummary struct {
 	InvoiceCode           string    `json:"invoiceCode"`
 	StudentCode           string    `json:"studentCode"`
 	StudentName           string    `json:"studentName"`
+	ClassID               string    `json:"classId"`
 	ClassName             string    `json:"className"`
 	Grade                 string    `json:"grade"`
 	SchoolYearID          string    `json:"schoolYearId"`
@@ -133,22 +148,32 @@ type invoiceSummary struct {
 	IssuedAt              time.Time `json:"issuedAt"`
 	DueDate               string    `json:"dueDate,omitempty"`
 	Status                string    `json:"status"`
+	BaseAmount            int       `json:"baseAmount"`
+	AdjustmentAmount      int       `json:"adjustmentAmount"`
 	TotalAmount           int       `json:"totalAmount"`
 	PaidAmount            int       `json:"paidAmount"`
+	OutstandingAmount     int       `json:"outstandingAmount"`
 	CollectionBankBIN     string    `json:"bankBin"`
 	CollectionBankAccount string    `json:"bankAccount"`
 	QRBillNumber          string    `json:"qrBillNumber"`
 	QRNote                string    `json:"qrNote"`
+	ItemCount             int       `json:"itemCount"`
+	AdjustmentCount       int       `json:"adjustmentCount"`
+	PaymentIntentCount    int       `json:"paymentIntentCount"`
+	MatchedPaymentCount   int       `json:"matchedPaymentCount"`
+	SentCount             int       `json:"sentCount"`
+	LastSentAt            string    `json:"lastSentAt,omitempty"`
+	QRReady               bool      `json:"qrReady"`
+	PDFReady              bool      `json:"pdfReady"`
+	IssueState            string    `json:"issueState,omitempty"`
 }
 
 type invoiceDocument struct {
 	invoiceSummary
-	ClassID          string                      `json:"classId"`
-	StudentID        string                      `json:"studentId"`
-	BaseAmount       int                         `json:"baseAmount"`
-	AdjustmentAmount int                         `json:"adjustmentAmount"`
-	Items            []invoiceDocumentItem       `json:"items"`
-	Adjustments      []invoiceDocumentAdjustment `json:"adjustments,omitempty"`
+	StudentID     string                      `json:"studentId"`
+	Items         []invoiceDocumentItem       `json:"items"`
+	Adjustments   []invoiceDocumentAdjustment `json:"adjustments,omitempty"`
+	StatusHistory []invoiceStatusHistoryEntry `json:"statusHistory,omitempty"`
 }
 
 type invoiceDocumentItem struct {
@@ -174,6 +199,13 @@ type invoiceExistingRef struct {
 	InvoiceCode string
 	Status      string
 	PaidAmount  int
+}
+
+type invoiceStatusHistoryEntry struct {
+	FromStatus string    `json:"fromStatus"`
+	ToStatus   string    `json:"toStatus"`
+	Reason     string    `json:"reason"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 func handleInvoiceOptions(w http.ResponseWriter, r *http.Request) {
@@ -300,6 +332,15 @@ func handleInvoicePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+func handleInvoiceDetail(w http.ResponseWriter, r *http.Request) {
+	invoice, err := loadInvoiceFromRequest(r.Context(), r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, invoice)
 }
 
 func handleInvoicePDF(w http.ResponseWriter, r *http.Request) {
@@ -460,24 +501,69 @@ func buildInvoicePreview(meta invoiceScheduleMeta, input invoiceGenerateInput, f
 			AdjustmentAmount:      feeRow.AdjustmentAmount,
 			TotalAmount:           feeRow.TotalAmount,
 			PaidAmount:            ref.PaidAmount,
+			OutstandingAmount:     maxInt(feeRow.TotalAmount-ref.PaidAmount, 0),
 			CollectionBankBIN:     input.BankBIN,
 			CollectionBankAccount: input.BankAccount,
 			QRBillNumber:          invoiceCode,
+			ItemCount:             len(feeRow.Items),
+			AdjustmentCount:       len(feeRow.Adjustments),
+			BillingRecipientReady: feeRow.BillingReady,
 			Items:                 invoiceItemsFromFeePreview(feeRow.Items),
 			Adjustments:           invoiceAdjustmentsFromFeePreview(feeRow.Adjustments),
 		}
 		row.QRNote = invoiceQRNote(row)
 		row.PaymentItems = invoicePaymentItems(row)
+		classifyInvoicePreviewRow(&row, input)
 		preview.Rows = append(preview.Rows, row)
 		preview.Summary.StudentCount++
 		if row.Existing {
 			preview.Summary.ExistingCount++
 		}
+		if row.Regenerable {
+			preview.Summary.RegenerableCount++
+		}
+		if row.BlocksGeneration {
+			preview.Summary.BlockedCount++
+		} else if row.GenerationState == "ready_to_generate" || row.GenerationState == "ready_to_regenerate" {
+			preview.Summary.ReadyCount++
+		}
+		if !row.BillingRecipientReady {
+			preview.Summary.MissingBillingCount++
+		}
 		preview.Summary.BaseAmount += row.BaseAmount
 		preview.Summary.AdjustmentAmount += row.AdjustmentAmount
 		preview.Summary.TotalAmount += row.TotalAmount
+		if row.GenerationState == "blocked_paid_regenerate" {
+			preview.Issues = append(preview.Issues, invoicePreviewIssue{
+				Type:        "cannot_regenerate_paid_invoice",
+				StudentCode: row.StudentCode,
+				Message:     "invoice has recorded payment amount and cannot be regenerated",
+			})
+		}
 	}
 	return preview
+}
+
+func classifyInvoicePreviewRow(row *invoicePreviewRow, input invoiceGenerateInput) {
+	row.Regenerable = row.Existing && row.PaidAmount == 0
+	row.QRReady = row.QRBillNumber != "" && row.CollectionBankBIN != "" && row.CollectionBankAccount != ""
+	row.PDFReady = row.Existing && row.InvoiceID != ""
+	row.IssueState = "ready"
+	switch {
+	case row.Existing && input.Regenerate && row.PaidAmount > 0:
+		row.GenerationState = "blocked_paid_regenerate"
+		row.BlocksGeneration = true
+		row.IssueState = "blocking"
+	case row.Existing && input.Regenerate:
+		row.GenerationState = "ready_to_regenerate"
+	case row.Existing:
+		row.GenerationState = "already_generated"
+	case !row.BillingRecipientReady:
+		row.GenerationState = "ready_to_generate"
+		row.IssueState = "warning"
+	default:
+		row.GenerationState = "ready_to_generate"
+	}
 }
 
 func feeRowClassID(row feeSchedulePreviewRow) string {
@@ -909,6 +995,7 @@ SELECT i.id::text,
 	i.invoice_code,
 	i.student_code,
 	i.student_name,
+	i.class_id::text,
 	i.class_name,
 	i.grade,
 	i.school_year_id::text,
@@ -919,13 +1006,53 @@ SELECT i.id::text,
 	i.issued_at,
 	i.due_date,
 	i.status,
+	i.base_amount,
+	i.adjustment_amount,
 	i.total_amount,
 	i.paid_amount,
+	GREATEST(i.total_amount - i.paid_amount, 0),
 	i.collection_bank_bin,
 	i.collection_bank_account,
 	i.qr_bill_number,
-	i.qr_note
+	i.qr_note,
+	COALESCE(item_counts.item_count, 0),
+	COALESCE(adjustment_counts.adjustment_count, 0),
+	COALESCE(intent_counts.intent_count, 0),
+	COALESCE(match_counts.match_count, 0),
+	COALESCE(notification_counts.sent_count, 0),
+	notification_counts.last_sent_at,
+	(i.qr_bill_number <> '' AND i.collection_bank_bin <> '' AND i.collection_bank_account <> ''),
+	true
 FROM invoices i
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS item_count
+	FROM invoice_items
+	GROUP BY invoice_id
+) item_counts ON item_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS adjustment_count
+	FROM invoice_adjustments
+	GROUP BY invoice_id
+) adjustment_counts ON adjustment_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS intent_count
+	FROM payment_intents
+	WHERE status NOT IN ('cancelled', 'expired', 'failed')
+	GROUP BY invoice_id
+) intent_counts ON intent_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS match_count
+	FROM reconciliation_matches
+	WHERE status = 'matched'
+	GROUP BY invoice_id
+) match_counts ON match_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS sent_count, MAX(sent_at) AS last_sent_at
+	FROM notification_logs
+	WHERE status = 'sent'
+		AND NOT dry_run
+	GROUP BY invoice_id
+) notification_counts ON notification_counts.invoice_id = i.id
 WHERE ` + strings.Join(conditions, " AND ") + `
 ORDER BY i.issued_at DESC, i.period_code DESC, i.class_name, i.student_code
 LIMIT 1000`
@@ -941,11 +1068,13 @@ LIMIT 1000`
 		var invoice invoiceSummary
 		var month sql.NullInt64
 		var dueDate sql.NullTime
+		var lastSentAt sql.NullTime
 		if err := rows.Scan(
 			&invoice.ID,
 			&invoice.InvoiceCode,
 			&invoice.StudentCode,
 			&invoice.StudentName,
+			&invoice.ClassID,
 			&invoice.ClassName,
 			&invoice.Grade,
 			&invoice.SchoolYearID,
@@ -956,12 +1085,23 @@ LIMIT 1000`
 			&invoice.IssuedAt,
 			&dueDate,
 			&invoice.Status,
+			&invoice.BaseAmount,
+			&invoice.AdjustmentAmount,
 			&invoice.TotalAmount,
 			&invoice.PaidAmount,
+			&invoice.OutstandingAmount,
 			&invoice.CollectionBankBIN,
 			&invoice.CollectionBankAccount,
 			&invoice.QRBillNumber,
 			&invoice.QRNote,
+			&invoice.ItemCount,
+			&invoice.AdjustmentCount,
+			&invoice.PaymentIntentCount,
+			&invoice.MatchedPaymentCount,
+			&invoice.SentCount,
+			&lastSentAt,
+			&invoice.QRReady,
+			&invoice.PDFReady,
 		); err != nil {
 			return nil, err
 		}
@@ -971,9 +1111,24 @@ LIMIT 1000`
 		if dueDate.Valid {
 			invoice.DueDate = dueDate.Time.Format("2006-01-02")
 		}
+		if lastSentAt.Valid {
+			invoice.LastSentAt = lastSentAt.Time.UTC().Format(time.RFC3339)
+		}
+		invoice.IssueState = invoiceSummaryIssueState(invoice)
 		invoices = append(invoices, invoice)
 	}
 	return invoices, rows.Err()
+}
+
+func invoiceSummaryIssueState(invoice invoiceSummary) string {
+	switch {
+	case invoice.Status == invoiceStatusManualReview || invoice.Status == invoiceStatusOverpaid:
+		return "review"
+	case invoice.OutstandingAmount > 0:
+		return "open"
+	default:
+		return "ready"
+	}
 }
 
 func loadInvoiceFromRequest(ctx context.Context, r *http.Request) (invoiceDocument, error) {
@@ -1068,7 +1223,87 @@ WHERE id = $1::uuid`, invoiceID).Scan(
 	}
 	doc.Items = items
 	doc.Adjustments = adjustments
+	doc.ItemCount = len(items)
+	doc.AdjustmentCount = len(adjustments)
+	doc.OutstandingAmount = maxInt(doc.TotalAmount-doc.PaidAmount, 0)
+	doc.QRReady = doc.QRBillNumber != "" && doc.CollectionBankBIN != "" && doc.CollectionBankAccount != ""
+	doc.PDFReady = doc.ID != ""
+	doc.IssueState = invoiceSummaryIssueState(doc.invoiceSummary)
+	if err := loadInvoiceOperationalCounts(ctx, db, &doc.invoiceSummary); err != nil {
+		return doc, err
+	}
+	statusHistory, err := loadInvoiceStatusHistory(ctx, db, invoiceID)
+	if err != nil {
+		return doc, err
+	}
+	doc.StatusHistory = statusHistory
 	return doc, nil
+}
+
+func loadInvoiceOperationalCounts(ctx context.Context, db *sql.DB, invoice *invoiceSummary) error {
+	var lastSentAt sql.NullTime
+	err := db.QueryRowContext(ctx, `
+SELECT
+	COALESCE(intent_counts.intent_count, 0),
+	COALESCE(match_counts.match_count, 0),
+	COALESCE(notification_counts.sent_count, 0),
+	notification_counts.last_sent_at
+FROM invoices i
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS intent_count
+	FROM payment_intents
+	WHERE status NOT IN ('cancelled', 'expired', 'failed')
+	GROUP BY invoice_id
+) intent_counts ON intent_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS match_count
+	FROM reconciliation_matches
+	WHERE status = 'matched'
+	GROUP BY invoice_id
+) match_counts ON match_counts.invoice_id = i.id
+LEFT JOIN (
+	SELECT invoice_id, COUNT(*)::integer AS sent_count, MAX(sent_at) AS last_sent_at
+	FROM notification_logs
+	WHERE status = 'sent'
+		AND NOT dry_run
+	GROUP BY invoice_id
+) notification_counts ON notification_counts.invoice_id = i.id
+WHERE i.id = $1::uuid`, invoice.ID).Scan(
+		&invoice.PaymentIntentCount,
+		&invoice.MatchedPaymentCount,
+		&invoice.SentCount,
+		&lastSentAt,
+	)
+	if err != nil {
+		return err
+	}
+	if lastSentAt.Valid {
+		invoice.LastSentAt = lastSentAt.Time.UTC().Format(time.RFC3339)
+	}
+	return nil
+}
+
+func loadInvoiceStatusHistory(ctx context.Context, db *sql.DB, invoiceID string) ([]invoiceStatusHistoryEntry, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT from_status, to_status, reason, created_at
+FROM invoice_status_history
+WHERE invoice_id = $1::uuid
+ORDER BY created_at DESC, id DESC
+LIMIT 20`, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	history := []invoiceStatusHistoryEntry{}
+	for rows.Next() {
+		var item invoiceStatusHistoryEntry
+		if err := rows.Scan(&item.FromStatus, &item.ToStatus, &item.Reason, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		history = append(history, item)
+	}
+	return history, rows.Err()
 }
 
 func loadInvoiceDocumentItems(ctx context.Context, db *sql.DB, invoiceID string) ([]invoiceDocumentItem, error) {
@@ -1205,6 +1440,13 @@ func deriveInvoiceStatus(totalAmount int, paidAmount int) string {
 	default:
 		return invoiceStatusOverpaid
 	}
+}
+
+func maxInt(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func stableInvoiceCode(scheduleID string, studentID string, periodCode string, studentCode string) string {

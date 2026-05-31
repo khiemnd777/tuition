@@ -77,11 +77,12 @@
         <nav class="tabs app-menu" aria-label="Khu vực làm việc">
           <div class="menu-group">
             <p class="menu-group-title">Tổng quan</p>
-            <button class="tab-button active" type="button" data-tab-target="dashboardTab" aria-controls="dashboardTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">dashboard</span><span>Dashboard</span></button>
+            <button class="tab-button active" type="button" data-tab-target="dashboardTab" aria-controls="dashboardTab" aria-selected="true"><span class="mui-icon" aria-hidden="true">dashboard</span><span>Việc cần xử lý</span></button>
           </div>
           <div class="menu-group">
-            <p class="menu-group-title">Trường & học sinh</p>
-            <button class="tab-button" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">groups</span><span>Học sinh</span></button>
+            <p class="menu-group-title">Thiết lập</p>
+            <button class="tab-button" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_tree</span><span>Học sinh & phụ huynh</span></button>
+            <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng & quyền</span></button>
           </div>
           <div class="menu-group">
             <p class="menu-group-title">Học phí</p>
@@ -89,9 +90,9 @@
             <button class="tab-button" type="button" data-tab-target="invoiceTab" aria-controls="invoiceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">request_quote</span><span>Hóa đơn</span></button>
           </div>
           <div class="menu-group">
-            <p class="menu-group-title">Thanh toán</p>
+            <p class="menu-group-title">Thu tiền</p>
             <button class="tab-button" type="button" data-tab-target="reconciliationTab" aria-controls="reconciliationTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Đối soát</span></button>
-            <button class="tab-button" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Thanh toán</span></button>
+            <button class="tab-button tab-button-secondary" type="button" data-tab-target="paymentsTab" aria-controls="paymentsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Công cụ QR/import</span></button>
           </div>
           <div class="menu-group">
             <p class="menu-group-title">Liên lạc</p>
@@ -99,10 +100,9 @@
             <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
           </div>
           <div class="menu-group">
-            <p class="menu-group-title">Quản trị</p>
+            <p class="menu-group-title">Báo cáo & vận hành</p>
             <button class="tab-button" type="button" data-tab-target="reportsTab" aria-controls="reportsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo</span></button>
             <button class="tab-button" type="button" data-tab-target="operationsTab" aria-controls="operationsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Vận hành</span></button>
-            <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng</span></button>
           </div>
         </nav>
       </aside>
@@ -110,12 +110,31 @@
       <div class="app-main">
         <header class="app-bar">
           <div class="screen-heading">
+            <nav id="appBreadcrumbs" class="app-breadcrumbs" aria-label="Breadcrumb">Tổng quan / Việc cần xử lý</nav>
             <p id="currentSectionKicker" class="eyebrow">Tổng quan</p>
             <h1 id="currentSectionTitle">Dashboard thu học phí</h1>
             <p id="currentSectionDescription">Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.</p>
           </div>
+          <div class="app-context" aria-label="Bối cảnh vận hành">
+            <label>
+              <span>Trường</span>
+              <select id="appContextSchool"></select>
+            </label>
+            <label>
+              <span>Năm học</span>
+              <select id="appContextYear"></select>
+            </label>
+            <label>
+              <span>Kỳ thu</span>
+              <input id="appContextPeriod" placeholder="2026-05" />
+            </label>
+            <label>
+              <span>Tháng</span>
+              <input id="appContextMonth" type="number" min="1" max="12" step="1" />
+            </label>
+          </div>
           <div class="app-bar-actions">
-            <div class="actions" aria-label="Tác vụ dữ liệu">
+            <div class="actions legacy-payment-actions" aria-label="Tác vụ QR/import legacy">
               <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
               <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
@@ -143,6 +162,10 @@
             </div>
           </div>
           <div class="admin-filter-grid">
+            <label>
+              <span>Trường</span>
+              <select id="adminDashboardSchool"></select>
+            </label>
             <label>
               <span>Năm học</span>
               <select id="adminDashboardYear"></select>
@@ -176,6 +199,50 @@
             </label>
           </div>
           <div id="adminDashboardMetrics" class="admin-metrics">Chưa có dữ liệu dashboard</div>
+          <div class="dashboard-task-grid">
+            <section class="dashboard-task-section" aria-labelledby="adminWorkQueueTitle">
+              <div class="task-section-head">
+                <div>
+                  <p class="section-kicker">Work queue</p>
+                  <h3 id="adminWorkQueueTitle"><span class="mui-icon" aria-hidden="true">task_alt</span><span>Việc cần xử lý</span></h3>
+                </div>
+              </div>
+              <div id="adminWorkQueue" class="work-queue-list">Chưa có dữ liệu</div>
+            </section>
+            <section class="dashboard-task-section" aria-labelledby="adminQuickActionsTitle">
+              <div class="task-section-head">
+                <div>
+                  <p class="section-kicker">Quick actions</p>
+                  <h3 id="adminQuickActionsTitle"><span class="mui-icon" aria-hidden="true">bolt</span><span>Bước nhanh</span></h3>
+                </div>
+              </div>
+              <div id="adminQuickActions" class="quick-action-grid">Chưa có tác vụ</div>
+            </section>
+          </div>
+          <section class="dashboard-readiness-section" aria-labelledby="adminReadinessTitle">
+            <div class="task-section-head">
+              <div>
+                <p class="section-kicker">Data quality</p>
+                <h3 id="adminReadinessTitle"><span class="mui-icon" aria-hidden="true">health_and_safety</span><span>Readiness trước vận hành</span></h3>
+              </div>
+              <div class="readiness-toolbar">
+                <label>
+                  <span>Severity</span>
+                  <select id="adminReadinessSeverity">
+                    <option value="">Tất cả</option>
+                    <option value="blocking">Blocking</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Loại issue</span>
+                  <select id="adminReadinessType"></select>
+                </label>
+              </div>
+            </div>
+            <div id="adminReadinessCenter" class="readiness-center">Chưa có dữ liệu readiness</div>
+          </section>
         </section>
 
         <section class="panel admin-top-class-panel">
@@ -368,7 +435,18 @@
             </div>
           </div>
 
-          <div class="fee-schedule-grid" hidden>
+          <div id="feeGuideSteps" class="fee-guide-steps" hidden>
+            <button class="is-active" type="button" data-fee-guide-step="scope"><span class="mui-icon" aria-hidden="true">filter_alt</span><span>Scope</span></button>
+            <button type="button" data-fee-guide-step="items"><span class="mui-icon" aria-hidden="true">price_change</span><span>Khoản phí</span></button>
+            <button type="button" data-fee-guide-step="adjustments"><span class="mui-icon" aria-hidden="true">tune</span><span>Điều chỉnh</span></button>
+            <button type="button" data-fee-guide-step="preview"><span class="mui-icon" aria-hidden="true">fact_check</span><span>Preview</span></button>
+          </div>
+
+          <div class="fee-schedule-grid" hidden data-fee-guide-panel="scope">
+            <label>
+              <span>Trường</span>
+              <select id="feeScheduleSchool"></select>
+            </label>
             <label>
               <span>Năm học</span>
               <select id="feeScheduleYear"></select>
@@ -411,7 +489,7 @@
           </div>
 
           <div class="fee-schedule-body" hidden>
-            <section class="fee-schedule-section">
+            <section class="fee-schedule-section" data-fee-guide-panel="items">
               <div class="fee-section-head">
                 <strong>Khoản phí mặc định</strong>
                 <span id="feeScheduleItemTotal">0 đ</span>
@@ -437,10 +515,36 @@
               </div>
             </section>
 
-            <section class="fee-schedule-section">
+            <section class="fee-schedule-section" data-fee-guide-panel="adjustments">
               <div class="fee-section-head">
                 <strong>Điều chỉnh học sinh</strong>
-                <span id="feeAdjustmentCount">0 điều chỉnh</span>
+                <div class="fee-section-actions">
+                  <span id="feeAdjustmentCount">0 điều chỉnh</span>
+                  <button id="addFeeAdjustmentRow" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Thêm</span></button>
+                </div>
+              </div>
+              <div class="table-wrap fee-adjustment-table-wrap">
+                <table class="fee-adjustment-table" aria-label="Điều chỉnh học sinh">
+                  <colgroup>
+                    <col class="fee-adjust-student" />
+                    <col class="fee-adjust-type" />
+                    <col class="fee-adjust-fee" />
+                    <col class="fee-adjust-amount" />
+                    <col class="fee-adjust-reason" />
+                    <col class="fee-adjust-action" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">Mã HS</th>
+                      <th scope="col">Loại</th>
+                      <th scope="col">Khoản phí</th>
+                      <th scope="col">Số tiền</th>
+                      <th scope="col">Lý do</th>
+                      <th scope="col"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="feeAdjustmentRows"></tbody>
+                </table>
               </div>
               <textarea id="feeAdjustmentsCsv" spellcheck="false" placeholder="student_code,adjustment_type,fee_type_code,amount,reason"></textarea>
             </section>
@@ -465,6 +569,7 @@
                 <col class="fee-preview-money" />
                 <col class="fee-preview-money" />
                 <col class="fee-preview-money" />
+                <col class="fee-preview-status" />
               </colgroup>
               <thead>
                 <tr>
@@ -474,6 +579,7 @@
                   <th scope="col">Mặc định</th>
                   <th scope="col">Điều chỉnh</th>
                   <th scope="col">Phải thu</th>
+                  <th scope="col">Nhận phí</th>
                 </tr>
               </thead>
               <tbody id="feeSchedulePreviewRows"></tbody>
@@ -509,7 +615,7 @@
 
     <section id="invoiceTab" class="tab-panel" role="tabpanel" hidden>
       <div class="invoice-workspace">
-        <section class="panel invoice-control-panel">
+        <section class="panel invoice-control-panel" data-invoice-step-panel="scope">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Production invoices</p>
@@ -552,9 +658,15 @@
               </select>
             </label>
           </div>
+          <div id="invoiceWorkbenchSteps" class="invoice-workbench-steps">
+            <button class="is-active" type="button" data-invoice-step="scope"><span class="mui-icon" aria-hidden="true">filter_alt</span><span>Scope</span></button>
+            <button type="button" data-invoice-step="preview"><span class="mui-icon" aria-hidden="true">table_view</span><span>Preview</span></button>
+            <button type="button" data-invoice-step="issues"><span class="mui-icon" aria-hidden="true">priority_high</span><span>Issues</span></button>
+            <button type="button" data-invoice-step="generate"><span class="mui-icon" aria-hidden="true">post_add</span><span>Generate</span></button>
+          </div>
         </section>
 
-        <section class="panel invoice-preview-panel">
+        <section class="panel invoice-preview-panel" data-invoice-step-panel="preview">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Generation preview</p>
@@ -563,14 +675,17 @@
             <span id="invoicePreviewCount" class="count-badge">0 hóa đơn</span>
           </div>
           <div id="invoicePreviewSummary" class="invoice-summary">Chưa có preview</div>
+          <div id="invoiceIssuePanel" class="invoice-issue-panel" data-invoice-step-panel="issues"></div>
           <div class="table-wrap invoice-table-wrap">
             <table class="invoice-table" aria-label="Preview hóa đơn">
               <colgroup>
                 <col class="invoice-code-col" />
                 <col class="invoice-student-col" />
                 <col class="invoice-class-col" />
-                <col class="invoice-period-col" />
+                <col class="invoice-count-col" />
                 <col class="invoice-money-col" />
+                <col class="invoice-status-col" />
+                <col class="invoice-status-col" />
                 <col class="invoice-status-col" />
               </colgroup>
               <thead>
@@ -578,9 +693,11 @@
                   <th scope="col">Mã HĐ</th>
                   <th scope="col">Học sinh</th>
                   <th scope="col">Lớp</th>
-                  <th scope="col">Kỳ</th>
+                  <th scope="col">Items</th>
                   <th scope="col">Tổng tiền</th>
-                  <th scope="col">Trạng thái</th>
+                  <th scope="col">Billing</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Issue</th>
                 </tr>
               </thead>
               <tbody id="invoicePreviewRows"></tbody>
@@ -588,13 +705,16 @@
           </div>
         </section>
 
-        <section class="panel invoice-list-panel">
+        <section class="panel invoice-list-panel" data-invoice-step-panel="generate">
           <div class="panel-head">
             <div>
               <p class="section-kicker">Issued invoices</p>
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">receipt</span><span>Danh sách hóa đơn</span></h2>
             </div>
-            <span id="invoiceCount" class="count-badge">0 hóa đơn</span>
+            <div class="panel-actions">
+              <button id="exportInvoiceCsv" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Export CSV</span></button>
+              <span id="invoiceCount" class="count-badge">0 hóa đơn</span>
+            </div>
           </div>
           <div class="table-wrap invoice-table-wrap">
             <table class="invoice-table" aria-label="Danh sách hóa đơn đã sinh">
@@ -602,8 +722,11 @@
                 <col class="invoice-code-col" />
                 <col class="invoice-student-col" />
                 <col class="invoice-class-col" />
-                <col class="invoice-period-col" />
                 <col class="invoice-money-col" />
+                <col class="invoice-money-col" />
+                <col class="invoice-money-col" />
+                <col class="invoice-status-col" />
+                <col class="invoice-status-col" />
                 <col class="invoice-status-col" />
                 <col class="invoice-action-col" />
               </colgroup>
@@ -612,10 +735,13 @@
                   <th scope="col">Mã HĐ</th>
                   <th scope="col">Học sinh</th>
                   <th scope="col">Lớp</th>
-                  <th scope="col">Kỳ</th>
                   <th scope="col">Tổng tiền</th>
+                  <th scope="col">Đã thu</th>
+                  <th scope="col">Còn thiếu</th>
                   <th scope="col">Trạng thái</th>
-                  <th scope="col">Tệp</th>
+                  <th scope="col">Sent</th>
+                  <th scope="col">QR/PDF</th>
+                  <th scope="col">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="invoiceRows"></tbody>
@@ -923,6 +1049,10 @@
             </div>
           </div>
           <div class="admin-filter-grid">
+            <label>
+              <span>Trường</span>
+              <select id="adminReportsSchool"></select>
+            </label>
             <label>
               <span>Năm học</span>
               <select id="adminReportsYear"></select>
@@ -1256,7 +1386,17 @@
             </label>
             <label class="master-search">
               <span>Tìm kiếm</span>
-              <input id="masterSearch" placeholder="Mã, tên, phụ huynh, email" />
+              <input id="masterSearch" placeholder="Mã, tên, phụ huynh, email, SĐT" />
+            </label>
+            <label>
+              <span>Billing</span>
+              <select id="masterBillingFilter">
+                <option value="">Tất cả</option>
+                <option value="ready">Sẵn sàng</option>
+                <option value="missing">Thiếu recipient</option>
+                <option value="warning">Có cảnh báo</option>
+                <option value="attention">Có hóa đơn cần xử lý</option>
+              </select>
             </label>
             <button id="refreshMasterData" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
           </div>
@@ -1413,7 +1553,9 @@
                 <col class="master-col-grade" />
                 <col class="master-col-class" />
                 <col class="master-col-parent" />
-                <col class="master-col-email" />
+                <col class="master-col-billing" />
+                <col class="master-col-warning" />
+                <col class="master-col-invoice" />
                 <col class="master-col-status" />
               </colgroup>
               <thead>
@@ -1424,7 +1566,9 @@
                   <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">stacked_line_chart</span><span>Khối</span></span></th>
                   <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">school</span><span>Lớp</span></span></th>
                   <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">supervisor_account</span><span>Phụ huynh</span></span></th>
-                  <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">alternate_email</span><span>Email nhận phí</span></span></th>
+                  <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">alternate_email</span><span>Billing</span></span></th>
+                  <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">health_and_safety</span><span>Contact</span></span></th>
+                  <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">request_quote</span><span>HĐ</span></span></th>
                   <th scope="col"><span class="th-label"><span class="mui-icon" aria-hidden="true">toggle_on</span><span>Trạng thái</span></span></th>
                 </tr>
               </thead>

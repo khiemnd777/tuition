@@ -218,7 +218,8 @@ func filterAdminReportTransactions(invoices []adminInvoiceReportRow, transaction
 }
 
 func adminFiltersConstrainInvoices(filters adminFilters) bool {
-	return strings.TrimSpace(filters.SchoolYearID) != "" ||
+	return strings.TrimSpace(filters.SchoolID) != "" ||
+		strings.TrimSpace(filters.SchoolYearID) != "" ||
 		strings.TrimSpace(filters.ClassID) != "" ||
 		strings.TrimSpace(filters.Grade) != "" ||
 		strings.TrimSpace(filters.PeriodCode) != "" ||

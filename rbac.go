@@ -55,6 +55,7 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodGet, Path: "/api/v1/invoices", Permission: "invoice.view", Handler: handleInvoiceList},
 		{Method: http.MethodPost, Path: "/api/v1/invoices/preview", Permission: "invoice.view", Handler: handleInvoicePreview},
 		{Method: http.MethodPost, Path: "/api/v1/invoices/generate", Permission: "invoice.create", Handler: handleInvoiceGenerate},
+		{Method: http.MethodGet, Path: "/api/v1/invoices/detail", Permission: "invoice.view", Handler: handleInvoiceDetail},
 		{Method: http.MethodGet, Path: "/api/v1/invoices/payment", Permission: "invoice.view", Handler: handleInvoicePayment},
 		{Method: http.MethodGet, Path: "/api/v1/invoices/pdf", Permission: "invoice.view", Handler: handleInvoicePDF},
 		{Method: http.MethodGet, Path: "/api/v1/payments/providers", Permission: "payment.view", Handler: handlePaymentProviders},

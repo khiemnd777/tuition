@@ -70,6 +70,41 @@ func TestBuildFeeSchedulePreviewReportsAdjustmentWithoutReason(t *testing.T) {
 	}
 }
 
+func TestBuildFeeSchedulePreviewReportsEmptyScopeAndBillingIssues(t *testing.T) {
+	schedule := feeScheduleInput{
+		ClassID: "class-1",
+		Items: []feeScheduleItemInput{
+			{FeeTypeCode: "tuition", LabelVI: "Hoc phi", LabelEN: "Tuition", Amount: 1000},
+		},
+	}
+
+	preview, issues := buildFeeSchedulePreview(schedule, nil)
+	if len(preview.Rows) != 0 {
+		t.Fatalf("expected no rows for empty scope, got %+v", preview.Rows)
+	}
+	if !hasFeeScheduleIssue(issues, "empty_class") {
+		t.Fatalf("expected empty class issue, got %+v", issues)
+	}
+
+	students := []feeScheduleStudent{{
+		ID:                      "student-1",
+		StudentCode:             "S001",
+		StudentName:             "Nguyen An",
+		BillingRecipientChecked: true,
+		BillingRecipientReady:   false,
+	}}
+	preview, issues = buildFeeSchedulePreview(schedule, students)
+	if len(preview.Rows) != 1 {
+		t.Fatalf("expected one preview row, got %d", len(preview.Rows))
+	}
+	if preview.Rows[0].BillingReady {
+		t.Fatalf("expected billing readiness to be false")
+	}
+	if !hasFeeScheduleIssue(issues, "missing_billing_recipient") {
+		t.Fatalf("expected missing billing recipient issue, got %+v", issues)
+	}
+}
+
 func TestValidateFeeScheduleInputRequiresOperatorForSavedAdjustments(t *testing.T) {
 	input := normalizeFeeScheduleInput(feeScheduleInput{
 		SchoolYearID: "11111111-1111-1111-1111-111111111111",

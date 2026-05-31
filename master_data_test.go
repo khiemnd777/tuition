@@ -105,7 +105,7 @@ func TestNormalizeMasterDataStudentSaveInputDefaultsParentFlags(t *testing.T) {
 		StudentName: " Nguyen An ",
 		ClassID:     " class-1 ",
 		Parents: []masterDataParentSaveInput{
-			{ParentName: " Nguyen Van A ", Email: " A@Example.COM "},
+			{ParentName: " Nguyen Van A ", Email: " A@Example.COM ", Phone: " 090 123 4567 ", Relationship: " Mẹ "},
 		},
 	})
 
@@ -116,11 +116,56 @@ func TestNormalizeMasterDataStudentSaveInputDefaultsParentFlags(t *testing.T) {
 		t.Fatalf("expected default active status, got %q", input.Status)
 	}
 	parent := input.Parents[0]
-	if parent.ParentName != "Nguyen Van A" || parent.Email != "a@example.com" {
+	if parent.ParentName != "Nguyen Van A" || parent.Email != "a@example.com" || parent.Phone != "0901234567" || parent.Relationship != "me" {
 		t.Fatalf("unexpected normalized parent input: %+v", parent)
 	}
 	if !boolValue(parent.EmailActive) || !boolValue(parent.IsActive) || !boolValue(parent.IsPrimary) || !boolValue(parent.ReceivesBillingEmail) {
 		t.Fatalf("expected first parent defaults to active primary billing contact, got %+v", parent)
+	}
+}
+
+func TestDeriveMasterDataStudentRelationshipState(t *testing.T) {
+	student := masterDataStudent{
+		Parents: []masterDataParentContact{
+			{ParentName: "Nguyen Van A", Email: "a@example.com", Relationship: "mother", EmailActive: true, IsActive: true, ReceivesBillingEmail: true},
+			{ParentName: "Nguyen Van B", Email: "", Relationship: "", EmailActive: true, IsActive: true, ReceivesBillingEmail: false},
+		},
+	}
+
+	deriveMasterDataStudentRelationshipState(&student)
+
+	if student.ParentCount != 2 || student.BillingRecipientCount != 1 || student.MissingBillingRecipient || student.ContactWarning != "" {
+		t.Fatalf("unexpected relationship state: %+v", student)
+	}
+	if !student.Parents[0].BillingReady {
+		t.Fatalf("expected first parent to be billing ready: %+v", student.Parents[0])
+	}
+	if student.Parents[1].Relationship != "guardian" {
+		t.Fatalf("expected default guardian relationship, got %+v", student.Parents[1])
+	}
+}
+
+func TestDeriveMasterDataStudentRelationshipStateWarnsWhenMissingBilling(t *testing.T) {
+	student := masterDataStudent{
+		Parents: []masterDataParentContact{
+			{ParentName: "Nguyen Van A", Email: "a@example.com", EmailActive: false, IsActive: true, ReceivesBillingEmail: true},
+		},
+	}
+
+	deriveMasterDataStudentRelationshipState(&student)
+
+	if student.BillingRecipientCount != 0 || !student.MissingBillingRecipient || student.ContactWarning != "missing_billing_recipient" {
+		t.Fatalf("expected missing billing warning, got %+v", student)
+	}
+}
+
+func TestMasterDataUUIDPlaceholders(t *testing.T) {
+	placeholders, args := masterDataUUIDPlaceholders([]string{"student-1", "student-2"})
+	if placeholders != "$1::uuid, $2::uuid" {
+		t.Fatalf("unexpected placeholders: %s", placeholders)
+	}
+	if len(args) != 2 || args[0] != "student-1" || args[1] != "student-2" {
+		t.Fatalf("unexpected args: %+v", args)
 	}
 }
 

@@ -56,6 +56,7 @@ const masterSchoolYearFilterEl = document.querySelector("#masterSchoolYearFilter
 const masterGradeFilterEl = document.querySelector("#masterGradeFilter");
 const masterClassFilterEl = document.querySelector("#masterClassFilter");
 const masterSearchEl = document.querySelector("#masterSearch");
+const masterBillingFilterEl = document.querySelector("#masterBillingFilter");
 const refreshMasterDataBtn = document.querySelector("#refreshMasterData");
 const openSchoolTreeSchoolDialogBtn = document.querySelector("#openSchoolTreeSchoolDialog");
 const openSchoolTreeYearDialogBtn = document.querySelector("#openSchoolTreeYearDialog");
@@ -120,6 +121,8 @@ const refreshFeeSchedulesBtn = document.querySelector("#refreshFeeSchedules");
 const openFeeScheduleDialogBtn = document.querySelector("#openFeeScheduleDialog");
 const previewFeeScheduleBtn = document.querySelector("#previewFeeSchedule");
 const saveFeeScheduleBtn = document.querySelector("#saveFeeSchedule");
+const feeGuideStepsEl = document.querySelector("#feeGuideSteps");
+const feeScheduleSchoolEl = document.querySelector("#feeScheduleSchool");
 const feeScheduleYearEl = document.querySelector("#feeScheduleYear");
 const feeScheduleGradeEl = document.querySelector("#feeScheduleGrade");
 const feeScheduleClassEl = document.querySelector("#feeScheduleClass");
@@ -131,6 +134,8 @@ const feeScheduleNotesEl = document.querySelector("#feeScheduleNotes");
 const feeScheduleOperatorEl = document.querySelector("#feeScheduleOperator");
 const feeScheduleItemsEl = document.querySelector("#feeScheduleItems");
 const feeScheduleItemTotalEl = document.querySelector("#feeScheduleItemTotal");
+const feeAdjustmentRowsEl = document.querySelector("#feeAdjustmentRows");
+const addFeeAdjustmentRowBtn = document.querySelector("#addFeeAdjustmentRow");
 const feeAdjustmentsCsvEl = document.querySelector("#feeAdjustmentsCsv");
 const feeAdjustmentCountEl = document.querySelector("#feeAdjustmentCount");
 const feeScheduleSummaryEl = document.querySelector("#feeScheduleSummary");
@@ -143,6 +148,7 @@ const refreshInvoicesBtn = document.querySelector("#refreshInvoices");
 const openInvoiceDialogBtn = document.querySelector("#openInvoiceDialog");
 const previewInvoicesBtn = document.querySelector("#previewInvoices");
 const generateInvoicesBtn = document.querySelector("#generateInvoices");
+const invoiceWorkbenchStepsEl = document.querySelector("#invoiceWorkbenchSteps");
 const invoiceScheduleEl = document.querySelector("#invoiceSchedule");
 const invoiceBankBinEl = document.querySelector("#invoiceBankBin");
 const invoiceBankAccountEl = document.querySelector("#invoiceBankAccount");
@@ -151,9 +157,11 @@ const invoiceDueDateEl = document.querySelector("#invoiceDueDate");
 const invoiceRegenerateEl = document.querySelector("#invoiceRegenerate");
 const invoicePreviewCountEl = document.querySelector("#invoicePreviewCount");
 const invoicePreviewSummaryEl = document.querySelector("#invoicePreviewSummary");
+const invoiceIssuePanelEl = document.querySelector("#invoiceIssuePanel");
 const invoicePreviewRowsEl = document.querySelector("#invoicePreviewRows");
 const invoiceRowsEl = document.querySelector("#invoiceRows");
 const invoiceCountEl = document.querySelector("#invoiceCount");
+const exportInvoiceCsvBtn = document.querySelector("#exportInvoiceCsv");
 const invoiceDetailSummaryEl = document.querySelector("#invoiceDetailSummary");
 const invoicePaymentStatusEl = document.querySelector("#invoicePaymentStatus");
 const invoicePaymentPreviewEl = document.querySelector("#invoicePaymentPreview");
@@ -192,6 +200,7 @@ const notificationLogCountEl = document.querySelector("#notificationLogCount");
 const notificationLogsEl = document.querySelector("#notificationLogs");
 const adminDashboardStatusEl = document.querySelector("#adminDashboardStatus");
 const refreshAdminDashboardBtn = document.querySelector("#refreshAdminDashboard");
+const adminDashboardSchoolEl = document.querySelector("#adminDashboardSchool");
 const adminDashboardYearEl = document.querySelector("#adminDashboardYear");
 const adminDashboardGradeEl = document.querySelector("#adminDashboardGrade");
 const adminDashboardClassEl = document.querySelector("#adminDashboardClass");
@@ -199,6 +208,11 @@ const adminDashboardPeriodEl = document.querySelector("#adminDashboardPeriod");
 const adminDashboardMonthEl = document.querySelector("#adminDashboardMonth");
 const adminDashboardInvoiceStatusEl = document.querySelector("#adminDashboardInvoiceStatus");
 const adminDashboardMetricsEl = document.querySelector("#adminDashboardMetrics");
+const adminWorkQueueEl = document.querySelector("#adminWorkQueue");
+const adminQuickActionsEl = document.querySelector("#adminQuickActions");
+const adminReadinessSeverityEl = document.querySelector("#adminReadinessSeverity");
+const adminReadinessTypeEl = document.querySelector("#adminReadinessType");
+const adminReadinessCenterEl = document.querySelector("#adminReadinessCenter");
 const adminTopClassCountEl = document.querySelector("#adminTopClassCount");
 const adminTopClassRowsEl = document.querySelector("#adminTopClassRows");
 const adminAttentionCountEl = document.querySelector("#adminAttentionCount");
@@ -208,6 +222,7 @@ const refreshAdminReportsBtn = document.querySelector("#refreshAdminReports");
 const exportAdminReportClassesBtn = document.querySelector("#exportAdminReportClasses");
 const exportAdminReportInvoicesBtn = document.querySelector("#exportAdminReportInvoices");
 const exportAdminReportTransactionsBtn = document.querySelector("#exportAdminReportTransactions");
+const adminReportsSchoolEl = document.querySelector("#adminReportsSchool");
 const adminReportsYearEl = document.querySelector("#adminReportsYear");
 const adminReportsGradeEl = document.querySelector("#adminReportsGrade");
 const adminReportsClassEl = document.querySelector("#adminReportsClass");
@@ -247,9 +262,15 @@ const adminRoleCountEl = document.querySelector("#adminRoleCount");
 const adminRoleListEl = document.querySelector("#adminRoleList");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
+const legacyPaymentActionsEl = document.querySelector(".legacy-payment-actions");
+const appBreadcrumbsEl = document.querySelector("#appBreadcrumbs");
 const currentSectionKickerEl = document.querySelector("#currentSectionKicker");
 const currentSectionTitleEl = document.querySelector("#currentSectionTitle");
 const currentSectionDescriptionEl = document.querySelector("#currentSectionDescription");
+const appContextSchoolEl = document.querySelector("#appContextSchool");
+const appContextYearEl = document.querySelector("#appContextYear");
+const appContextPeriodEl = document.querySelector("#appContextPeriod");
+const appContextMonthEl = document.querySelector("#appContextMonth");
 const loginScreenEl = document.querySelector("#loginScreen");
 const appShellEl = document.querySelector("#appShell");
 const loginFormEl = document.querySelector("#loginForm");
@@ -284,6 +305,7 @@ let feeColumnCollapsed = false;
 let savedEmailConfig = {};
 let masterDataOptions = { schools: [], schoolYears: [], classes: [] };
 let masterDataLoaded = false;
+let masterStudentsRawData = [];
 let masterStudentsData = [];
 let selectedMasterStudentKey = "";
 let masterStudentParentDrafts = [];
@@ -291,11 +313,13 @@ let schoolTreeData = { schools: [] };
 let selectedSchoolTreeNode = { type: "", id: "" };
 let paymentImportState = null;
 let masterImportState = null;
-let feeScheduleOptions = { feeTypes: [], schoolYears: [], classes: [] };
+let feeScheduleOptions = { schools: [], feeTypes: [], schoolYears: [], classes: [] };
+let feeSchedulesData = [];
 let feeSchedulesLoaded = false;
 let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
 let invoicesLoaded = false;
 let invoicesData = [];
+let invoiceDetailCache = new Map();
 let selectedInvoiceId = "";
 let paymentReconciliationLoaded = false;
 let paymentReconciliationData = { providers: [], invoices: [], transactions: [], intents: {}, summary: {} };
@@ -304,14 +328,17 @@ let notificationLoaded = false;
 let notificationOptions = { templates: [], campaigns: [], schoolYears: [], classes: [] };
 let notificationPreviewData = { recipients: [], summary: {}, campaign: null, logs: [] };
 let currentNotificationCampaignId = "";
-let adminOptions = { schoolYears: [], classes: [] };
+let adminOptions = { schools: [], schoolYears: [], classes: [] };
 let adminDashboardLoaded = false;
+let adminDashboardData = null;
 let adminReportsLoaded = false;
 let operationsLoaded = false;
 let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
 let authSession = null;
 let refreshAuthPromise = null;
+let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
+let appContextApplyTimer = 0;
 let activeDialogRestore = null;
 let activeDialogOnClose = null;
 
@@ -368,58 +395,69 @@ const sampleRows = [
 const tabMetadata = {
   dashboardTab: {
     kicker: "Tổng quan",
-    title: "Dashboard thu học phí",
-    description: "Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.",
+    title: "Việc cần xử lý",
+    description: "Theo dõi công nợ, giao dịch cần đối soát và các bước vận hành hằng ngày.",
+    breadcrumbs: ["Tổng quan", "Việc cần xử lý"],
   },
   masterDataTab: {
-    kicker: "Trường & học sinh",
-    title: "Học sinh, phụ huynh, lớp",
-    description: "Quản lý dữ liệu nền cho học sinh, phụ huynh, lớp và năm học.",
+    kicker: "Thiết lập",
+    title: "Học sinh & phụ huynh",
+    description: "Quản lý trường, năm học, lớp, học sinh, phụ huynh và dữ liệu nhận phí.",
+    breadcrumbs: ["Thiết lập", "Học sinh & phụ huynh"],
   },
   feeTemplateTab: {
     kicker: "Học phí",
     title: "Bảng phí theo kỳ",
     description: "Thiết lập biểu phí, phụ phí và preview trước khi sinh hóa đơn.",
+    breadcrumbs: ["Học phí", "Bảng phí"],
   },
   invoiceTab: {
     kicker: "Học phí",
     title: "Hóa đơn",
     description: "Sinh, kiểm tra và xuất hóa đơn/PDF receipt từ bảng phí đã lưu.",
+    breadcrumbs: ["Học phí", "Hóa đơn"],
   },
   reconciliationTab: {
-    kicker: "Thanh toán",
+    kicker: "Thu tiền",
     title: "Đối soát thanh toán",
     description: "Theo dõi intent, giao dịch, tiền mặt và trạng thái đối soát hóa đơn.",
+    breadcrumbs: ["Thu tiền", "Đối soát"],
   },
   paymentsTab: {
-    kicker: "Thanh toán",
-    title: "Thanh toán VietQR",
-    description: "Import batch thanh toán legacy, sinh QR và kiểm tra payload thanh toán.",
+    kicker: "Thu tiền",
+    title: "Công cụ QR/import",
+    description: "Công cụ phụ cho batch thanh toán legacy, sinh QR và kiểm tra payload.",
+    breadcrumbs: ["Thu tiền", "Công cụ QR/import"],
   },
   notificationTab: {
     kicker: "Liên lạc",
     title: "Thông báo học phí",
     description: "Tạo campaign, preview người nhận và theo dõi log gửi thông báo.",
+    breadcrumbs: ["Liên lạc", "Thông báo"],
   },
   emailTab: {
     kicker: "Liên lạc",
     title: "Email & Cron",
     description: "Cấu hình provider email, preview/dry-run và quản lý lịch gửi cục bộ.",
+    breadcrumbs: ["Liên lạc", "Email & Cron"],
   },
   reportsTab: {
-    kicker: "Quản trị",
+    kicker: "Báo cáo & vận hành",
     title: "Báo cáo công nợ",
     description: "Xem và export báo cáo lớp, hóa đơn và giao dịch thanh toán.",
+    breadcrumbs: ["Báo cáo & vận hành", "Báo cáo"],
   },
   operationsTab: {
-    kicker: "Quản trị",
+    kicker: "Báo cáo & vận hành",
     title: "Vận hành",
     description: "Kiểm tra operational logs, audit logs và các lỗi nền cần xử lý.",
+    breadcrumbs: ["Báo cáo & vận hành", "Vận hành"],
   },
   usersTab: {
-    kicker: "Quản trị",
-    title: "Người dùng và quyền",
+    kicker: "Thiết lập",
+    title: "Người dùng & quyền",
     description: "Quản lý user, role và permission trước khi bật enforcement đầy đủ.",
+    breadcrumbs: ["Thiết lập", "Người dùng & quyền"],
   },
 };
 
@@ -826,6 +864,20 @@ function setElementAllowed(el, allowed) {
   if (el) el.hidden = !allowed;
 }
 
+function activeTabId() {
+  return tabPanels.find((panel) => panel.classList.contains("active"))?.id || "dashboardTab";
+}
+
+function updateVisibleMenuGroups() {
+  document.querySelectorAll(".menu-group").forEach((group) => {
+    group.hidden = !group.querySelector(".tab-button:not([hidden])");
+  });
+}
+
+function updateLegacyPaymentActions(targetId = activeTabId()) {
+  setElementAllowed(legacyPaymentActionsEl, targetId === "paymentsTab" && hasPermission("payment.create"));
+}
+
 function applyPermissionUI() {
   tabButtons.forEach((button) => {
     button.hidden = !canUseTab(button.dataset.tabTarget);
@@ -859,6 +911,7 @@ function applyPermissionUI() {
   setElementAllowed(openInvoiceDialogBtn, hasPermission("invoice.view") || hasPermission("invoice.create"));
   setElementAllowed(previewInvoicesBtn, hasPermission("invoice.view"));
   setElementAllowed(generateInvoicesBtn, hasPermission("invoice.create"));
+  setElementAllowed(exportInvoiceCsvBtn, hasPermission("report.export"));
   setElementAllowed(openNotificationDialogBtn, hasPermission("notification.create") || hasPermission("notification.send"));
   setElementAllowed(previewNotificationsBtn, hasPermission("notification.send"));
   setElementAllowed(saveNotificationCampaignBtn, hasPermission("notification.create"));
@@ -878,6 +931,9 @@ function applyPermissionUI() {
   setElementAllowed(saveCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(disableCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(runCronNowBtn, hasPermission("email_cron.update"));
+  updateVisibleMenuGroups();
+  updateLegacyPaymentActions();
+  renderAdminQuickActions();
 }
 
 function activateInitialAllowedTab() {
@@ -887,6 +943,8 @@ function activateInitialAllowedTab() {
     currentSectionKickerEl.textContent = "Không đủ quyền";
     currentSectionTitleEl.textContent = "Chưa có màn hình được cấp quyền";
     currentSectionDescriptionEl.textContent = "Liên hệ quản trị viên để cập nhật role.";
+    if (appBreadcrumbsEl) appBreadcrumbsEl.textContent = "Không đủ quyền";
+    updateLegacyPaymentActions("");
     return;
   }
   updateCurrentSection(targetId);
@@ -1005,6 +1063,7 @@ async function activateTab(targetId) {
     panel.classList.toggle("active", isActive);
   });
   await loadActiveTabData(targetId);
+  await applyAppContextToTab(targetId, true);
 }
 
 async function loadActiveTabData(targetId) {
@@ -1047,6 +1106,205 @@ function updateCurrentSection(targetId) {
   currentSectionKickerEl.textContent = metadata.kicker;
   currentSectionTitleEl.textContent = metadata.title;
   currentSectionDescriptionEl.textContent = metadata.description;
+  renderBreadcrumbs(metadata);
+  updateLegacyPaymentActions(targetId);
+  renderAppContextControls();
+}
+
+function renderBreadcrumbs(metadata) {
+  if (!appBreadcrumbsEl) return;
+  const parts = metadata.breadcrumbs?.length ? metadata.breadcrumbs : [metadata.kicker, metadata.title].filter(Boolean);
+  appBreadcrumbsEl.innerHTML = parts
+    .map((part, index) => {
+      const current = index === parts.length - 1 ? ` aria-current="page"` : "";
+      return `<span${current}>${escapeHtml(part)}</span>`;
+    })
+    .join(`<span class="breadcrumb-separator">/</span>`);
+}
+
+function uniqueContextOptions(items) {
+  const byId = new Map();
+  items.forEach((item) => {
+    const id = item?.id || "";
+    if (!id || byId.has(id)) return;
+    byId.set(id, item);
+  });
+  return [...byId.values()];
+}
+
+function contextSchoolOptions() {
+  return uniqueContextOptions([
+    ...(masterDataOptions.schools || []),
+    ...(schoolTreeData.schools || []),
+    ...(feeScheduleOptions.schools || []),
+  ]).sort((a, b) => String(a.code || a.name || "").localeCompare(String(b.code || b.name || ""), "vi", { numeric: true }));
+}
+
+function contextYearOptions() {
+  const explicitYears = [
+    ...(masterDataOptions.schoolYears || []),
+    ...(adminOptions.schoolYears || []),
+    ...(feeScheduleOptions.schoolYears || []),
+    ...(invoiceOptions.schoolYears || []),
+    ...(notificationOptions.schoolYears || []),
+  ].map((item) => ({
+    id: item.id || item.schoolYearId || "",
+    code: item.code || item.schoolYearCode || item.name || "",
+    name: item.name || "",
+    schoolId: item.schoolId || "",
+    schoolCode: item.schoolCode || "",
+  }));
+  const yearsFromClasses = [
+    ...(masterDataOptions.classes || []),
+    ...(adminOptions.classes || []),
+    ...(feeScheduleOptions.classes || []),
+    ...(invoiceOptions.classes || []),
+    ...(notificationOptions.classes || []),
+  ].map((item) => ({
+    id: item.schoolYearId || "",
+    code: item.schoolYearCode || "",
+    name: item.schoolYearCode || "",
+    schoolId: item.schoolId || "",
+    schoolCode: item.schoolCode || "",
+  }));
+  return uniqueContextOptions([...explicitYears, ...yearsFromClasses])
+    .filter((item) => !appContext.schoolId || !item.schoolId || item.schoolId === appContext.schoolId)
+    .sort((a, b) => String(a.code || a.name || "").localeCompare(String(b.code || b.name || ""), "vi", { numeric: true }));
+}
+
+function renderAppContextControls() {
+  if (!appContextSchoolEl || !appContextYearEl) return;
+  const schools = contextSchoolOptions();
+  appContextSchoolEl.innerHTML = [
+    `<option value="">${schools.length ? "Tất cả trường" : "ABC SUN"}</option>`,
+    ...schools.map((item) => {
+      const label = [item.code, item.name && item.name !== item.code ? item.name : ""].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.id)}</option>`;
+    }),
+  ].join("");
+  appContextSchoolEl.value = optionValueOrEmpty(appContextSchoolEl, appContext.schoolId);
+
+  const years = contextYearOptions();
+  appContextYearEl.innerHTML = [
+    `<option value="">Tất cả năm học</option>`,
+    ...years.map((item) => {
+      const label = [item.schoolCode, item.code || item.name].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.id)}</option>`;
+    }),
+  ].join("");
+  appContextYearEl.value = optionValueOrEmpty(appContextYearEl, appContext.schoolYearId);
+  appContextPeriodEl.value = appContext.periodCode || "";
+  appContextMonthEl.value = appContext.month || "";
+}
+
+function syncAppContextFromActiveTab(targetId = activeTabId()) {
+  const next = readTabContext(targetId);
+  if (Object.prototype.hasOwnProperty.call(next, "schoolId")) appContext.schoolId = next.schoolId || "";
+  if (Object.prototype.hasOwnProperty.call(next, "schoolYearId")) appContext.schoolYearId = next.schoolYearId || "";
+  if (Object.prototype.hasOwnProperty.call(next, "periodCode")) appContext.periodCode = next.periodCode || "";
+  if (Object.prototype.hasOwnProperty.call(next, "month")) appContext.month = next.month || "";
+  renderAppContextControls();
+}
+
+function readTabContext(targetId) {
+  if (targetId === "dashboardTab") {
+    return {
+      schoolId: adminDashboardSchoolEl.value,
+      schoolYearId: adminDashboardYearEl.value,
+      periodCode: adminDashboardPeriodEl.value.trim(),
+      month: adminDashboardMonthEl.value,
+    };
+  }
+  if (targetId === "reportsTab") {
+    return {
+      schoolId: adminReportsSchoolEl.value,
+      schoolYearId: adminReportsYearEl.value,
+      periodCode: adminReportsPeriodEl.value.trim(),
+      month: adminReportsMonthEl.value,
+    };
+  }
+  if (targetId === "masterDataTab") {
+    return {
+      schoolId: masterSchoolFilterEl.value,
+      schoolYearId: masterSchoolYearFilterEl.value,
+    };
+  }
+  if (targetId === "feeTemplateTab") {
+    return {
+      schoolId: feeScheduleSchoolEl.value,
+      schoolYearId: feeScheduleYearEl.value,
+      periodCode: feeSchedulePeriodEl.value.trim(),
+      month: feeScheduleMonthEl.value,
+    };
+  }
+  if (targetId === "notificationTab") {
+    return {
+      schoolYearId: notificationSchoolYearEl.value,
+      periodCode: notificationPeriodEl.value.trim(),
+    };
+  }
+  if (targetId === "paymentsTab") {
+    return { periodCode: paymentPeriodEl.value.trim() };
+  }
+  return {};
+}
+
+async function applyAppContextToActiveTab() {
+  appContext = {
+    schoolId: appContextSchoolEl.value || "",
+    schoolYearId: appContextYearEl.value || "",
+    periodCode: appContextPeriodEl.value.trim(),
+    month: appContextMonthEl.value || "",
+  };
+  await applyAppContextToTab(activeTabId(), true);
+}
+
+function scheduleApplyAppContext() {
+  window.clearTimeout(appContextApplyTimer);
+  appContextApplyTimer = window.setTimeout(() => {
+    applyAppContextToActiveTab();
+  }, 250);
+}
+
+async function applyAppContextToTab(targetId, reloadData = false) {
+  if (targetId === "dashboardTab") {
+    adminDashboardSchoolEl.value = optionValueOrEmpty(adminDashboardSchoolEl, appContext.schoolId);
+    adminDashboardYearEl.value = optionValueOrEmpty(adminDashboardYearEl, appContext.schoolYearId);
+    adminDashboardPeriodEl.value = appContext.periodCode;
+    adminDashboardMonthEl.value = appContext.month;
+    renderAdminFilters("dashboard");
+    if (reloadData) await loadAdminDashboard(true);
+  } else if (targetId === "reportsTab") {
+    adminReportsSchoolEl.value = optionValueOrEmpty(adminReportsSchoolEl, appContext.schoolId);
+    adminReportsYearEl.value = optionValueOrEmpty(adminReportsYearEl, appContext.schoolYearId);
+    adminReportsPeriodEl.value = appContext.periodCode;
+    adminReportsMonthEl.value = appContext.month;
+    renderAdminFilters("reports");
+    if (reloadData) await loadAdminReports(true);
+  } else if (targetId === "masterDataTab") {
+    masterSchoolFilterEl.value = optionValueOrEmpty(masterSchoolFilterEl, appContext.schoolId);
+    masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, appContext.schoolYearId);
+    renderMasterFilters();
+    if (reloadData) {
+      await loadSchoolTree();
+      await loadMasterStudents();
+    }
+  } else if (targetId === "feeTemplateTab") {
+    feeScheduleSchoolEl.value = optionValueOrEmpty(feeScheduleSchoolEl, appContext.schoolId);
+    feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, appContext.schoolYearId);
+    feeSchedulePeriodEl.value = appContext.periodCode;
+    feeScheduleMonthEl.value = appContext.month;
+    renderFeeScheduleControls();
+    if (reloadData) await loadFeeScheduleList();
+  } else if (targetId === "notificationTab") {
+    notificationSchoolYearEl.value = optionValueOrEmpty(notificationSchoolYearEl, appContext.schoolYearId);
+    notificationPeriodEl.value = appContext.periodCode;
+    renderNotificationGradeOptions();
+    renderNotificationClassOptions();
+  } else if (targetId === "paymentsTab") {
+    paymentPeriodEl.value = appContext.periodCode;
+  }
+  renderAppContextControls();
 }
 
 function rowTemplate(row = {}) {
@@ -1506,6 +1764,7 @@ function renderMasterFilters() {
   masterGradeFilterEl.value = optionValueOrEmpty(masterGradeFilterEl, selectedGrade);
 
   renderMasterClassFilter(selectedClass);
+  renderAppContextControls();
 }
 
 function renderMasterClassFilter(selectedClass = masterClassFilterEl.value) {
@@ -1546,7 +1805,11 @@ function optionValueOrEmpty(selectEl, value) {
 }
 
 async function loadSchoolTree() {
-  const res = await fetch("/api/v1/school-tree");
+  const params = new URLSearchParams();
+  if (appContext.periodCode) params.set("periodCode", appContext.periodCode);
+  if (appContext.month) params.set("month", appContext.month);
+  const query = params.toString();
+  const res = await fetch(`/api/v1/school-tree${query ? `?${query}` : ""}`);
   const text = await res.text();
   if (!res.ok) {
     schoolTreeData = { schools: [] };
@@ -1562,6 +1825,7 @@ async function loadSchoolTree() {
 function renderSchoolTree() {
   const schools = schoolTreeData.schools || [];
   renderSchoolTreeSelects();
+  renderAppContextControls();
   const nodeCount = countSchoolTreeNodes(schools);
   schoolTreeCountEl.textContent = `${nodeCount} node`;
   if (!schools.length) {
@@ -1582,7 +1846,11 @@ function renderSchoolTreeSchool(school) {
     <div class="school-tree-school">
       <button class="school-tree-node ${active ? "is-selected" : ""}" type="button" data-tree-type="school" data-tree-id="${escapeAttr(school.id)}">
         ${muiIcon("apartment")}
-        <span><strong>${escapeHtml(school.name || school.code || "-")}</strong><small>${escapeHtml(school.code || "")} · ${Number(school.studentCount || 0)} HS · ${Number(school.feeScheduleCount || 0)} bảng phí</small></span>
+        <span class="school-tree-node-body">
+          <strong>${escapeHtml(school.name || school.code || "-")}</strong>
+          <small>${escapeHtml(school.code || "")} · ${Number(school.studentCount || 0)} HS · ${Number(school.classCount || 0)} lớp</small>
+          ${renderSchoolTreeBadges(school)}
+        </span>
       </button>
       <div class="school-tree-children">
         ${(school.schoolYears || []).map((year) => renderSchoolTreeYear(year)).join("")}
@@ -1597,7 +1865,11 @@ function renderSchoolTreeYear(year) {
     <div class="school-tree-year">
       <button class="school-tree-node ${active ? "is-selected" : ""}" type="button" data-tree-type="year" data-tree-id="${escapeAttr(year.id)}">
         ${muiIcon("event")}
-        <span><strong>${escapeHtml(year.code || "-")}</strong><small>${Number(year.classCount || 0)} lớp · ${Number(year.studentCount || 0)} HS · ${Number(year.adjustmentCount || 0)} điều chỉnh</small></span>
+        <span class="school-tree-node-body">
+          <strong>${escapeHtml(year.code || "-")}</strong>
+          <small>${Number(year.classCount || 0)} lớp · ${Number(year.studentCount || 0)} HS · ${Number(year.adjustmentCount || 0)} điều chỉnh</small>
+          ${renderSchoolTreeBadges(year)}
+        </span>
       </button>
       <div class="school-tree-children">
         ${(year.grades || []).map((grade) => renderSchoolTreeGrade(year, grade)).join("")}
@@ -1613,7 +1885,11 @@ function renderSchoolTreeGrade(year, grade) {
     <div class="school-tree-grade">
       <button class="school-tree-node ${active ? "is-selected" : ""}" type="button" data-tree-type="grade" data-tree-id="${escapeAttr(gradeId)}">
         ${muiIcon("stacked_line_chart")}
-        <span><strong>Khối ${escapeHtml(grade.grade || "-")}</strong><small>${Number(grade.classCount || 0)} lớp · ${Number(grade.studentCount || 0)} HS</small></span>
+        <span class="school-tree-node-body">
+          <strong>Khối ${escapeHtml(grade.grade || "-")}</strong>
+          <small>${Number(grade.classCount || 0)} lớp · ${Number(grade.studentCount || 0)} HS</small>
+          ${renderSchoolTreeBadges(grade)}
+        </span>
       </button>
       <div class="school-tree-children">
         ${(grade.classes || []).map((item) => renderSchoolTreeClass(item)).join("")}
@@ -1627,8 +1903,32 @@ function renderSchoolTreeClass(item) {
   return `
     <button class="school-tree-node school-tree-class ${active ? "is-selected" : ""}" type="button" data-tree-type="class" data-tree-id="${escapeAttr(item.id)}">
       ${muiIcon("school")}
-      <span><strong>${escapeHtml(item.name || "-")}</strong><small>${Number(item.studentCount || 0)} HS · ${Number(item.activeFeeScheduleCount || 0)} active · ${Number(item.adjustmentCount || 0)} điều chỉnh</small></span>
+      <span class="school-tree-node-body">
+        <strong>${escapeHtml(item.name || "-")}</strong>
+        <small>${Number(item.studentCount || 0)} HS · ${Number(item.activeFeeScheduleCount || 0)} active · ${Number(item.adjustmentCount || 0)} điều chỉnh</small>
+        ${renderSchoolTreeBadges(item)}
+      </span>
     </button>
+  `;
+}
+
+function renderSchoolTreeBadges(subject = {}) {
+  const studentCount = Number(subject.studentCount || 0);
+  const readyCount = Number(subject.billingReadyStudentCount || 0);
+  const activeScheduleCount = Number(subject.currentActiveScheduleCount || 0);
+  const scheduleCount = Number(subject.currentFeeScheduleCount || 0);
+  const invoiceCount = Number(subject.currentInvoiceCount || 0);
+  const issueCount = Number(subject.issueCount || 0);
+  const issueBadge = issueCount > 0
+    ? `<span class="tree-badge tree-badge-warning">${muiIcon("priority_high")}<span>${issueCount}</span></span>`
+    : `<span class="tree-badge tree-badge-ready">${muiIcon("check")}<span>OK</span></span>`;
+  return `
+    <span class="school-tree-badges">
+      ${issueBadge}
+      <span class="tree-badge">${muiIcon("alternate_email")}<span>${readyCount}/${studentCount}</span></span>
+      <span class="tree-badge">${muiIcon("price_change")}<span>${activeScheduleCount || scheduleCount}</span></span>
+      <span class="tree-badge">${muiIcon("request_quote")}<span>${invoiceCount}</span></span>
+    </span>
   `;
 }
 
@@ -1685,25 +1985,21 @@ async function selectSchoolTreeNode(type, id) {
   const node = findSchoolTreeNode(type, id);
   fillSchoolTreeForms(node);
   applySchoolTreeFilters(node);
+  syncAppContextFromActiveTab("masterDataTab");
   renderSchoolTree();
   await loadMasterStudents();
+  renderSchoolTreeDetail(findSchoolTreeNode(type, id));
 }
 
 function applySchoolTreeFilters(node) {
   if (!node) return;
   masterSchoolFilterEl.value = optionValueOrEmpty(masterSchoolFilterEl, node.school?.id || "");
   renderMasterFilters();
-  if (node.year) {
-    masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, node.year.id || "");
-  }
+  masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, node.year?.id || node.classItem?.schoolYearId || "");
   renderMasterFilters();
-  if (node.grade) {
-    masterGradeFilterEl.value = optionValueOrEmpty(masterGradeFilterEl, node.grade.grade || "");
-  }
+  masterGradeFilterEl.value = optionValueOrEmpty(masterGradeFilterEl, node.grade?.grade || node.classItem?.grade || "");
   renderMasterClassFilter();
-  if (node.classItem) {
-    masterClassFilterEl.value = optionValueOrEmpty(masterClassFilterEl, node.classItem.id || "");
-  }
+  masterClassFilterEl.value = optionValueOrEmpty(masterClassFilterEl, node.classItem?.id || "");
 }
 
 function fillSchoolTreeForms(node) {
@@ -1736,45 +2032,199 @@ function fillSchoolTreeForms(node) {
   }
 }
 
+function schoolTreeSubject(node) {
+  return node?.classItem || node?.grade || node?.year || node?.school || {};
+}
+
+function schoolTreeTypeLabel(type) {
+  return {
+    school: "Trường",
+    year: "Năm học",
+    grade: "Khối",
+    class: "Lớp",
+  }[type] || "School tree";
+}
+
+function schoolTreePeriodLabel() {
+  return [appContext.periodCode, appContext.month ? `T${appContext.month}` : ""].filter(Boolean).join(" · ") || "Tất cả kỳ";
+}
+
+function schoolTreeScopeLabel(node) {
+  if (!node) return "";
+  return [
+    node.school?.code || node.school?.name || "",
+    node.year?.code || "",
+    node.grade?.grade ? `Khối ${node.grade.grade}` : node.classItem?.grade ? `Khối ${node.classItem.grade}` : "",
+    node.classItem?.name || "",
+  ].filter(Boolean).join(" · ");
+}
+
+function renderSchoolTreeMetrics(subject = {}) {
+  const studentCount = Number(subject.studentCount || 0);
+  const billingReady = Number(subject.billingReadyStudentCount || 0);
+  const activeSchedules = Number(subject.currentActiveScheduleCount || 0);
+  const schedules = Number(subject.currentFeeScheduleCount || 0);
+  const invoices = Number(subject.currentInvoiceCount || 0);
+  const openInvoices = Number(subject.openInvoiceCount || 0);
+  const issues = Number(subject.issueCount || 0);
+  const items = [
+    { icon: "groups", label: "Học sinh", value: studentCount },
+    { icon: "alternate_email", label: "Nhận phí", value: `${billingReady}/${studentCount}` },
+    { icon: "price_change", label: "Bảng phí kỳ", value: `${activeSchedules}/${schedules}` },
+    { icon: "request_quote", label: "Hóa đơn kỳ", value: `${invoices}/${studentCount}` },
+    { icon: "pending_actions", label: "Đang mở", value: openInvoices },
+    { icon: issues ? "priority_high" : "check_circle", label: "Cần xử lý", value: issues },
+  ];
+  return `
+    <div class="school-tree-metrics">
+      ${items.map((item) => `
+        <div class="school-tree-metric">
+          ${muiIcon(item.icon)}
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(String(item.value))}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function schoolTreeReadinessItems(subject = {}) {
+  const studentCount = Number(subject.studentCount || 0);
+  const billingReady = Number(subject.billingReadyStudentCount || 0);
+  const missingBilling = Number(subject.missingBillingRecipientCount || 0);
+  const activeSchedules = Number(subject.currentActiveScheduleCount || 0);
+  const schedules = Number(subject.currentFeeScheduleCount || 0);
+  const invoices = Number(subject.currentInvoiceCount || 0);
+  const missingInvoices = Math.max(0, studentCount - invoices);
+  const openInvoices = Number(subject.openInvoiceCount || 0);
+  return [
+    {
+      tone: missingBilling > 0 ? "warning" : "ready",
+      icon: missingBilling > 0 ? "mark_email_unread" : "mark_email_read",
+      label: "Người nhận phí",
+      value: missingBilling > 0 ? `${missingBilling} HS thiếu email nhận phí` : `${billingReady}/${studentCount} HS sẵn sàng`,
+    },
+    {
+      tone: studentCount > 0 && activeSchedules === 0 ? "warning" : "ready",
+      icon: activeSchedules > 0 ? "price_check" : "price_change",
+      label: "Bảng phí theo kỳ",
+      value: activeSchedules > 0 ? `${activeSchedules} active / ${schedules} phù hợp` : "Chưa có bảng phí active",
+    },
+    {
+      tone: missingInvoices > 0 ? "warning" : "ready",
+      icon: missingInvoices > 0 ? "request_quote" : "fact_check",
+      label: "Hóa đơn theo kỳ",
+      value: missingInvoices > 0 ? `${missingInvoices} HS chưa có hóa đơn` : `${invoices}/${studentCount} hóa đơn`,
+    },
+    {
+      tone: openInvoices > 0 ? "info" : "ready",
+      icon: openInvoices > 0 ? "pending_actions" : "done_all",
+      label: "Công nợ đang mở",
+      value: openInvoices > 0 ? `${openInvoices} hóa đơn unpaid/partial/review` : "Không có hóa đơn đang mở",
+    },
+  ];
+}
+
+function renderSchoolTreeReadiness(subject = {}) {
+  return `
+    <ul class="school-tree-readiness-list">
+      ${schoolTreeReadinessItems(subject).map((item) => `
+        <li class="readiness-item readiness-${escapeAttr(item.tone)}">
+          ${muiIcon(item.icon)}
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+}
+
+function studentHasBillingRecipient(student) {
+  return (student?.parents || []).some((parent) => parent.receivesBillingEmail && parent.isActive && parent.emailActive && parent.email);
+}
+
+function renderSchoolTreeRosterPreview() {
+  const students = masterStudentsData || [];
+  const visible = students.slice(0, 6);
+  if (!visible.length) {
+    return `<div class="school-tree-roster-empty">Không có học sinh trong phạm vi đang chọn</div>`;
+  }
+  return `
+    <div class="school-tree-roster">
+      ${visible.map((student) => {
+        const billingReady = studentHasBillingRecipient(student);
+        return `
+          <div class="school-tree-roster-row">
+            <strong>${escapeHtml(student.studentName || "-")}</strong>
+            <span>${escapeHtml([student.studentCode, student.className].filter(Boolean).join(" · ") || "-")}</span>
+            <small class="${billingReady ? "ready" : "warning"}">${billingReady ? "Có email nhận phí" : "Thiếu email nhận phí"}</small>
+          </div>
+        `;
+      }).join("")}
+      ${students.length > visible.length ? `<div class="school-tree-roster-more">+${students.length - visible.length} học sinh khác</div>` : ""}
+    </div>
+  `;
+}
+
+function renderSchoolTreeActions(node) {
+  const studentAction = hasPermission("student.view")
+    ? `<button data-tree-open-students="true" type="button">${muiIcon("groups")}<span>Xem học sinh</span></button>`
+    : "";
+  const feeAction = hasPermission("fee.view") && (node.year || node.grade || node.classItem)
+    ? `<button data-tree-open-fees="true" type="button">${muiIcon("price_change")}<span>Thiết lập bảng phí</span></button>`
+    : "";
+  const invoiceAction = (hasPermission("invoice.view") || hasPermission("invoice.create")) && (node.year || node.grade || node.classItem)
+    ? `<button data-tree-open-invoices="true" type="button">${muiIcon("request_quote")}<span>Sinh hóa đơn</span></button>`
+    : "";
+  return `<div class="detail-actions school-tree-action-row">${studentAction}${feeAction}${invoiceAction}</div>`;
+}
+
 function renderSchoolTreeDetail(node) {
   if (!node) {
     schoolTreeDetailEl.innerHTML = `<div class="detail-placeholder">${muiIcon("account_tree")}<span>Chọn trường, năm học, khối hoặc lớp.</span></div>`;
     return;
   }
-  const subject = node.classItem || node.grade || node.year || node.school;
+  const subject = schoolTreeSubject(node);
   const title = node.classItem?.name || (node.grade ? `Khối ${node.grade.grade}` : node.year?.code || node.school?.name || "-");
-  const lines = [
-    ["Trường", node.school?.code || "-"],
-    ["Năm học", node.year?.code || "-"],
-    ["Khối", node.grade?.grade || node.classItem?.grade || "-"],
-    ["Sĩ số", subject?.studentCount ?? "-"],
-    ["Bảng phí", subject?.feeScheduleCount ?? "-"],
-    ["Điều chỉnh", subject?.adjustmentCount ?? "-"],
-  ];
+  const scope = schoolTreeScopeLabel(node);
   const latest = node.classItem?.latestFeeScheduleId
     ? `<div class="detail-section"><p class="detail-section-title">Bảng phí gần nhất</p><div class="detail-grid"><span>Kỳ</span><strong>${escapeHtml(node.classItem.latestPeriodCode || "-")}</strong><span>Tên</span><strong>${escapeHtml(node.classItem.latestFeeScheduleName || "-")}</strong><span>Trạng thái</span><strong>${escapeHtml(node.classItem.latestScheduleStatus || "-")}</strong></div></div>`
-    : "";
-  const openFees = hasPermission("fee.view") && (node.year || node.grade || node.classItem)
-    ? `<button data-tree-open-fees="true" type="button"><span class="mui-icon" aria-hidden="true">format_list_bulleted</span><span>Mở bảng phí</span></button>`
     : "";
   schoolTreeDetailEl.innerHTML = `
     <div class="detail-hero">
       ${muiIcon(node.classItem ? "school" : node.grade ? "stacked_line_chart" : node.year ? "event" : "apartment")}
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(node.type)}</span>
+        <span>${escapeHtml([schoolTreeTypeLabel(node.type), scope, schoolTreePeriodLabel()].filter(Boolean).join(" · "))}</span>
       </div>
     </div>
-    <div class="detail-grid">
-      ${lines.map(([label, value]) => `<span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong>`).join("")}
+    ${renderSchoolTreeMetrics(subject)}
+    <div class="detail-section">
+      <p class="detail-section-title">Readiness kỳ đang chọn</p>
+      ${renderSchoolTreeReadiness(subject)}
     </div>
     ${latest}
-    <div class="detail-actions">${openFees}</div>
+    <div class="detail-section">
+      <p class="detail-section-title">Học sinh trong phạm vi</p>
+      ${renderSchoolTreeRosterPreview()}
+    </div>
+    ${renderSchoolTreeActions(node)}
   `;
-  const openButton = schoolTreeDetailEl.querySelector("[data-tree-open-fees]");
-  if (openButton) {
-    openButton.addEventListener("click", () => openSchoolTreeFeeScope(node));
+  schoolTreeDetailEl.querySelector("[data-tree-open-students]")?.addEventListener("click", () => openSchoolTreeStudentScope(node));
+  schoolTreeDetailEl.querySelector("[data-tree-open-fees]")?.addEventListener("click", () => openSchoolTreeFeeScope(node));
+  schoolTreeDetailEl.querySelector("[data-tree-open-invoices]")?.addEventListener("click", () => openSchoolTreeInvoiceScope(node));
+}
+
+async function openSchoolTreeStudentScope(node) {
+  if (!hasPermission("student.view")) {
+    setMasterStatus("Không đủ quyền xem học sinh", "error");
+    return;
   }
+  applySchoolTreeFilters(node);
+  syncAppContextFromActiveTab("masterDataTab");
+  await loadMasterStudents();
+  document.querySelector(".master-list-panel")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  setMasterStatus("Đã lọc học sinh theo cây trường", "ready");
 }
 
 async function openSchoolTreeFeeScope(node) {
@@ -1784,12 +2234,63 @@ async function openSchoolTreeFeeScope(node) {
   }
   await activateTab("feeTemplateTab");
   await loadFeeSchedules(true);
+  feeScheduleSchoolEl.value = optionValueOrEmpty(feeScheduleSchoolEl, node.school?.id || "");
   feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, node.year?.id || node.classItem?.schoolYearId || "");
+  feeSchedulePeriodEl.value = appContext.periodCode || feeSchedulePeriodEl.value;
+  feeScheduleMonthEl.value = appContext.month || feeScheduleMonthEl.value;
   renderFeeScheduleControls();
   feeScheduleGradeEl.value = optionValueOrEmpty(feeScheduleGradeEl, node.grade?.grade || node.classItem?.grade || "");
   renderFeeScheduleClassFilter();
   feeScheduleClassEl.value = optionValueOrEmpty(feeScheduleClassEl, node.classItem?.id || "");
   await loadFeeScheduleList();
+  if (hasPermission("fee.update") && !openFeeScheduleDialogBtn.hidden) {
+    openFeeScheduleDialog();
+  }
+}
+
+function findSchoolTreeInvoiceSchedule(node) {
+  const targetYearId = node.year?.id || node.classItem?.schoolYearId || "";
+  const targetGrade = node.grade?.grade || node.classItem?.grade || "";
+  const targetClassId = node.classItem?.id || "";
+  return [...(invoiceOptions.schedules || [])]
+    .map((schedule) => {
+      if (targetYearId && schedule.schoolYearId !== targetYearId) return { schedule, score: -1 };
+      if (appContext.periodCode && String(schedule.periodCode || "").toLowerCase() !== appContext.periodCode.toLowerCase()) return { schedule, score: -1 };
+      if (appContext.month && Number(schedule.month || 0) !== Number(appContext.month)) return { schedule, score: -1 };
+      let score = -1;
+      if (targetClassId && schedule.classId === targetClassId) {
+        score = 30;
+      } else if (targetGrade && schedule.scopeType === "grade" && String(schedule.grade || "").toLowerCase() === targetGrade.toLowerCase()) {
+        score = 20;
+      } else if (schedule.scopeType === "school_year") {
+        score = 10;
+      }
+      if (score < 0) return { schedule, score };
+      if (schedule.status === "active") score += 5;
+      if (schedule.periodCode) score += 1;
+      return { schedule, score };
+    })
+    .filter((item) => item.score >= 0)
+    .sort((a, b) => b.score - a.score)[0]?.schedule || null;
+}
+
+async function openSchoolTreeInvoiceScope(node) {
+  if (!hasPermission("invoice.view") && !hasPermission("invoice.create")) {
+    setMasterStatus("Không đủ quyền mở hóa đơn", "error");
+    return;
+  }
+  await activateTab("invoiceTab");
+  await loadInvoices(true);
+  const schedule = findSchoolTreeInvoiceSchedule(node);
+  if (!schedule) {
+    setInvoiceStatus("Chưa có bảng phí phù hợp với phạm vi và kỳ đang chọn", "error");
+    return;
+  }
+  invoiceScheduleEl.value = optionValueOrEmpty(invoiceScheduleEl, schedule.id);
+  if (!openInvoiceDialogBtn.hidden) {
+    openInvoiceDialog();
+  }
+  setInvoiceStatus("Đã chọn bảng phí phù hợp", "ready");
 }
 
 function clearSchoolTreeSchoolForm() {
@@ -1904,6 +2405,7 @@ async function saveSchoolTreeEntity(url, payload, successMessage) {
 function adminFilterElements(kind) {
   if (kind === "reports") {
     return {
+      school: adminReportsSchoolEl,
       year: adminReportsYearEl,
       grade: adminReportsGradeEl,
       classEl: adminReportsClassEl,
@@ -1913,6 +2415,7 @@ function adminFilterElements(kind) {
     };
   }
   return {
+    school: adminDashboardSchoolEl,
     year: adminDashboardYearEl,
     grade: adminDashboardGradeEl,
     classEl: adminDashboardClassEl,
@@ -1929,17 +2432,30 @@ function setAdminStatus(el, message, tone = "ready") {
 
 function renderAdminFilters(kind) {
   const elements = adminFilterElements(kind);
+  const selectedSchool = elements.school.value;
   const selectedYear = elements.year.value;
   const selectedGrade = elements.grade.value;
   const selectedClass = elements.classEl.value;
+  elements.school.innerHTML = [
+    `<option value="">Tất cả trường</option>`,
+    ...(adminOptions.schools || []).map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code || item.name || item.id)}</option>`),
+  ].join("");
+  elements.school.value = optionValueOrEmpty(elements.school, selectedSchool);
+
   elements.year.innerHTML = [
     `<option value="">Tất cả năm học</option>`,
-    ...(adminOptions.schoolYears || []).map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code)}</option>`),
+    ...(adminOptions.schoolYears || [])
+      .filter((item) => !elements.school.value || item.schoolId === elements.school.value)
+      .map((item) => {
+        const label = [item.schoolCode, item.code].filter(Boolean).join(" · ");
+        return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.code || item.id)}</option>`;
+      }),
   ].join("");
   elements.year.value = optionValueOrEmpty(elements.year, selectedYear);
 
   const grades = [...new Set(
     (adminOptions.classes || [])
+      .filter((item) => !elements.school.value || item.schoolId === elements.school.value)
       .filter((item) => !elements.year.value || item.schoolYearId === elements.year.value)
       .map((item) => item.grade)
       .filter(Boolean),
@@ -1951,6 +2467,7 @@ function renderAdminFilters(kind) {
   elements.grade.value = optionValueOrEmpty(elements.grade, selectedGrade);
 
   const classes = (adminOptions.classes || []).filter((item) => {
+    if (elements.school.value && item.schoolId !== elements.school.value) return false;
     if (elements.year.value && item.schoolYearId !== elements.year.value) return false;
     if (elements.grade.value && item.grade !== elements.grade.value) return false;
     return true;
@@ -1960,11 +2477,13 @@ function renderAdminFilters(kind) {
     ...classes.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.schoolYearCode)} · ${escapeHtml(item.name)}</option>`),
   ].join("");
   elements.classEl.value = optionValueOrEmpty(elements.classEl, selectedClass);
+  renderAppContextControls();
 }
 
 function adminFilterParams(kind) {
   const elements = adminFilterElements(kind);
   const params = new URLSearchParams();
+  if (elements.school.value) params.set("schoolId", elements.school.value);
   if (elements.year.value) params.set("schoolYearId", elements.year.value);
   if (elements.grade.value) params.set("grade", elements.grade.value);
   if (elements.classEl.value) params.set("classId", elements.classEl.value);
@@ -1998,9 +2517,394 @@ async function loadAdminDashboard(force = false) {
 }
 
 function renderAdminDashboard(data) {
+  adminDashboardData = data || null;
   renderAdminMetrics(adminDashboardMetricsEl, data?.summary || null);
+  renderAdminWorkQueue(data);
+  renderAdminQuickActions();
+  renderAdminReadiness(data?.readiness || null);
   renderAdminTopClasses(data?.topClasses || []);
   renderAdminAttentionInvoices(data?.attentionInvoices || []);
+}
+
+function dashboardActionDefinitions() {
+  return [
+    {
+      id: "students",
+      label: "Cập nhật học sinh",
+      detail: "Kiểm tra lớp, phụ huynh và người nhận phí",
+      icon: "groups",
+      tabId: "masterDataTab",
+      permission: "student.view",
+    },
+    {
+      id: "fees",
+      label: "Lập bảng phí",
+      detail: "Mở cấu hình phí theo năm học, khối, lớp và kỳ thu",
+      icon: "format_list_bulleted",
+      tabId: "feeTemplateTab",
+      permission: "fee.update",
+      afterOpen: () => {
+        if (!openFeeScheduleDialogBtn.hidden) openFeeScheduleDialog();
+      },
+    },
+    {
+      id: "invoices",
+      label: "Sinh hóa đơn",
+      detail: "Preview và sinh hóa đơn từ bảng phí đã lưu",
+      icon: "request_quote",
+      tabId: "invoiceTab",
+      permission: "invoice.create",
+      afterOpen: () => {
+        if (!openInvoiceDialogBtn.hidden) openInvoiceDialog();
+      },
+    },
+    {
+      id: "notify",
+      label: "Gửi thông báo",
+      detail: "Dry-run campaign trước khi gửi email thật",
+      icon: "campaign",
+      tabId: "notificationTab",
+      permission: "notification.send",
+      afterOpen: () => {
+        if (!openNotificationDialogBtn.hidden) openNotificationDialog();
+      },
+    },
+    {
+      id: "reconcile",
+      label: "Đối soát giao dịch",
+      detail: "Kiểm tra tiền vào, tiền mặt và trạng thái invoice",
+      icon: "account_balance_wallet",
+      tabId: "reconciliationTab",
+      permission: "payment.view",
+    },
+    {
+      id: "email_config",
+      label: "Email & cron",
+      detail: "Kiểm tra provider, quota và queue gửi email",
+      icon: "mark_email_read",
+      tabId: "emailTab",
+      permission: "email_config.view",
+    },
+    {
+      id: "operations",
+      label: "Log vận hành",
+      detail: "Mở operation logs để xem lỗi nền gần đây",
+      icon: "monitor_heart",
+      tabId: "operationsTab",
+      permission: "operation_log.view",
+      secondary: true,
+    },
+    {
+      id: "qr_tool",
+      label: "Công cụ QR/import",
+      detail: "Mở batch QR legacy khi cần kiểm tra payload riêng lẻ",
+      icon: "qr_code_scanner",
+      tabId: "paymentsTab",
+      permission: "payment.create",
+      secondary: true,
+    },
+  ];
+}
+
+function dashboardActionAllowed(action) {
+  return canUseTab(action.tabId) && (!action.permission || hasPermission(action.permission));
+}
+
+function renderAdminQuickActions() {
+  if (!adminQuickActionsEl) return;
+  const actions = dashboardActionDefinitions().filter(dashboardActionAllowed);
+  if (!actions.length) {
+    adminQuickActionsEl.innerHTML = `<div class="empty-task">Chưa có tác vụ được cấp quyền</div>`;
+    return;
+  }
+  adminQuickActionsEl.innerHTML = actions
+    .map(
+      (action) => `
+        <button class="${action.secondary ? "secondary-task-action" : ""}" type="button" data-dashboard-action="${escapeAttr(action.id)}">
+          ${muiIcon(action.icon)}
+          <span>
+            <strong>${escapeHtml(action.label)}</strong>
+            <small>${escapeHtml(action.detail)}</small>
+          </span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function renderAdminWorkQueue(data) {
+  if (!adminWorkQueueEl) return;
+  if (!data?.summary) {
+    adminWorkQueueEl.innerHTML = `<div class="empty-task">Chưa có dữ liệu dashboard</div>`;
+    return;
+  }
+  const summary = data.summary || {};
+  const items = [
+    {
+      count: Number(summary.unmatchedTransactionCount || 0) + Number(summary.manualReviewCount || 0),
+      label: "Giao dịch cần đối soát",
+      detail: "Giao dịch chưa khớp hoặc invoice đang manual review",
+      action: "reconcile",
+      permission: "payment.view",
+    },
+    {
+      count: Number(summary.unpaidStudentCount || 0),
+      label: "Hóa đơn chưa thu",
+      detail: "Học sinh còn invoice unpaid trong bộ lọc hiện tại",
+      action: "invoices",
+      permission: "invoice.view",
+    },
+    {
+      count: Number(summary.partialPaymentCount || 0),
+      label: "Thanh toán một phần",
+      detail: "Invoice cần kiểm tra tiếp trước khi chốt thu",
+      action: "reconcile",
+      permission: "payment.view",
+    },
+    {
+      count: Number(summary.overpaidManualReviewCount || 0),
+      label: "Overpaid hoặc cần review",
+      detail: "Khoản thu cần xử lý thủ công",
+      action: "reconcile",
+      permission: "payment.view",
+    },
+  ].filter((item) => item.count > 0);
+
+  if (!items.length) {
+    adminWorkQueueEl.innerHTML = `<div class="empty-task">Không có việc cần xử lý trong bộ lọc hiện tại</div>`;
+    return;
+  }
+  adminWorkQueueEl.innerHTML = items
+    .map((item) => {
+      const canOpen = hasPermission(item.permission);
+      return `
+        <div class="work-queue-item">
+          <span class="work-queue-count">${Number(item.count)}</span>
+          <span class="work-queue-copy">
+            <strong>${escapeHtml(item.label)}</strong>
+            <small>${escapeHtml(item.detail)}</small>
+          </span>
+          ${
+            canOpen
+              ? `<button type="button" data-dashboard-action="${escapeAttr(item.action)}">${muiIcon("open_in_new")}<span>Mở</span></button>`
+              : `<span class="status-pill">Không đủ quyền</span>`
+          }
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderAdminReadiness(readiness) {
+  if (!adminReadinessCenterEl) return;
+  if (!readiness?.summary) {
+    adminReadinessCenterEl.innerHTML = `<div class="empty-task">Chưa có dữ liệu readiness</div>`;
+    renderAdminReadinessTypeFilter([]);
+    return;
+  }
+  const issues = readiness.issues || [];
+  renderAdminReadinessTypeFilter(issues);
+  const severityFilter = adminReadinessSeverityEl?.value || "";
+  const typeFilter = adminReadinessTypeEl?.value || "";
+  const filtered = issues.filter((issue) => {
+    if (severityFilter && issue.severity !== severityFilter) return false;
+    if (typeFilter && issue.type !== typeFilter) return false;
+    return true;
+  });
+  const summary = readiness.summary || {};
+  const summaryHtml = `
+    <div class="readiness-summary-grid">
+      ${renderReadinessSummaryCard("blocking", "Blocking", summary.blockingCount || 0)}
+      ${renderReadinessSummaryCard("warning", "Warning", summary.warningCount || 0)}
+      ${renderReadinessSummaryCard("info", "Info", summary.infoCount || 0)}
+      ${renderReadinessSummaryCard("total", "Tổng", summary.totalCount || 0)}
+    </div>
+  `;
+  if (!filtered.length) {
+    adminReadinessCenterEl.innerHTML = `${summaryHtml}<div class="empty-task">Không có readiness issue theo bộ lọc hiện tại</div>`;
+    return;
+  }
+  const visible = filtered.slice(0, 120);
+  const hiddenCount = Math.max(0, filtered.length - visible.length);
+  const groups = ["blocking", "warning", "info"]
+    .map((severity) => {
+      const rows = visible.filter((issue) => issue.severity === severity);
+      if (!rows.length) return "";
+      return `
+        <div class="readiness-group" data-severity="${escapeAttr(severity)}">
+          <div class="readiness-group-title">
+            <span>${escapeHtml(readinessSeverityLabel(severity))}</span>
+            <strong>${rows.length}</strong>
+          </div>
+          <div class="readiness-issue-list">
+            ${rows.map(renderReadinessIssue).join("")}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+  const moreHtml = hiddenCount
+    ? `<div class="readiness-more">Đang hiển thị 120 issue đầu tiên, còn ${hiddenCount} issue trong bộ lọc.</div>`
+    : "";
+  adminReadinessCenterEl.innerHTML = `${summaryHtml}${groups}${moreHtml}`;
+}
+
+function renderAdminReadinessTypeFilter(issues) {
+  if (!adminReadinessTypeEl) return;
+  const selected = adminReadinessTypeEl.value;
+  const types = [...new Set((issues || []).map((issue) => issue.type).filter(Boolean))].sort((a, b) =>
+    readinessTypeLabel(a).localeCompare(readinessTypeLabel(b), "vi", { numeric: true }),
+  );
+  adminReadinessTypeEl.innerHTML = [
+    `<option value="">Tất cả issue</option>`,
+    ...types.map((type) => `<option value="${escapeAttr(type)}">${escapeHtml(readinessTypeLabel(type))}</option>`),
+  ].join("");
+  adminReadinessTypeEl.value = optionValueOrEmpty(adminReadinessTypeEl, selected);
+}
+
+function renderReadinessSummaryCard(severity, label, count) {
+  return `
+    <div class="readiness-summary-card" data-severity="${escapeAttr(severity)}">
+      <strong>${Number(count || 0)}</strong>
+      <span>${escapeHtml(label)}</span>
+    </div>
+  `;
+}
+
+function renderReadinessIssue(issue) {
+  const action = dashboardActionDefinitions().find((item) => item.id === issue.action);
+  const canOpen = action && dashboardActionAllowed(action);
+  const count = Number(issue.referenceCount || 0);
+  const countHtml = count > 1 ? `<span class="readiness-count">x${count}</span>` : "";
+  return `
+    <div class="readiness-issue" data-severity="${escapeAttr(issue.severity || "warning")}">
+      <span class="readiness-severity-chip">${escapeHtml(readinessSeverityLabel(issue.severity))}</span>
+      <span class="readiness-copy">
+        <strong>${escapeHtml(issue.entityLabel || "-")}</strong>
+        <small>${escapeHtml([issue.scope, issue.message].filter(Boolean).join(" · "))}</small>
+      </span>
+      <span class="readiness-type">${escapeHtml(readinessTypeLabel(issue.type))}</span>
+      ${countHtml}
+      ${
+        canOpen
+          ? `<button type="button" data-dashboard-action="${escapeAttr(issue.action || "")}" data-readiness-issue="${escapeAttr(issue.id || "")}">${muiIcon("open_in_new")}<span>Mở</span></button>`
+          : `<span class="status-pill">Không đủ quyền</span>`
+      }
+    </div>
+  `;
+}
+
+function readinessSeverityLabel(severity) {
+  switch (severity) {
+    case "blocking":
+      return "Blocking";
+    case "info":
+      return "Info";
+    default:
+      return "Warning";
+  }
+}
+
+function readinessTypeLabel(type) {
+  const labels = {
+    billing_recipient_email_inactive: "Email inactive",
+    billing_recipient_missing_email: "Thiếu email nhận phí",
+    class_has_no_students: "Lớp chưa có học sinh",
+    class_missing_fee_schedule: "Thiếu bảng phí",
+    cron_over_limit_sends: "Cron vượt quota",
+    cron_queue_errors: "Cron có lỗi",
+    cron_recent_errors: "Lỗi cron gần đây",
+    email_provider_not_configured: "Email chưa cấu hình",
+    fee_schedule_empty_items: "Bảng phí trống",
+    fee_schedule_zero_amount_items: "Dòng phí bằng 0",
+    inactive_parent_selected_for_billing: "Quan hệ inactive nhận phí",
+    incoming_transaction_unmatched: "Giao dịch chưa khớp",
+    invoice_manual_review: "Invoice manual review",
+    invoice_missing_payment_data: "Invoice thiếu QR",
+    invoice_overpaid: "Invoice overpaid",
+    invoice_partial: "Invoice partial",
+    invoice_unpaid: "Invoice unpaid",
+    notification_failed_recipients: "Thông báo gửi lỗi",
+    student_adjustment_missing_reason: "Điều chỉnh thiếu lý do",
+    student_missing_billing_recipient: "Thiếu người nhận phí",
+    student_missing_class: "Học sinh thiếu lớp",
+    student_missing_parent: "Thiếu phụ huynh",
+    transaction_manual_review: "Giao dịch cần review",
+  };
+  return labels[type] || String(type || "Issue").replaceAll("_", " ");
+}
+
+function readinessIssueById(issueId) {
+  return (adminDashboardData?.readiness?.issues || []).find((issue) => issue.id === issueId) || null;
+}
+
+async function runDashboardAction(actionId, readinessIssueId = "") {
+  const action = dashboardActionDefinitions().find((item) => item.id === actionId);
+  if (!action || !dashboardActionAllowed(action)) return;
+  const issue = readinessIssueById(readinessIssueId);
+  applyReadinessIssueContext(issue);
+  await activateTab(action.tabId);
+  await applyReadinessIssueTargetFilters(action.tabId, issue);
+  if (action.afterOpen) {
+    window.setTimeout(action.afterOpen, 0);
+  }
+}
+
+function applyReadinessIssueContext(issue) {
+  if (!issue) return;
+  appContext = {
+    ...appContext,
+    schoolId: issue.schoolId || appContext.schoolId,
+    schoolYearId: issue.schoolYearId || appContext.schoolYearId,
+    periodCode: issue.periodCode || appContext.periodCode,
+    month: issue.month ? String(issue.month) : appContext.month,
+  };
+  renderAppContextControls();
+}
+
+async function applyReadinessIssueTargetFilters(tabId, issue) {
+  if (!issue) return;
+  if (tabId === "masterDataTab") {
+    masterSchoolFilterEl.value = optionValueOrEmpty(masterSchoolFilterEl, issue.schoolId || appContext.schoolId);
+    masterSchoolYearFilterEl.value = optionValueOrEmpty(masterSchoolYearFilterEl, issue.schoolYearId || appContext.schoolYearId);
+    masterGradeFilterEl.value = optionValueOrEmpty(masterGradeFilterEl, issue.grade || "");
+    renderMasterFilters();
+    masterClassFilterEl.value = optionValueOrEmpty(masterClassFilterEl, issue.classId || "");
+    if (issue.entityType === "student" && issue.referenceCode) {
+      masterSearchEl.value = issue.referenceCode;
+    }
+    await loadMasterStudents();
+    if (issue.entityType === "student" && issue.entityId) {
+      selectMasterStudent(issue.entityId);
+    }
+  } else if (tabId === "feeTemplateTab") {
+    feeScheduleSchoolEl.value = optionValueOrEmpty(feeScheduleSchoolEl, issue.schoolId || appContext.schoolId);
+    feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, issue.schoolYearId || appContext.schoolYearId);
+    feeSchedulePeriodEl.value = issue.periodCode || appContext.periodCode || feeSchedulePeriodEl.value;
+    feeScheduleMonthEl.value = issue.month ? String(issue.month) : appContext.month || feeScheduleMonthEl.value;
+    renderFeeScheduleControls();
+    feeScheduleGradeEl.value = optionValueOrEmpty(feeScheduleGradeEl, issue.grade || "");
+    renderFeeScheduleClassFilter(issue.classId || "");
+    await loadFeeScheduleList();
+  } else if (tabId === "reconciliationTab") {
+    if (issue.type === "incoming_transaction_unmatched") {
+      paymentTransactionStatusFilterEl.value = optionValueOrEmpty(paymentTransactionStatusFilterEl, "unmatched");
+    } else if (issue.type === "transaction_manual_review") {
+      paymentTransactionStatusFilterEl.value = optionValueOrEmpty(paymentTransactionStatusFilterEl, "manual_review");
+    }
+    await loadPaymentReconciliation(true);
+  } else if (tabId === "notificationTab") {
+    notificationSchoolYearEl.value = optionValueOrEmpty(notificationSchoolYearEl, issue.schoolYearId || appContext.schoolYearId);
+    notificationPeriodEl.value = issue.periodCode || appContext.periodCode || notificationPeriodEl.value;
+    renderNotificationGradeOptions();
+    notificationGradeEl.value = optionValueOrEmpty(notificationGradeEl, issue.grade || "");
+    renderNotificationClassOptions();
+    notificationClassEl.value = optionValueOrEmpty(notificationClassEl, issue.classId || "");
+  } else if (tabId === "operationsTab") {
+    operationSourceFilterEl.value = optionValueOrEmpty(operationSourceFilterEl, "background_job");
+    operationLevelFilterEl.value = optionValueOrEmpty(operationLevelFilterEl, "error");
+    await loadOperations(true);
+  }
 }
 
 function renderAdminMetrics(root, summary) {
@@ -2442,24 +3346,26 @@ async function loadMasterStudents() {
   }
   const data = JSON.parse(text);
   renderMasterStudents(data.students || []);
+  renderSchoolTreeDetail(findSchoolTreeNode(selectedSchoolTreeNode.type, selectedSchoolTreeNode.id));
   setMasterStatus("Sẵn sàng", "ready");
 }
 
 function renderMasterStudents(students = []) {
-  masterStudentsData = students || [];
+  masterStudentsRawData = students || [];
+  masterStudentsData = filterMasterStudentsForRelationshipView(masterStudentsRawData);
   if (!masterStudentsData.some((student) => masterStudentKey(student) === selectedMasterStudentKey)) {
     selectedMasterStudentKey = masterStudentsData[0] ? masterStudentKey(masterStudentsData[0]) : "";
   }
-  masterStudentCountEl.textContent = `${students.length} học sinh`;
-  masterStudentsEl.innerHTML = students
+  masterStudentCountEl.textContent = masterStudentsData.length === masterStudentsRawData.length
+    ? `${masterStudentsData.length} học sinh`
+    : `${masterStudentsData.length}/${masterStudentsRawData.length} học sinh`;
+  masterStudentsEl.innerHTML = masterStudentsData
     .map((student) => {
       const key = masterStudentKey(student);
-      const primary = (student.parents || []).find((parent) => parent.isPrimary) || (student.parents || [])[0] || {};
-      const parentNames = (student.parents || []).map((parent) => parent.parentName).filter(Boolean).join(", ");
-      const billingEmails = (student.parents || [])
-        .filter((parent) => parent.receivesBillingEmail && parent.isActive && parent.emailActive && parent.email)
-        .map((parent) => parent.email)
-        .join(", ");
+      const warning = masterStudentContactWarning(student);
+      const billingCount = masterStudentBillingCount(student);
+      const parentCount = masterStudentParentCount(student);
+      const invoiceAttention = Number(student.invoiceAttentionCount || 0);
       return `
         <tr data-master-student-row="${escapeAttr(key)}" class="${key === selectedMasterStudentKey ? "is-selected" : ""}">
           <td><strong>${escapeHtml(student.studentCode || "")}</strong></td>
@@ -2467,15 +3373,17 @@ function renderMasterStudents(students = []) {
           <td>${escapeHtml([student.schoolCode, student.schoolYearCode].filter(Boolean).join(" · "))}</td>
           <td>${escapeHtml(student.grade || "")}</td>
           <td>${escapeHtml(student.className || "")}</td>
-          <td>${escapeHtml(parentNames || primary.parentName || "-")}</td>
-          <td>${escapeHtml(billingEmails || "-")}</td>
+          <td>${renderMasterParentSummary(student)}</td>
+          <td><span class="relationship-pill ${billingCount > 0 ? "is-ready" : "is-warning"}">${muiIcon(billingCount > 0 ? "mark_email_read" : "mark_email_unread")}<span>${billingCount}/${parentCount}</span></span></td>
+          <td><span class="relationship-pill ${warning ? "is-warning" : "is-ready"}">${muiIcon(warning ? "priority_high" : "check_circle")}<span>${escapeHtml(masterStudentContactWarningLabel(warning))}</span></span></td>
+          <td>${invoiceAttention > 0 ? `<span class="relationship-pill is-info">${muiIcon("request_quote")}<span>${invoiceAttention}</span></span>` : `<span class="muted-cell">-</span>`}</td>
           <td><span class="tag">${escapeHtml(student.status || "active")}</span></td>
         </tr>
       `;
     })
     .join("");
-  if (!students.length) {
-    masterStudentsEl.innerHTML = `<tr><td colspan="8" class="empty-cell">Chưa có dữ liệu học sinh</td></tr>`;
+  if (!masterStudentsData.length) {
+    masterStudentsEl.innerHTML = `<tr><td colspan="10" class="empty-cell">Chưa có dữ liệu học sinh</td></tr>`;
   }
   masterStudentsEl.querySelectorAll("[data-master-student-row]").forEach((row) => {
     row.addEventListener("click", () => selectMasterStudent(row.dataset.masterStudentRow));
@@ -2483,6 +3391,58 @@ function renderMasterStudents(students = []) {
   const selected = masterStudentsData.find((student) => masterStudentKey(student) === selectedMasterStudentKey);
   renderMasterStudentDetail(selected);
   populateMasterStudentForm(selected);
+}
+
+function filterMasterStudentsForRelationshipView(students = []) {
+  const filter = masterBillingFilterEl?.value || "";
+  return (students || []).filter((student) => {
+    const warning = masterStudentContactWarning(student);
+    const billingCount = masterStudentBillingCount(student);
+    const invoiceAttention = Number(student.invoiceAttentionCount || 0);
+    if (filter === "ready") return billingCount > 0 && !warning;
+    if (filter === "missing") return billingCount === 0;
+    if (filter === "warning") return !!warning;
+    if (filter === "attention") return invoiceAttention > 0;
+    return true;
+  });
+}
+
+function masterStudentParentCount(student) {
+  return Number(student?.parentCount ?? (student?.parents || []).length);
+}
+
+function masterStudentBillingCount(student) {
+  if (student && Object.prototype.hasOwnProperty.call(student, "billingRecipientCount")) {
+    return Number(student.billingRecipientCount || 0);
+  }
+  return (student?.parents || []).filter(masterParentBillingReady).length;
+}
+
+function masterStudentContactWarning(student) {
+  if (student?.contactWarning) return student.contactWarning;
+  if (masterStudentParentCount(student) === 0) return "missing_parent";
+  if (masterStudentBillingCount(student) === 0) return "missing_billing_recipient";
+  return "";
+}
+
+function masterStudentContactWarningLabel(warning) {
+  return {
+    missing_parent: "Thiếu PH",
+    missing_billing_recipient: "Thiếu billing",
+  }[warning] || "OK";
+}
+
+function renderMasterParentSummary(student) {
+  const parents = student?.parents || [];
+  if (!parents.length) return `<span class="muted-cell">Chưa có</span>`;
+  const primary = parents.find((parent) => parent.isPrimary) || parents[0];
+  const extra = parents.length > 1 ? ` +${parents.length - 1}` : "";
+  return `
+    <div class="relationship-summary">
+      <strong>${escapeHtml(primary.parentName || "-")}${escapeHtml(extra)}</strong>
+      <span>${escapeHtml(masterRelationshipLabel(primary.relationship))}${primary.phone ? ` · ${escapeHtml(primary.phone)}` : ""}</span>
+    </div>
+  `;
 }
 
 function masterStudentKey(student) {
@@ -2505,7 +3465,7 @@ function openMasterStudentDialog() {
     kicker: "Manual upsert",
     icon: "edit_note",
     nodes: [masterStudentEditorContentEl],
-    size: "lg",
+    size: "xl",
     actions: [
       { label: "Hủy", icon: "close", onClick: closeAppDialog },
       { label: "Thêm phụ huynh", icon: "group_add", onClick: addMasterParentDraft },
@@ -2519,30 +3479,10 @@ function renderMasterStudentDetail(student) {
     masterStudentDetailEl.innerHTML = `<div class="detail-placeholder">${muiIcon("person_search")}<span>Chọn một học sinh để xem lớp, năm học và thông tin phụ huynh.</span></div>`;
     return;
   }
-  const parents = student.parents || [];
-  const activeBillingEmails = parents
-    .filter((parent) => parent.receivesBillingEmail && parent.isActive && parent.emailActive && parent.email)
-    .map((parent) => parent.email);
-  const parentList = parents.length
-    ? parents
-        .map((parent) => {
-          const flags = [
-            parent.isPrimary ? "Chính" : "",
-            parent.receivesBillingEmail ? "Nhận phí" : "",
-            parent.isActive === false || parent.emailActive === false ? "Tạm dừng" : "",
-          ]
-            .filter(Boolean)
-            .join(" · ");
-          return `
-            <li>
-              <strong>${escapeHtml(parent.parentName || "-")}</strong>
-              <span>${escapeHtml(parent.relationship || "Phụ huynh")}${flags ? ` · ${escapeHtml(flags)}` : ""}</span>
-              <small>${escapeHtml(parent.email || "Chưa có email")}</small>
-            </li>
-          `;
-        })
-        .join("")
-    : `<li><strong>Chưa có phụ huynh</strong><span>Import hoặc cập nhật master data</span></li>`;
+  const parentCount = masterStudentParentCount(student);
+  const billingCount = masterStudentBillingCount(student);
+  const warning = masterStudentContactWarning(student);
+  const invoiceAttention = Number(student.invoiceAttentionCount || 0);
   masterStudentDetailEl.innerHTML = `
     <div class="detail-hero">
       ${muiIcon("person")}
@@ -2551,22 +3491,166 @@ function renderMasterStudentDetail(student) {
         <span>${escapeHtml(student.studentCode || "Chưa có mã HS")}</span>
       </div>
     </div>
+    <div class="student-relationship-metrics">
+      <div>${muiIcon("supervisor_account")}<span>Phụ huynh</span><strong>${parentCount}</strong></div>
+      <div>${muiIcon("alternate_email")}<span>Billing</span><strong>${billingCount}/${parentCount}</strong></div>
+      <div>${muiIcon(warning ? "priority_high" : "check_circle")}<span>Contact</span><strong>${escapeHtml(masterStudentContactWarningLabel(warning))}</strong></div>
+      <div>${muiIcon("request_quote")}<span>HĐ cần xử lý</span><strong>${invoiceAttention}</strong></div>
+    </div>
     <div class="detail-grid">
       <span>Năm học</span><strong>${escapeHtml(student.schoolYearCode || "-")}</strong>
       <span>Trường</span><strong>${escapeHtml(student.schoolCode || "-")}</strong>
       <span>Khối / lớp</span><strong>${escapeHtml([student.grade ? `Khối ${student.grade}` : "", student.className || ""].filter(Boolean).join(" · ") || "-")}</strong>
       <span>Trạng thái</span><strong>${escapeHtml(student.status || "active")}</strong>
-      <span>Email nhận phí</span><strong>${escapeHtml(activeBillingEmails.join(", ") || "-")}</strong>
+      <span>Quy tắc billing</span><strong>Active + nhận phí + email active + có email</strong>
     </div>
     <div class="detail-section">
-      <p class="detail-section-title">Phụ huynh</p>
-      <ul class="detail-list">${parentList}</ul>
+      <p class="detail-section-title">Quan hệ phụ huynh</p>
+      ${renderMasterParentRelationshipTable(student)}
+    </div>
+    <div class="detail-section">
+      <p class="detail-section-title">Anh/chị em</p>
+      ${renderMasterStudentSiblings(student)}
     </div>
     <div class="detail-actions">
       <button data-edit-master-student="true" type="button">${muiIcon("edit")}<span>Sửa học sinh</span></button>
+      ${hasPermission("invoice.view") ? `<button data-master-student-invoices="true" type="button">${muiIcon("request_quote")}<span>Hóa đơn</span></button>` : ""}
+      ${hasPermission("notification.view") || hasPermission("notification.send") ? `<button data-master-student-notifications="true" type="button">${muiIcon("campaign")}<span>Thông báo</span></button>` : ""}
+      <button data-master-student-class="true" type="button">${muiIcon("account_tree")}<span>Lớp</span></button>
     </div>
   `;
   masterStudentDetailEl.querySelector("[data-edit-master-student]")?.addEventListener("click", openMasterStudentDialog);
+  masterStudentDetailEl.querySelector("[data-master-student-invoices]")?.addEventListener("click", () => openMasterStudentInvoices(student));
+  masterStudentDetailEl.querySelector("[data-master-student-notifications]")?.addEventListener("click", () => openMasterStudentNotifications(student));
+  masterStudentDetailEl.querySelector("[data-master-student-class]")?.addEventListener("click", () => openMasterStudentClassScope(student));
+}
+
+function renderMasterParentRelationshipTable(student) {
+  const parents = student.parents || [];
+  if (!parents.length) {
+    return `<div class="relationship-empty">Chưa có phụ huynh. Import hoặc cập nhật master data.</div>`;
+  }
+  return `
+    <div class="relationship-table">
+      <div class="relationship-table-head"><span>Quan hệ</span><span>Liên hệ</span><span>Flags</span><span>Billing</span></div>
+      ${parents.map((parent) => {
+        const ready = parent.billingReady ?? masterParentBillingReady(parent);
+        return `
+          <div class="relationship-row">
+            <div><strong>${escapeHtml(parent.parentName || "-")}</strong><span>${escapeHtml(masterRelationshipLabel(parent.relationship))}</span></div>
+            <div><strong>${escapeHtml(parent.email || "Chưa có email")}</strong><span>${escapeHtml(parent.phone || "Chưa có SĐT")}</span></div>
+            <div class="relationship-flags">${masterParentFlagTags(parent)}</div>
+            <div><span class="relationship-pill ${ready ? "is-ready" : "is-warning"}">${muiIcon(ready ? "check_circle" : "priority_high")}<span>${ready ? "Valid" : "Blocked"}</span></span></div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderMasterStudentSiblings(student) {
+  const siblings = student.siblings || [];
+  if (!siblings.length) {
+    return `<div class="relationship-empty">Chưa phát hiện học sinh dùng chung phụ huynh.</div>`;
+  }
+  return `
+    <div class="sibling-list">
+      ${siblings.map((sibling) => `
+        <div class="sibling-item">
+          ${muiIcon("family_restroom")}
+          <div>
+            <strong>${escapeHtml(sibling.studentCode || "")} · ${escapeHtml(sibling.studentName || "")}</strong>
+            <span>${escapeHtml([sibling.schoolYearCode, sibling.grade ? `Khối ${sibling.grade}` : "", sibling.className].filter(Boolean).join(" · ") || "-")}</span>
+            <small>${escapeHtml((sibling.sharedParentNames || []).join(", ") || "Chung phụ huynh")}</small>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function masterParentBillingReady(parent) {
+  return !!(parent?.isActive && parent?.receivesBillingEmail && parent?.emailActive && parent?.email);
+}
+
+function masterRelationshipLabel(value) {
+  return {
+    guardian: "Phụ huynh",
+    mother: "Mẹ",
+    me: "Mẹ",
+    mom: "Mẹ",
+    father: "Bố",
+    bo: "Bố",
+    dad: "Bố",
+    grandparent: "Ông/bà",
+    ong_ba: "Ông/bà",
+    other: "Khác",
+  }[value || ""] || value || "Phụ huynh";
+}
+
+function masterParentFlagTags(parent) {
+  const tags = [
+    parent.isPrimary ? ["Chính", "is-ready"] : ["Phụ", ""],
+    parent.isActive ? ["Active", "is-ready"] : ["Inactive", "is-warning"],
+    parent.receivesBillingEmail ? ["Nhận phí", "is-info"] : ["Không gửi", ""],
+    parent.emailActive ? ["Email active", "is-ready"] : ["Email off", "is-warning"],
+  ];
+  return tags.map(([label, tone]) => `<span class="relationship-chip ${tone}">${escapeHtml(label)}</span>`).join("");
+}
+
+function masterRelationshipOptions(selected = "guardian") {
+  const options = [
+    ["guardian", "Phụ huynh"],
+    ["mother", "Mẹ"],
+    ["father", "Bố"],
+    ["grandparent", "Ông/bà"],
+    ["other", "Khác"],
+  ];
+  return options.map(([value, label]) => `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
+}
+
+async function openMasterStudentInvoices(student) {
+  if (!hasPermission("invoice.view")) {
+    setMasterStatus("Không đủ quyền xem hóa đơn", "error");
+    return;
+  }
+  await activateTab("invoiceTab");
+  await loadInvoices(true);
+  const match = invoicesData.find((invoice) => invoice.studentCode === student.studentCode);
+  if (match) {
+    selectInvoice(match.id);
+    setInvoiceStatus("Đã chọn hóa đơn của học sinh", "ready");
+  } else {
+    setInvoiceStatus("Chưa có hóa đơn cho học sinh này trong danh sách hiện tại", "error");
+  }
+}
+
+async function openMasterStudentNotifications(student) {
+  if (!hasPermission("notification.view") && !hasPermission("notification.send")) {
+    setMasterStatus("Không đủ quyền mở thông báo", "error");
+    return;
+  }
+  await activateTab("notificationTab");
+  await loadNotifications(true);
+  notificationSchoolYearEl.value = optionValueOrEmpty(notificationSchoolYearEl, student.schoolYearId || "");
+  renderNotificationGradeOptions();
+  notificationGradeEl.value = optionValueOrEmpty(notificationGradeEl, student.grade || "");
+  renderNotificationClassOptions();
+  notificationClassEl.value = optionValueOrEmpty(notificationClassEl, student.classId || "");
+  if (hasPermission("notification.send") && !openNotificationDialogBtn.hidden) {
+    openNotificationDialog();
+  }
+}
+
+function openMasterStudentClassScope(student) {
+  const node = findSchoolTreeNode("class", student.classId || "");
+  if (node) {
+    selectedSchoolTreeNode = { type: "class", id: student.classId };
+    fillSchoolTreeForms(node);
+    applySchoolTreeFilters(node);
+    renderSchoolTree();
+  }
+  document.querySelector(".master-tree-panel")?.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function defaultMasterParentDraft(isPrimary = false) {
@@ -2574,6 +3658,8 @@ function defaultMasterParentDraft(isPrimary = false) {
     id: "",
     parentName: "",
     email: "",
+    phone: "",
+    relationship: "guardian",
     emailActive: true,
     isPrimary,
     isActive: true,
@@ -2595,6 +3681,8 @@ function populateMasterStudentForm(student) {
     id: parent.id || "",
     parentName: parent.parentName || "",
     email: parent.email || "",
+    phone: parent.phone || "",
+    relationship: parent.relationship || "guardian",
     emailActive: parent.emailActive !== false,
     isPrimary: !!parent.isPrimary,
     isActive: parent.isActive !== false,
@@ -2632,6 +3720,14 @@ function renderMasterParentEditorRows() {
           <span>Email</span>
           <input data-master-parent-field="email" type="email" value="${escapeAttr(parent.email || "")}" />
         </label>
+        <label>
+          <span>SĐT</span>
+          <input data-master-parent-field="phone" value="${escapeAttr(parent.phone || "")}" inputmode="tel" />
+        </label>
+        <label>
+          <span>Quan hệ</span>
+          <select data-master-parent-field="relationship">${masterRelationshipOptions(parent.relationship || "guardian")}</select>
+        </label>
         <label class="master-parent-check">
           <input data-master-parent-field="isPrimary" name="masterParentPrimary" type="radio" ${parent.isPrimary ? "checked" : ""} />
           <span>Chính</span>
@@ -2653,7 +3749,7 @@ function renderMasterParentEditorRows() {
         </button>
       </div>
     `)
-    .join("");
+    .join("") + `<div class="master-parent-warning" data-master-parent-warning></div>`;
   masterParentEditorRowsEl.querySelectorAll("[data-remove-master-parent]").forEach((button) => {
     button.addEventListener("click", () => {
       masterStudentParentDrafts = collectMasterParentDrafts();
@@ -2661,6 +3757,11 @@ function renderMasterParentEditorRows() {
       renderMasterParentEditorRows();
     });
   });
+  masterParentEditorRowsEl.querySelectorAll("input, select").forEach((field) => {
+    field.addEventListener("input", updateMasterParentEditorWarning);
+    field.addEventListener("change", updateMasterParentEditorWarning);
+  });
+  updateMasterParentEditorWarning();
 }
 
 function collectMasterParentDrafts() {
@@ -2670,12 +3771,33 @@ function collectMasterParentDrafts() {
       id: field("id")?.value.trim() || "",
       parentName: field("parentName")?.value.trim() || "",
       email: field("email")?.value.trim() || "",
+      phone: field("phone")?.value.trim() || "",
+      relationship: field("relationship")?.value || "guardian",
       isPrimary: !!field("isPrimary")?.checked,
       isActive: !!field("isActive")?.checked,
       receivesBillingEmail: !!field("receivesBillingEmail")?.checked,
       emailActive: !!field("emailActive")?.checked,
     };
   });
+}
+
+function masterParentDraftBillingReady(parent) {
+  return !!(parent.isActive && parent.receivesBillingEmail && parent.emailActive && parent.email);
+}
+
+function updateMasterParentEditorWarning() {
+  const warningEl = masterParentEditorRowsEl.querySelector("[data-master-parent-warning]");
+  if (!warningEl) return;
+  const drafts = collectMasterParentDrafts();
+  const readyCount = drafts.filter(masterParentDraftBillingReady).length;
+  const parentCount = drafts.length;
+  if (readyCount > 0) {
+    warningEl.dataset.tone = "ready";
+    warningEl.innerHTML = `${muiIcon("check_circle")}<span>${readyCount}/${parentCount} phụ huynh hợp lệ để nhận email học phí.</span>`;
+    return;
+  }
+  warningEl.dataset.tone = "warning";
+  warningEl.innerHTML = `${muiIcon("priority_high")}<span>Chưa có billing recipient hợp lệ: cần Active + Nhận phí + Email active + có email.</span>`;
 }
 
 function addMasterParentDraft() {
@@ -2839,6 +3961,7 @@ async function loadFeeScheduleOptions() {
   }
   const data = JSON.parse(text);
   feeScheduleOptions = {
+    schools: data.schools || [],
     feeTypes: data.feeTypes || defaultFeeTypes,
     schoolYears: data.schoolYears || [],
     classes: data.classes || [],
@@ -2846,6 +3969,7 @@ async function loadFeeScheduleOptions() {
   feeSchedulesLoaded = true;
   renderFeeScheduleControls();
   renderFeeScheduleItems(feeScheduleOptions.feeTypes);
+  renderFeeAdjustmentRows();
   setFeeScheduleStatus("Sẵn sàng", "ready");
   return true;
 }
@@ -2855,9 +3979,12 @@ async function loadFeeScheduleList() {
     return;
   }
   const params = new URLSearchParams();
+  if (feeScheduleSchoolEl.value) params.set("schoolId", feeScheduleSchoolEl.value);
   if (feeScheduleYearEl.value) params.set("schoolYearId", feeScheduleYearEl.value);
   if (feeScheduleClassEl.value) params.set("classId", feeScheduleClassEl.value);
   if (!feeScheduleClassEl.value && feeScheduleGradeEl.value) params.set("grade", feeScheduleGradeEl.value);
+  if (feeSchedulePeriodEl.value.trim()) params.set("periodCode", feeSchedulePeriodEl.value.trim());
+  if (feeScheduleMonthEl.value) params.set("month", feeScheduleMonthEl.value);
 
   const res = await fetch(`/api/v1/fee-schedules?${params.toString()}`);
   const text = await res.text();
@@ -2872,20 +3999,34 @@ async function loadFeeScheduleList() {
 }
 
 function renderFeeScheduleControls() {
+  const selectedSchool = feeScheduleSchoolEl.value;
   const selectedYear = feeScheduleYearEl.value;
   const selectedGrade = feeScheduleGradeEl.value;
   const selectedClass = feeScheduleClassEl.value;
 
+  feeScheduleSchoolEl.innerHTML = [
+    `<option value="">Tất cả trường</option>`,
+    ...(feeScheduleOptions.schools || []).map((item) => {
+      const label = [item.code, item.name && item.name !== item.code ? item.name : ""].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.id)}</option>`;
+    }),
+  ].join("");
+  feeScheduleSchoolEl.value = optionValueOrEmpty(feeScheduleSchoolEl, selectedSchool);
+
   feeScheduleYearEl.innerHTML = [
     `<option value="">Chọn năm học</option>`,
-    ...(feeScheduleOptions.schoolYears || []).map(
-      (item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.code)}</option>`,
-    ),
+    ...(feeScheduleOptions.schoolYears || [])
+      .filter((item) => !feeScheduleSchoolEl.value || item.schoolId === feeScheduleSchoolEl.value)
+      .map((item) => {
+        const label = [item.schoolCode, item.code].filter(Boolean).join(" · ");
+        return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.id)}</option>`;
+      }),
   ].join("");
   feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, selectedYear);
 
   const grades = [...new Set(
     (feeScheduleOptions.classes || [])
+      .filter((item) => !feeScheduleSchoolEl.value || item.schoolId === feeScheduleSchoolEl.value)
       .filter((item) => !feeScheduleYearEl.value || item.schoolYearId === feeScheduleYearEl.value)
       .map((item) => item.grade)
       .filter(Boolean),
@@ -2897,10 +4038,12 @@ function renderFeeScheduleControls() {
   feeScheduleGradeEl.value = optionValueOrEmpty(feeScheduleGradeEl, selectedGrade);
 
   renderFeeScheduleClassFilter(selectedClass);
+  renderAppContextControls();
 }
 
 function renderFeeScheduleClassFilter(selectedClass = feeScheduleClassEl.value) {
   const classes = (feeScheduleOptions.classes || []).filter((item) => {
+    if (feeScheduleSchoolEl.value && item.schoolId !== feeScheduleSchoolEl.value) return false;
     if (feeScheduleYearEl.value && item.schoolYearId !== feeScheduleYearEl.value) return false;
     if (feeScheduleGradeEl.value && item.grade !== feeScheduleGradeEl.value) return false;
     return true;
@@ -2949,7 +4092,102 @@ function collectFeeScheduleItems() {
       amount: Number(row.querySelector('[data-fee-schedule-field="amount"]').value || 0),
       displayOrder: Number(row.dataset.displayOrder || 0),
     }))
-    .filter((item) => item.amount > 0);
+    .filter((item) => item.amount !== 0);
+}
+
+function defaultFeeAdjustmentDraft() {
+  return {
+    studentCode: "",
+    adjustmentType: "discount",
+    feeTypeCode: "",
+    amount: 0,
+    reason: "",
+  };
+}
+
+function feeAdjustmentTypeOptions(selected) {
+  const options = [
+    ["discount", "Giảm trừ"],
+    ["surcharge", "Phụ thu"],
+    ["waiver", "Miễn giảm"],
+    ["carry_over", "Chuyển kỳ trước"],
+  ];
+  return options
+    .map(([value, label]) => `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`)
+    .join("");
+}
+
+function feeAdjustmentFeeTypeOptions(selected) {
+  const types = feeScheduleOptions.feeTypes?.length ? feeScheduleOptions.feeTypes : defaultFeeTypes;
+  return [
+    `<option value="">Toàn dòng</option>`,
+    ...types.map((item) => {
+      const value = item.code || "";
+      const label = [item.code, item.labelVi].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label || value)}</option>`;
+    }),
+  ].join("");
+}
+
+function renderFeeAdjustmentRows(rows = null) {
+  const sourceRows = rows || collectFeeAdjustmentRows();
+  const drafts = sourceRows.length ? sourceRows : [defaultFeeAdjustmentDraft()];
+  feeAdjustmentRowsEl.innerHTML = drafts
+    .map((row) => {
+      const adjustmentType = headerKeyClient(row.adjustmentType || "discount");
+      const feeTypeCode = headerKeyClient(row.feeTypeCode || "");
+      return `
+        <tr>
+          <td><input data-fee-adjust-field="studentCode" value="${escapeAttr(row.studentCode || "")}" placeholder="S001" /></td>
+          <td><select data-fee-adjust-field="adjustmentType">${feeAdjustmentTypeOptions(adjustmentType)}</select></td>
+          <td><select data-fee-adjust-field="feeTypeCode">${feeAdjustmentFeeTypeOptions(feeTypeCode)}</select></td>
+          <td><input data-fee-adjust-field="amount" type="number" min="0" step="1000" value="${Number(row.amount || 0)}" /></td>
+          <td><input data-fee-adjust-field="reason" value="${escapeAttr(row.reason || "")}" placeholder="Lý do bắt buộc" /></td>
+          <td><button class="icon-only" type="button" data-fee-adjust-remove title="Xóa điều chỉnh">${muiIcon("delete")}<span class="sr-only">Xóa</span></button></td>
+        </tr>
+      `;
+    })
+    .join("");
+  feeAdjustmentRowsEl.querySelectorAll("input, select").forEach((input) => {
+    input.addEventListener("input", updateFeeAdjustmentCount);
+    input.addEventListener("change", updateFeeAdjustmentCount);
+  });
+  feeAdjustmentRowsEl.querySelectorAll("[data-fee-adjust-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      button.closest("tr")?.remove();
+      if (!feeAdjustmentRowsEl.querySelector("tr")) {
+        renderFeeAdjustmentRows([defaultFeeAdjustmentDraft()]);
+        return;
+      }
+      updateFeeAdjustmentCount();
+    });
+  });
+  updateFeeAdjustmentCount();
+}
+
+function addFeeAdjustmentRow(row = defaultFeeAdjustmentDraft()) {
+  const rows = collectFeeAdjustmentRows({ includeBlank: true }).filter(
+    (item) => item.studentCode || item.feeTypeCode || item.amount || item.reason,
+  );
+  rows.push(row);
+  renderFeeAdjustmentRows(rows);
+}
+
+function collectFeeAdjustmentRows(options = {}) {
+  return [...feeAdjustmentRowsEl.querySelectorAll("tr")]
+    .map((row) => ({
+      studentCode: row.querySelector('[data-fee-adjust-field="studentCode"]')?.value.trim().toUpperCase() || "",
+      adjustmentType: headerKeyClient(row.querySelector('[data-fee-adjust-field="adjustmentType"]')?.value || ""),
+      feeTypeCode: headerKeyClient(row.querySelector('[data-fee-adjust-field="feeTypeCode"]')?.value || ""),
+      amount: Number(row.querySelector('[data-fee-adjust-field="amount"]')?.value || 0),
+      reason: row.querySelector('[data-fee-adjust-field="reason"]')?.value.trim() || "",
+    }))
+    .filter((item) => options.includeBlank || item.studentCode || item.feeTypeCode || item.amount || item.reason);
+}
+
+function updateFeeAdjustmentCount() {
+  const count = collectFeeAdjustmentRows().length + parseFeeAdjustmentsCsv().length;
+  feeAdjustmentCountEl.textContent = `${count} điều chỉnh`;
 }
 
 function collectFeeScheduleDraft() {
@@ -2965,16 +4203,18 @@ function collectFeeScheduleDraft() {
     status: feeScheduleStatusEl.value || "draft",
     operatorName: feeScheduleOperatorEl.value.trim(),
     items: collectFeeScheduleItems(),
-    adjustments: parseFeeAdjustmentsCsv(),
+    adjustments: [...collectFeeAdjustmentRows(), ...parseFeeAdjustmentsCsv()],
   };
 }
 
 function openFeeScheduleDialog() {
+  renderFeeAdjustmentRows();
+  setFeeGuideStep("scope");
   openAppDialog({
     title: "Tạo/sửa bảng phí",
     kicker: "Production fees",
     icon: "price_change",
-    nodes: [document.querySelector(".fee-schedule-grid"), document.querySelector(".fee-schedule-body")],
+    nodes: [feeGuideStepsEl, document.querySelector(".fee-schedule-grid"), document.querySelector(".fee-schedule-body")],
     size: "xl",
     actions: [
       { label: "Đóng", icon: "close", onClick: closeAppDialog },
@@ -2982,6 +4222,14 @@ function openFeeScheduleDialog() {
       { label: "Lưu bảng phí", icon: "save", variant: "primary", onClick: saveFeeSchedule, closeOnSuccess: true },
     ],
   });
+}
+
+function setFeeGuideStep(step) {
+  feeGuideStepsEl?.querySelectorAll("[data-fee-guide-step]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.feeGuideStep === step);
+  });
+  const panel = document.querySelector(`[data-fee-guide-panel="${step}"]`);
+  panel?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function parseFeeAdjustmentsCsv() {
@@ -3020,7 +4268,6 @@ function parseFeeAdjustmentsCsv() {
       };
     })
     .filter((item) => item.studentCode || item.adjustmentType || item.amount || item.reason);
-  feeAdjustmentCountEl.textContent = `${adjustments.length} điều chỉnh`;
   return adjustments;
 }
 
@@ -3044,6 +4291,7 @@ async function previewFeeSchedule() {
     return false;
   }
   renderFeeSchedulePreview(data);
+  setFeeGuideStep("preview");
   setFeeScheduleStatus(data.issues?.length ? "Có lỗi" : "Đã preview", data.issues?.length ? "error" : "ready");
   return !data.issues?.length;
 }
@@ -3070,6 +4318,7 @@ async function saveFeeSchedule() {
   }
   renderFeeSchedulePreview(data.preview || null);
   renderFeeSchedules(data.schedules || []);
+  setFeeGuideStep("preview");
   setFeeScheduleStatus("Đã lưu", "ready");
   return true;
 }
@@ -3081,7 +4330,7 @@ function renderFeeSchedulePreview(data) {
   if (!data) {
     feeScheduleSummaryEl.className = "fee-schedule-summary";
     feeScheduleSummaryEl.textContent = "Chưa có preview";
-    feeSchedulePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có preview</td></tr>`;
+    feeSchedulePreviewRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có preview</td></tr>`;
     return;
   }
 
@@ -3110,31 +4359,39 @@ function renderFeeSchedulePreview(data) {
           <td>${formatMoney(row.baseAmount || 0)}</td>
           <td class="${Number(row.adjustmentAmount || 0) < 0 ? "fee-negative" : ""}">${formatMoney(row.adjustmentAmount || 0)}</td>
           <td class="money">${formatMoney(row.totalAmount || 0)}</td>
+          <td><span class="tag ${row.billingRecipientReady ? "tag-ready" : "tag-warning"}">${row.billingRecipientReady ? "Sẵn sàng" : "Thiếu"}</span></td>
         </tr>
       `,
     )
     .join("");
   if (!rows.length) {
-    feeSchedulePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Không có học sinh trong phạm vi này</td></tr>`;
+    feeSchedulePreviewRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Không có học sinh trong phạm vi này</td></tr>`;
   }
 }
 
 function renderFeeSchedules(schedules) {
+  schedules = schedules || [];
+  feeSchedulesData = schedules || [];
   feeScheduleCountEl.textContent = `${schedules.length} bảng phí`;
   feeSchedulesEl.innerHTML = schedules
     .map((schedule) => {
       const scope = schedule.className || (schedule.grade ? `Khối ${schedule.grade}` : "Toàn năm học");
       const period = [schedule.periodCode, schedule.month ? `T${schedule.month}` : ""].filter(Boolean).join(" · ");
+      const updated = [schedule.updatedActor || "system", schedule.updatedAt ? formatDateTime(schedule.updatedAt) : ""].filter(Boolean).join(" · ");
       return `
         <div class="fee-schedule-list-item">
           <div>
             <strong>${escapeHtml(schedule.name || schedule.periodCode || "Bảng phí")}</strong>
-            <span>${escapeHtml(schedule.schoolYearCode || "")} · ${escapeHtml(scope)} · ${escapeHtml(period)}</span>
+            <span>${escapeHtml([schedule.schoolCode, schedule.schoolYearCode, scope, period].filter(Boolean).join(" · "))}</span>
+            <small>${Number(schedule.itemCount || 0)} khoản · ${Number(schedule.studentCount || 0)} HS · preview ${formatMoney(schedule.previewTotal || 0)} · ${escapeHtml(updated || "-")}</small>
           </div>
-          <div>
+          <div class="fee-schedule-list-side">
             <span class="tag">${escapeHtml(schedule.status || "draft")}</span>
             <span class="money">${formatMoney(schedule.itemTotal || 0)}</span>
             <span>${Number(schedule.adjustmentCount || 0)} điều chỉnh</span>
+            <button type="button" data-fee-schedule-invoice="${escapeAttr(schedule.id)}">
+              ${muiIcon("request_quote")}<span>Sinh hóa đơn</span>
+            </button>
           </div>
         </div>
       `;
@@ -3142,6 +4399,34 @@ function renderFeeSchedules(schedules) {
     .join("");
   if (!schedules.length) {
     feeSchedulesEl.innerHTML = `<div class="empty-cell fee-list-empty">Chưa có bảng phí đã lưu</div>`;
+  }
+  feeSchedulesEl.querySelectorAll("[data-fee-schedule-invoice]").forEach((button) => {
+    button.addEventListener("click", () => openInvoiceFromFeeSchedule(button.dataset.feeScheduleInvoice || ""));
+  });
+}
+
+async function openInvoiceFromFeeSchedule(scheduleId) {
+  const schedule = feeSchedulesData.find((item) => item.id === scheduleId);
+  if (!schedule) {
+    setFeeScheduleStatus("Không tìm thấy bảng phí", "error");
+    return;
+  }
+  appContext.schoolId = schedule.schoolId || appContext.schoolId;
+  appContext.schoolYearId = schedule.schoolYearId || appContext.schoolYearId;
+  appContext.periodCode = schedule.periodCode || appContext.periodCode;
+  appContext.month = schedule.month ? String(schedule.month) : appContext.month;
+  renderAppContextControls();
+
+  await activateTab("invoiceTab");
+  await loadInvoices(true);
+  invoiceScheduleEl.value = optionValueOrEmpty(invoiceScheduleEl, scheduleId);
+  if (!invoiceScheduleEl.value) {
+    setInvoiceStatus("Không tìm thấy bảng phí trong danh sách hóa đơn", "error");
+    return;
+  }
+  await previewInvoices();
+  if (!openInvoiceDialogBtn.hidden) {
+    openInvoiceDialog();
   }
 }
 
@@ -3179,7 +4464,13 @@ async function loadInvoiceList() {
   if (!invoicesLoaded) {
     return;
   }
-  const res = await fetch("/api/v1/invoices");
+  const params = new URLSearchParams();
+  const schedule = selectedInvoiceSchedule();
+  if (schedule?.schoolYearId) params.set("schoolYearId", schedule.schoolYearId);
+  if (schedule?.classId) params.set("classId", schedule.classId);
+  if (!schedule?.classId && schedule?.grade) params.set("grade", schedule.grade);
+  if (schedule?.periodCode) params.set("periodCode", schedule.periodCode);
+  const res = await fetch(`/api/v1/invoices${params.toString() ? `?${params.toString()}` : ""}`);
   const text = await res.text();
   if (!res.ok) {
     renderInvoices([]);
@@ -3189,6 +4480,10 @@ async function loadInvoiceList() {
   const data = JSON.parse(text);
   renderInvoices(data.invoices || []);
   setInvoiceStatus("Sẵn sàng", "ready");
+}
+
+function selectedInvoiceSchedule() {
+  return (invoiceOptions.schedules || []).find((schedule) => schedule.id === invoiceScheduleEl.value) || null;
 }
 
 function renderInvoiceControls() {
@@ -3210,6 +4505,7 @@ function renderInvoiceControls() {
   if (!invoiceIssueDateEl.value) {
     invoiceIssueDateEl.value = new Date().toISOString().slice(0, 10);
   }
+  renderAppContextControls();
 }
 
 function collectInvoiceRequest() {
@@ -3224,6 +4520,7 @@ function collectInvoiceRequest() {
 }
 
 function openInvoiceDialog() {
+  setInvoiceWorkbenchStep("scope");
   openAppDialog({
     title: "Cấu hình sinh hóa đơn",
     kicker: "Production invoices",
@@ -3235,6 +4532,14 @@ function openInvoiceDialog() {
       { label: "Preview", icon: "visibility", onClick: previewInvoices },
     ],
   });
+}
+
+function setInvoiceWorkbenchStep(step) {
+  invoiceWorkbenchStepsEl?.querySelectorAll("[data-invoice-step]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.invoiceStep === step);
+  });
+  const panel = document.querySelector(`[data-invoice-step-panel="${step}"]`);
+  panel?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 async function previewInvoices() {
@@ -3257,6 +4562,7 @@ async function previewInvoices() {
     return false;
   }
   renderInvoicePreview(data);
+  setInvoiceWorkbenchStep(data.issues?.length ? "issues" : "preview");
   setInvoiceStatus(data.issues?.length ? "Có lỗi" : "Đã preview", data.issues?.length ? "error" : "ready");
   return !data.issues?.length;
 }
@@ -3290,6 +4596,7 @@ async function generateInvoices() {
   }
   renderInvoicePreview(data.preview || null);
   renderInvoices(data.invoices || []);
+  setInvoiceWorkbenchStep(data.preview?.issues?.length ? "issues" : "generate");
   setInvoiceStatus("Đã sinh hóa đơn", "ready");
   return true;
 }
@@ -3301,7 +4608,8 @@ function renderInvoicePreview(data) {
   if (!data) {
     invoicePreviewSummaryEl.className = "invoice-summary";
     invoicePreviewSummaryEl.textContent = "Chưa có preview";
-    invoicePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có preview</td></tr>`;
+    invoiceIssuePanelEl.innerHTML = "";
+    invoicePreviewRowsEl.innerHTML = `<tr><td colspan="8" class="empty-cell">Chưa có preview</td></tr>`;
     return;
   }
 
@@ -3310,34 +4618,107 @@ function renderInvoicePreview(data) {
   const summaryText = [
     `${summary.studentCount || rows.length || 0} học sinh`,
     `đã có ${summary.existingCount || 0}`,
+    `sẵn sàng ${summary.readyCount || 0}`,
+    `regen ${summary.regenerableCount || 0}`,
+    `chặn ${summary.blockedCount || 0}`,
     `mặc định ${formatMoney(summary.baseAmount || 0)}`,
     `điều chỉnh ${formatMoney(summary.adjustmentAmount || 0)}`,
     `phải thu ${formatMoney(summary.totalAmount || 0)}`,
   ].join(" · ");
-  const issueList = issues.length
-    ? `<div class="fee-issue-list">${issues
-        .map((issue) => `<div><strong>${escapeHtml(issue.type || "issue")}</strong> ${escapeHtml(issue.studentCode || "")} ${escapeHtml(issue.message || "")}</div>`)
-        .join("")}</div>`
-    : "";
-  invoicePreviewSummaryEl.innerHTML = `<div>${escapeHtml(summaryText)}</div>${issueList}`;
+  invoicePreviewSummaryEl.innerHTML = `<div>${escapeHtml(summaryText)}</div>`;
+  renderInvoiceIssues(issues, rows);
 
   invoicePreviewRowsEl.innerHTML = rows
-    .map(
-      (row) => `
+    .map((row) => {
+      const itemCount = Number(row.itemCount ?? (row.items || []).length);
+      const adjustmentCount = Number(row.adjustmentCount ?? (row.adjustments || []).length);
+      return `
         <tr>
-          <td><strong>${escapeHtml(row.invoiceCode || "")}</strong></td>
-          <td>${escapeHtml(row.studentCode || "")} · ${escapeHtml(row.studentName || "")}</td>
-          <td>${escapeHtml(row.className || "")}</td>
-          <td>${escapeHtml(row.periodCode || "")}</td>
+          <td><strong>${escapeHtml(row.invoiceCode || "")}</strong><small>${escapeHtml(row.periodCode || "")}</small></td>
+          <td>${escapeHtml(row.studentCode || "")}<small>${escapeHtml(row.studentName || "")}</small></td>
+          <td>${escapeHtml(row.className || "")}<small>${escapeHtml(row.schoolYearCode || "")}</small></td>
+          <td>${itemCount}<small>${adjustmentCount ? `${adjustmentCount} adjustment` : "snapshot"}</small></td>
           <td class="money">${formatMoney(row.totalAmount || 0)}</td>
-          <td><span class="tag">${escapeHtml(row.existing ? "existing" : row.status || "unpaid")}</span></td>
+          <td><span class="tag ${row.billingRecipientReady ? "tag-ready" : "tag-warning"}">${row.billingRecipientReady ? "Ready" : "Missing"}</span></td>
+          <td><span class="tag ${invoiceGenerationTone(row.generationState)}">${escapeHtml(invoiceGenerationLabel(row.generationState))}</span></td>
+          <td><span class="tag ${invoiceIssueTone(row.issueState)}">${escapeHtml(invoiceIssueLabel(row.issueState))}</span></td>
         </tr>
-      `,
-    )
+      `;
+    })
     .join("");
   if (!rows.length) {
-    invoicePreviewRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Không có hóa đơn trong preview</td></tr>`;
+    invoicePreviewRowsEl.innerHTML = `<tr><td colspan="8" class="empty-cell">Không có hóa đơn trong preview</td></tr>`;
   }
+}
+
+function renderInvoiceIssues(issues = [], rows = []) {
+  const rowIssues = rows
+    .filter((row) => row.issueState && row.issueState !== "ready")
+    .map((row) => ({
+      type: row.issueState,
+      studentCode: row.studentCode,
+      message:
+        row.issueState === "blocking"
+          ? invoiceGenerationLabel(row.generationState)
+          : row.billingRecipientReady
+            ? invoiceIssueLabel(row.issueState)
+            : "Thiếu billing recipient đang hoạt động",
+    }));
+  const allIssues = [...issues, ...rowIssues].slice(0, 80);
+  if (!allIssues.length) {
+    invoiceIssuePanelEl.innerHTML = `<div class="invoice-issue-empty">${muiIcon("check_circle")}<span>Không có blocking issue trong preview hiện tại.</span></div>`;
+    return;
+  }
+  invoiceIssuePanelEl.innerHTML = `
+    <div class="invoice-issue-list">
+      ${allIssues
+        .map(
+          (issue) => `
+            <div class="invoice-issue-item ${issue.type === "blocking" || issue.type === "cannot_regenerate_paid_invoice" ? "is-blocking" : ""}">
+              <span class="tag ${invoiceIssueTone(issue.type === "cannot_regenerate_paid_invoice" ? "blocking" : issue.type)}">${escapeHtml(issue.type || "issue")}</span>
+              <strong>${escapeHtml(issue.studentCode || "-")}</strong>
+              <span>${escapeHtml(issue.message || "")}</span>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function invoiceGenerationLabel(state) {
+  const labels = {
+    ready_to_generate: "Ready to generate",
+    ready_to_regenerate: "Ready to regenerate",
+    already_generated: "Already generated",
+    blocked_paid_regenerate: "Blocked paid regen",
+  };
+  return labels[state] || state || "Ready";
+}
+
+function invoiceGenerationTone(state) {
+  if (state === "blocked_paid_regenerate") return "tag-danger";
+  if (state === "already_generated") return "tag-info";
+  if (state === "ready_to_generate" || state === "ready_to_regenerate") return "tag-ready";
+  return "tag-warning";
+}
+
+function invoiceIssueLabel(state) {
+  const labels = {
+    ready: "Ready",
+    warning: "Warning",
+    blocking: "Blocking",
+    review: "Review",
+    open: "Open",
+  };
+  return labels[state] || state || "Ready";
+}
+
+function invoiceIssueTone(state) {
+  if (state === "ready") return "tag-ready";
+  if (state === "blocking" || state === "review") return "tag-danger";
+  if (state === "warning" || state === "open") return "tag-warning";
+  return "tag-info";
 }
 
 function renderInvoices(invoices = []) {
@@ -3347,27 +4728,46 @@ function renderInvoices(invoices = []) {
   }
   invoiceCountEl.textContent = `${invoices.length} hóa đơn`;
   invoiceRowsEl.innerHTML = invoices
-    .map(
-      (invoice) => `
+    .map((invoice) => {
+      const outstanding = Number(invoice.outstandingAmount ?? Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0));
+      const sentLabel = invoice.sentCount ? `Sent ${Number(invoice.sentCount || 0)}` : "Chưa gửi";
+      const sentMeta = invoice.lastSentAt ? formatDateTime(invoice.lastSentAt) : "";
+      const notificationAction = isInvoiceNotificationCandidate(invoice)
+        ? `<button type="button" data-invoice-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>`
+        : "";
+      const paymentIntentAction = hasPermission("payment.create")
+        ? `<button type="button" data-invoice-intent="${escapeAttr(invoice.id || "")}">${muiIcon("add_card")}<span>Intent</span></button>`
+        : "";
+      return `
         <tr data-invoice-row="${escapeAttr(invoice.id || "")}" class="${invoice.id === selectedInvoiceId ? "is-selected" : ""}">
-          <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong></td>
-          <td>${escapeHtml(invoice.studentCode || "")} · ${escapeHtml(invoice.studentName || "")}</td>
-          <td>${escapeHtml(invoice.className || "")}</td>
-          <td>${escapeHtml(invoice.periodCode || "")}</td>
+          <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong><small>${escapeHtml(invoice.periodCode || "")}</small></td>
+          <td>${escapeHtml(invoice.studentCode || "")}<small>${escapeHtml(invoice.studentName || "")}</small></td>
+          <td>${escapeHtml(invoice.className || "")}<small>${escapeHtml(invoice.schoolYearCode || "")}</small></td>
           <td class="money">${formatMoney(invoice.totalAmount || 0)}</td>
-          <td><span class="tag">${escapeHtml(invoice.status || "unpaid")}</span></td>
+          <td class="money">${formatMoney(invoice.paidAmount || 0)}</td>
+          <td class="money">${formatMoney(outstanding)}</td>
+          <td><span class="tag ${invoiceIssueTone(invoice.issueState)}">${escapeHtml(invoice.status || "unpaid")}</span></td>
+          <td><span class="tag ${invoice.sentCount ? "tag-ready" : "tag-info"}">${escapeHtml(sentLabel)}</span>${sentMeta ? `<small>${escapeHtml(sentMeta)}</small>` : ""}</td>
+          <td>
+            <div class="invoice-state-stack">
+              <span class="tag ${invoice.qrReady ? "tag-ready" : "tag-warning"}">${invoice.qrReady ? "QR" : "No QR"}</span>
+              <span class="tag ${invoice.pdfReady ? "tag-ready" : "tag-warning"}">${invoice.pdfReady ? "PDF" : "No PDF"}</span>
+            </div>
+          </td>
           <td>
             <div class="invoice-actions">
               <button type="button" data-invoice-qr="${escapeAttr(invoice.id || "")}">${muiIcon("qr_code")}<span>QR</span></button>
               <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
+              ${paymentIntentAction}
+              ${notificationAction}
             </div>
           </td>
         </tr>
-      `,
-    )
+      `;
+    })
     .join("");
   if (!invoices.length) {
-    invoiceRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có hóa đơn</td></tr>`;
+    invoiceRowsEl.innerHTML = `<tr><td colspan="10" class="empty-cell">Chưa có hóa đơn</td></tr>`;
   }
   invoiceRowsEl.querySelectorAll("[data-invoice-row]").forEach((row) => {
     row.addEventListener("click", (event) => {
@@ -3377,6 +4777,12 @@ function renderInvoices(invoices = []) {
   });
   invoiceRowsEl.querySelectorAll("[data-invoice-qr]").forEach((button) => {
     button.addEventListener("click", () => loadInvoicePayment(button.dataset.invoiceQr));
+  });
+  invoiceRowsEl.querySelectorAll("[data-invoice-intent]").forEach((button) => {
+    button.addEventListener("click", () => openPaymentIntentFromInvoice(invoicesData.find((invoice) => invoice.id === button.dataset.invoiceIntent)));
+  });
+  invoiceRowsEl.querySelectorAll("[data-invoice-notify]").forEach((button) => {
+    button.addEventListener("click", () => openNotificationFromInvoice(invoicesData.find((invoice) => invoice.id === button.dataset.invoiceNotify)));
   });
   if (selectedInvoiceId) {
     selectInvoice(selectedInvoiceId);
@@ -3432,7 +4838,11 @@ function selectInvoice(invoiceId, options = {}) {
   invoiceRowsEl.querySelectorAll("[data-invoice-row]").forEach((row) => {
     row.classList.toggle("is-selected", row.dataset.invoiceRow === selectedInvoiceId);
   });
-  renderInvoiceDetail(invoicesData.find((invoice) => invoice.id === selectedInvoiceId));
+  const invoice = invoicesData.find((item) => item.id === selectedInvoiceId);
+  renderInvoiceDetail(invoice);
+  if (selectedInvoiceId) {
+    loadInvoiceDetail(selectedInvoiceId);
+  }
   if (!options.keepQr) {
     invoicePaymentStatusEl.textContent = selectedInvoiceId ? "Đã chọn" : "Chưa chọn";
     invoicePaymentStatusEl.dataset.tone = selectedInvoiceId ? "ready" : "";
@@ -3441,12 +4851,46 @@ function selectInvoice(invoiceId, options = {}) {
   }
 }
 
+async function loadInvoiceDetail(invoiceId) {
+  if (!invoiceId) return null;
+  if (invoiceDetailCache.has(invoiceId)) {
+    if (selectedInvoiceId === invoiceId) renderInvoiceDetail(invoiceDetailCache.get(invoiceId));
+    return invoiceDetailCache.get(invoiceId);
+  }
+  const res = await fetch(`/api/v1/invoices/detail?id=${encodeURIComponent(invoiceId)}`);
+  const text = await res.text();
+  let invoice = null;
+  try {
+    invoice = JSON.parse(text);
+  } catch {
+    invoice = null;
+  }
+  if (selectedInvoiceId !== invoiceId) return null;
+  if (!res.ok || !invoice) {
+    setInvoiceStatus(text || "Không tải được chi tiết hóa đơn", "error");
+    return null;
+  }
+  invoiceDetailCache.set(invoiceId, invoice);
+  renderInvoiceDetail(invoice);
+  return invoice;
+}
+
 function renderInvoiceDetail(invoice) {
   if (!invoice) {
     invoiceDetailSummaryEl.innerHTML = `<div class="detail-placeholder">${muiIcon("receipt_long")}<span>Chọn một hóa đơn để xem tổng tiền, trạng thái và thao tác QR/PDF.</span></div>`;
     return;
   }
-  const outstanding = Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0);
+  const outstanding = Number(invoice.outstandingAmount ?? Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0));
+  const hasSnapshot = Array.isArray(invoice.items);
+  const items = invoice.items || [];
+  const adjustments = invoice.adjustments || [];
+  const history = invoice.statusHistory || [];
+  const notificationAction = isInvoiceNotificationCandidate(invoice)
+    ? `<button type="button" data-detail-invoice-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Mở thông báo</span></button>`
+    : "";
+  const paymentIntentAction = hasPermission("payment.create")
+    ? `<button type="button" data-detail-invoice-intent="${escapeAttr(invoice.id || "")}">${muiIcon("add_card")}<span>Tạo intent</span></button>`
+    : "";
   invoiceDetailSummaryEl.innerHTML = `
     <div class="detail-hero">
       ${muiIcon("receipt_long")}
@@ -3462,14 +4906,153 @@ function renderInvoiceDetail(invoice) {
       <span>Còn thiếu</span><strong>${formatMoney(outstanding)}</strong>
       <span>Status</span><strong>${escapeHtml(invoice.status || "unpaid")}</strong>
     </div>
+    <div class="invoice-mini-grid">
+      <div><strong>${Number(invoice.itemCount ?? items.length)}</strong><span>line item</span></div>
+      <div><strong>${Number(invoice.adjustmentCount ?? adjustments.length)}</strong><span>adjustment</span></div>
+      <div><strong>${Number(invoice.paymentIntentCount || 0)}</strong><span>intent</span></div>
+      <div><strong>${Number(invoice.matchedPaymentCount || 0)}</strong><span>matched</span></div>
+      <div><strong>${Number(invoice.sentCount || 0)}</strong><span>sent</span></div>
+      <div><strong>${invoice.qrReady ? "Ready" : "Missing"}</strong><span>QR</span></div>
+    </div>
+    ${
+      hasSnapshot
+        ? `
+          <div class="detail-section">
+            <h3 class="detail-section-title">Line-item snapshot</h3>
+            <ul class="detail-list invoice-detail-list">
+              ${
+                items.length
+                  ? items
+                      .map(
+                        (item) => `
+                          <li>
+                            <strong>${escapeHtml(item.labelVi || item.feeTypeCode || "")}</strong>
+                            <span>${escapeHtml(item.labelEn || item.feeTypeCode || "")}</span>
+                            <small>${formatMoney(item.amount || 0)}</small>
+                          </li>
+                        `,
+                      )
+                      .join("")
+                  : `<li><span>Không có line item</span></li>`
+              }
+            </ul>
+          </div>
+          <div class="detail-section">
+            <h3 class="detail-section-title">Adjustments</h3>
+            <ul class="detail-list invoice-detail-list">
+              ${
+                adjustments.length
+                  ? adjustments
+                      .map(
+                        (item) => `
+                          <li>
+                            <strong>${escapeHtml(item.labelVi || item.adjustmentType || "")}</strong>
+                            <span>${escapeHtml(item.reason || item.feeTypeCode || "")}</span>
+                            <small>${formatMoney(item.delta || item.amount || 0)}</small>
+                          </li>
+                        `,
+                      )
+                      .join("")
+                  : `<li><span>Không có điều chỉnh</span></li>`
+              }
+            </ul>
+          </div>
+          <div class="detail-section">
+            <h3 class="detail-section-title">Status history</h3>
+            <ul class="detail-list invoice-detail-list">
+              ${
+                history.length
+                  ? history
+                      .map(
+                        (item) => `
+                          <li>
+                            <strong>${escapeHtml([item.fromStatus || "-", item.toStatus || "-"].join(" -> "))}</strong>
+                            <span>${escapeHtml(item.reason || "")}</span>
+                            <small>${escapeHtml(formatDateTime(item.createdAt))}</small>
+                          </li>
+                        `,
+                      )
+                      .join("")
+                  : `<li><span>Chưa có status history</span></li>`
+              }
+            </ul>
+          </div>
+        `
+        : `<div class="invoice-detail-loading">${muiIcon("hourglass_top")}<span>Đang tải snapshot bất biến, lịch sử thanh toán và log gửi.</span></div>`
+    }
     <div class="detail-actions">
       <button type="button" data-detail-invoice-qr="${escapeAttr(invoice.id || "")}">${muiIcon("qr_code")}<span>Xem QR</span></button>
       <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>Mở PDF</span></a>
+      ${paymentIntentAction}
+      ${notificationAction}
     </div>
   `;
   invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-qr]").forEach((button) => {
     button.addEventListener("click", () => loadInvoicePayment(button.dataset.detailInvoiceQr));
   });
+  invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-intent]").forEach((button) => {
+    button.addEventListener("click", () => openPaymentIntentFromInvoice(invoiceDetailCache.get(button.dataset.detailInvoiceIntent) || invoice));
+  });
+  invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-notify]").forEach((button) => {
+    button.addEventListener("click", () => openNotificationFromInvoice(invoiceDetailCache.get(button.dataset.detailInvoiceNotify) || invoice));
+  });
+}
+
+function isInvoiceNotificationCandidate(invoice) {
+  if (!invoice) return false;
+  const outstanding = Number(invoice.outstandingAmount ?? Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0));
+  return outstanding > 0 && ["unpaid", "partial", "manual_review"].includes(invoice.status || "unpaid");
+}
+
+async function openPaymentIntentFromInvoice(invoice) {
+  if (!invoice?.id) return;
+  if (!hasPermission("payment.create")) {
+    setInvoiceStatus("Không đủ quyền tạo payment intent", "error");
+    return;
+  }
+  await activateTab("reconciliationTab");
+  await loadPaymentReconciliation(true);
+  await createPaymentIntent(invoice.id, "manual_vietqr");
+}
+
+async function openNotificationFromInvoice(invoice) {
+  if (!invoice?.id) return;
+  if (!hasPermission("notification.view") && !hasPermission("notification.send")) {
+    setInvoiceStatus("Không đủ quyền mở thông báo", "error");
+    return;
+  }
+  await activateTab("notificationTab");
+  await loadNotifications(true);
+  notificationSchoolYearEl.value = optionValueOrEmpty(notificationSchoolYearEl, invoice.schoolYearId || "");
+  renderNotificationGradeOptions();
+  notificationGradeEl.value = optionValueOrEmpty(notificationGradeEl, invoice.grade || "");
+  renderNotificationClassOptions();
+  notificationClassEl.value = optionValueOrEmpty(notificationClassEl, invoice.classId || "");
+  notificationPeriodEl.value = invoice.periodCode || "";
+  notificationInvoiceStatusEl.value = optionValueOrEmpty(notificationInvoiceStatusEl, ["partial", "manual_review"].includes(invoice.status) ? "partial" : "unpaid");
+  setInvoiceStatus("Đã mở bộ lọc thông báo theo hóa đơn", "ready");
+  if (hasPermission("notification.send") && !openNotificationDialogBtn.hidden) {
+    openNotificationDialog();
+  }
+}
+
+function exportInvoiceCsv() {
+  if (!hasPermission("report.export")) {
+    setInvoiceStatus("Không đủ quyền export", "error");
+    return;
+  }
+  const params = new URLSearchParams({ dataset: "invoices" });
+  const schedule = selectedInvoiceSchedule();
+  if (schedule?.schoolYearId) params.set("schoolYearId", schedule.schoolYearId);
+  if (schedule?.classId) params.set("classId", schedule.classId);
+  if (!schedule?.classId && schedule?.grade) params.set("grade", schedule.grade);
+  if (schedule?.periodCode) params.set("periodCode", schedule.periodCode);
+  const link = document.createElement("a");
+  link.href = `/api/v1/admin/reports/export?${params.toString()}`;
+  link.download = "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function setMasterStatus(message, tone = "ready") {
@@ -3885,6 +5468,7 @@ function renderNotificationControls() {
   }
   renderNotificationGradeOptions();
   renderNotificationClassOptions();
+  renderAppContextControls();
 }
 
 function renderNotificationGradeOptions() {
@@ -4653,9 +6237,36 @@ tabButtons.forEach((button) => {
   button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
 });
 
+appContextSchoolEl.addEventListener("change", applyAppContextToActiveTab);
+appContextYearEl.addEventListener("change", applyAppContextToActiveTab);
+appContextPeriodEl.addEventListener("change", applyAppContextToActiveTab);
+appContextPeriodEl.addEventListener("input", scheduleApplyAppContext);
+appContextMonthEl.addEventListener("change", applyAppContextToActiveTab);
+appContextMonthEl.addEventListener("input", scheduleApplyAppContext);
+adminWorkQueueEl.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-dashboard-action]");
+  if (button) runDashboardAction(button.dataset.dashboardAction, button.dataset.readinessIssue || "");
+});
+adminQuickActionsEl.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-dashboard-action]");
+  if (button) runDashboardAction(button.dataset.dashboardAction, button.dataset.readinessIssue || "");
+});
+adminReadinessCenterEl.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-dashboard-action]");
+  if (button) runDashboardAction(button.dataset.dashboardAction, button.dataset.readinessIssue || "");
+});
+adminReadinessSeverityEl.addEventListener("change", () => renderAdminReadiness(adminDashboardData?.readiness || null));
+adminReadinessTypeEl.addEventListener("change", () => renderAdminReadiness(adminDashboardData?.readiness || null));
+
 refreshAdminDashboardBtn.addEventListener("click", () => loadAdminDashboard(true));
+adminDashboardSchoolEl.addEventListener("change", async () => {
+  renderAdminFilters("dashboard");
+  syncAppContextFromActiveTab("dashboardTab");
+  await loadAdminDashboard(true);
+});
 adminDashboardYearEl.addEventListener("change", async () => {
   renderAdminFilters("dashboard");
+  syncAppContextFromActiveTab("dashboardTab");
   await loadAdminDashboard(true);
 });
 adminDashboardGradeEl.addEventListener("change", async () => {
@@ -4663,16 +6274,28 @@ adminDashboardGradeEl.addEventListener("change", async () => {
   await loadAdminDashboard(true);
 });
 adminDashboardClassEl.addEventListener("change", () => loadAdminDashboard(true));
-adminDashboardPeriodEl.addEventListener("change", () => loadAdminDashboard(true));
-adminDashboardMonthEl.addEventListener("change", () => loadAdminDashboard(true));
+adminDashboardPeriodEl.addEventListener("change", () => {
+  syncAppContextFromActiveTab("dashboardTab");
+  loadAdminDashboard(true);
+});
+adminDashboardMonthEl.addEventListener("change", () => {
+  syncAppContextFromActiveTab("dashboardTab");
+  loadAdminDashboard(true);
+});
 adminDashboardInvoiceStatusEl.addEventListener("change", () => loadAdminDashboard(true));
 
 refreshAdminReportsBtn.addEventListener("click", () => loadAdminReports(true));
 exportAdminReportClassesBtn.addEventListener("click", () => exportAdminReport("classes"));
 exportAdminReportInvoicesBtn.addEventListener("click", () => exportAdminReport("invoices"));
 exportAdminReportTransactionsBtn.addEventListener("click", () => exportAdminReport("transactions"));
+adminReportsSchoolEl.addEventListener("change", async () => {
+  renderAdminFilters("reports");
+  syncAppContextFromActiveTab("reportsTab");
+  await loadAdminReports(true);
+});
 adminReportsYearEl.addEventListener("change", async () => {
   renderAdminFilters("reports");
+  syncAppContextFromActiveTab("reportsTab");
   await loadAdminReports(true);
 });
 adminReportsGradeEl.addEventListener("change", async () => {
@@ -4680,8 +6303,14 @@ adminReportsGradeEl.addEventListener("change", async () => {
   await loadAdminReports(true);
 });
 adminReportsClassEl.addEventListener("change", () => loadAdminReports(true));
-adminReportsPeriodEl.addEventListener("change", () => loadAdminReports(true));
-adminReportsMonthEl.addEventListener("change", () => loadAdminReports(true));
+adminReportsPeriodEl.addEventListener("change", () => {
+  syncAppContextFromActiveTab("reportsTab");
+  loadAdminReports(true);
+});
+adminReportsMonthEl.addEventListener("change", () => {
+  syncAppContextFromActiveTab("reportsTab");
+  loadAdminReports(true);
+});
 adminReportsInvoiceStatusEl.addEventListener("change", () => loadAdminReports(true));
 refreshOperationsBtn.addEventListener("click", () => loadOperations(true));
 operationSourceFilterEl.addEventListener("change", () => loadOperations(true));
@@ -4699,10 +6328,12 @@ assignAdminUserRolesBtn.addEventListener("click", assignAdminUserRoles);
 
 masterSchoolFilterEl.addEventListener("change", async () => {
   renderMasterFilters();
+  syncAppContextFromActiveTab("masterDataTab");
   await loadMasterStudents();
 });
 masterSchoolYearFilterEl.addEventListener("change", async () => {
   renderMasterFilters();
+  syncAppContextFromActiveTab("masterDataTab");
   await loadMasterStudents();
 });
 masterGradeFilterEl.addEventListener("change", async () => {
@@ -4710,6 +6341,7 @@ masterGradeFilterEl.addEventListener("change", async () => {
   await loadMasterStudents();
 });
 masterClassFilterEl.addEventListener("change", loadMasterStudents);
+masterBillingFilterEl.addEventListener("change", () => renderMasterStudents(masterStudentsRawData));
 masterSearchEl.addEventListener("input", () => {
   window.clearTimeout(masterSearchEl.dataset.timer);
   masterSearchEl.dataset.timer = window.setTimeout(loadMasterStudents, 250);
@@ -4747,8 +6379,17 @@ newSchoolTreeClassBtn.addEventListener("click", clearSchoolTreeClassForm);
 
 refreshFeeSchedulesBtn.addEventListener("click", () => loadFeeSchedules(true));
 openFeeScheduleDialogBtn.addEventListener("click", openFeeScheduleDialog);
+feeGuideStepsEl?.querySelectorAll("[data-fee-guide-step]").forEach((button) => {
+  button.addEventListener("click", () => setFeeGuideStep(button.dataset.feeGuideStep || "scope"));
+});
+feeScheduleSchoolEl.addEventListener("change", async () => {
+  renderFeeScheduleControls();
+  syncAppContextFromActiveTab("feeTemplateTab");
+  await loadFeeScheduleList();
+});
 feeScheduleYearEl.addEventListener("change", async () => {
   renderFeeScheduleControls();
+  syncAppContextFromActiveTab("feeTemplateTab");
   await loadFeeScheduleList();
 });
 feeScheduleGradeEl.addEventListener("change", async () => {
@@ -4756,16 +6397,33 @@ feeScheduleGradeEl.addEventListener("change", async () => {
   await loadFeeScheduleList();
 });
 feeScheduleClassEl.addEventListener("change", loadFeeScheduleList);
+feeSchedulePeriodEl.addEventListener("change", async () => {
+  syncAppContextFromActiveTab("feeTemplateTab");
+  await loadFeeScheduleList();
+});
+feeScheduleMonthEl.addEventListener("change", async () => {
+  syncAppContextFromActiveTab("feeTemplateTab");
+  await loadFeeScheduleList();
+});
+addFeeAdjustmentRowBtn.addEventListener("click", () => addFeeAdjustmentRow());
 feeAdjustmentsCsvEl.addEventListener("input", () => {
-  parseFeeAdjustmentsCsv();
+  updateFeeAdjustmentCount();
 });
 previewFeeScheduleBtn.addEventListener("click", previewFeeSchedule);
 saveFeeScheduleBtn.addEventListener("click", saveFeeSchedule);
 
 refreshInvoicesBtn.addEventListener("click", () => loadInvoices(true));
 openInvoiceDialogBtn.addEventListener("click", openInvoiceDialog);
+invoiceWorkbenchStepsEl?.querySelectorAll("[data-invoice-step]").forEach((button) => {
+  button.addEventListener("click", () => setInvoiceWorkbenchStep(button.dataset.invoiceStep || "scope"));
+});
+invoiceScheduleEl.addEventListener("change", async () => {
+  invoiceDetailCache = new Map();
+  await loadInvoiceList();
+});
 previewInvoicesBtn.addEventListener("click", previewInvoices);
 generateInvoicesBtn.addEventListener("click", generateInvoices);
+exportInvoiceCsvBtn.addEventListener("click", exportInvoiceCsv);
 refreshPaymentReconBtn.addEventListener("click", () => loadPaymentReconciliation(true));
 paymentProviderFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
 paymentInvoiceStatusFilterEl.addEventListener("change", () => loadPaymentReconciliation(true));
@@ -4780,8 +6438,10 @@ notificationCampaignTypeEl.addEventListener("change", () => {
 notificationSchoolYearEl.addEventListener("change", () => {
   renderNotificationGradeOptions();
   renderNotificationClassOptions();
+  syncAppContextFromActiveTab("notificationTab");
 });
 notificationGradeEl.addEventListener("change", renderNotificationClassOptions);
+notificationPeriodEl.addEventListener("change", () => syncAppContextFromActiveTab("notificationTab"));
 previewNotificationsBtn.addEventListener("click", previewNotifications);
 saveNotificationCampaignBtn.addEventListener("click", saveNotificationCampaign);
 sendNotificationCampaignBtn.addEventListener("click", sendNotificationCampaign);

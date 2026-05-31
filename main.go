@@ -1018,6 +1018,8 @@ func importFieldsForTarget(target string) []importFieldOption {
 			{Key: "class_name", Label: "Lớp", Required: true},
 			{Key: "parent", Label: "Tên ba mẹ"},
 			{Key: "parent_email", Label: "Email phụ huynh"},
+			{Key: "parent_phone", Label: "SĐT phụ huynh"},
+			{Key: "relationship", Label: "Quan hệ"},
 			{Key: "parent_primary", Label: "Phụ huynh chính"},
 			{Key: "parent_active", Label: "Đang active"},
 			{Key: "receives_billing_email", Label: "Nhận email học phí"},

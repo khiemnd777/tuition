@@ -12,6 +12,7 @@ import (
 )
 
 type adminFilters struct {
+	SchoolID     string
 	SchoolYearID string
 	ClassID      string
 	Grade        string
@@ -24,6 +25,7 @@ type adminDashboardResponse struct {
 	Options           masterDataOptions       `json:"options"`
 	Filters           adminFiltersPublic      `json:"filters"`
 	Summary           adminDashboardSummary   `json:"summary"`
+	Readiness         adminReadinessCenter    `json:"readiness"`
 	TopClasses        []adminClassReportRow   `json:"topClasses"`
 	AttentionInvoices []adminInvoiceReportRow `json:"attentionInvoices"`
 }
@@ -38,6 +40,7 @@ type adminReportsResponse struct {
 }
 
 type adminFiltersPublic struct {
+	SchoolID     string `json:"schoolId,omitempty"`
 	SchoolYearID string `json:"schoolYearId,omitempty"`
 	ClassID      string `json:"classId,omitempty"`
 	Grade        string `json:"grade,omitempty"`
@@ -80,7 +83,8 @@ type adminClassReportRow struct {
 
 type adminInvoiceReportRow struct {
 	invoiceSummary
-	OutstandingAmount int `json:"outstandingAmount"`
+	ClassID           string `json:"classId,omitempty"`
+	OutstandingAmount int    `json:"outstandingAmount"`
 }
 
 type adminTransactionRow struct {
@@ -165,11 +169,17 @@ func handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load dashboard transactions", http.StatusInternalServerError)
 		return
 	}
+	readiness, err := buildAdminReadinessCenter(r.Context(), db, filters, invoices, transactions, time.Now())
+	if err != nil {
+		http.Error(w, "cannot load dashboard readiness", http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, adminDashboardResponse{
 		Options:           options,
 		Filters:           filters.public(),
 		Summary:           buildAdminDashboardSummary(invoices, transactions),
+		Readiness:         readiness,
 		TopClasses:        topAdminClasses(buildAdminClassReportRows(invoices), 8),
 		AttentionInvoices: adminAttentionInvoices(invoices, 12),
 	})
@@ -335,6 +345,7 @@ func requireAdminAPIPermission(w http.ResponseWriter, r *http.Request, permissio
 func parseAdminFilters(r *http.Request) adminFilters {
 	query := r.URL.Query()
 	return adminFilters{
+		SchoolID:     strings.TrimSpace(query.Get("schoolId")),
 		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
 		ClassID:      strings.TrimSpace(query.Get("classId")),
 		Grade:        normalizeGrade(query.Get("grade")),
@@ -346,6 +357,7 @@ func parseAdminFilters(r *http.Request) adminFilters {
 
 func (filters adminFilters) public() adminFiltersPublic {
 	return adminFiltersPublic{
+		SchoolID:     filters.SchoolID,
 		SchoolYearID: filters.SchoolYearID,
 		ClassID:      filters.ClassID,
 		Grade:        filters.Grade,
@@ -364,6 +376,14 @@ func listAdminInvoiceRows(ctx context.Context, db *sql.DB, filters adminFilters,
 	}
 	if filters.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(filters.SchoolYearID)+"::uuid")
+	}
+	if filters.SchoolID != "" {
+		conditions = append(conditions, `EXISTS (
+			SELECT 1
+			FROM school_years sy_filter
+			WHERE sy_filter.id = i.school_year_id
+				AND sy_filter.school_id = `+addArg(filters.SchoolID)+`::uuid
+		)`)
 	}
 	if filters.ClassID != "" {
 		conditions = append(conditions, "i.class_id = "+addArg(filters.ClassID)+"::uuid")
@@ -390,6 +410,7 @@ SELECT i.id::text,
 	i.invoice_code,
 	i.student_code,
 	i.student_name,
+	i.class_id::text,
 	i.class_name,
 	i.grade,
 	i.school_year_id::text,
@@ -427,6 +448,7 @@ LIMIT ` + limitArg
 			&invoice.InvoiceCode,
 			&invoice.StudentCode,
 			&invoice.StudentName,
+			&invoice.ClassID,
 			&invoice.ClassName,
 			&invoice.Grade,
 			&invoice.SchoolYearID,

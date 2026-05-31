@@ -62,28 +62,47 @@ type masterDataStudentListFilters struct {
 }
 
 type masterDataStudent struct {
-	ID             string                    `json:"id"`
-	StudentCode    string                    `json:"studentCode"`
-	StudentName    string                    `json:"studentName"`
-	Status         string                    `json:"status"`
-	SchoolID       string                    `json:"schoolId"`
-	SchoolCode     string                    `json:"schoolCode"`
-	ClassID        string                    `json:"classId"`
-	ClassName      string                    `json:"className"`
-	Grade          string                    `json:"grade"`
-	SchoolYearID   string                    `json:"schoolYearId"`
-	SchoolYearCode string                    `json:"schoolYearCode"`
-	Parents        []masterDataParentContact `json:"parents"`
+	ID                      string                     `json:"id"`
+	StudentCode             string                     `json:"studentCode"`
+	StudentName             string                     `json:"studentName"`
+	Status                  string                     `json:"status"`
+	SchoolID                string                     `json:"schoolId"`
+	SchoolCode              string                     `json:"schoolCode"`
+	ClassID                 string                     `json:"classId"`
+	ClassName               string                     `json:"className"`
+	Grade                   string                     `json:"grade"`
+	SchoolYearID            string                     `json:"schoolYearId"`
+	SchoolYearCode          string                     `json:"schoolYearCode"`
+	ParentCount             int                        `json:"parentCount"`
+	BillingRecipientCount   int                        `json:"billingRecipientCount"`
+	MissingBillingRecipient bool                       `json:"missingBillingRecipient"`
+	ContactWarning          string                     `json:"contactWarning,omitempty"`
+	InvoiceAttentionCount   int                        `json:"invoiceAttentionCount"`
+	Parents                 []masterDataParentContact  `json:"parents"`
+	Siblings                []masterDataStudentSibling `json:"siblings,omitempty"`
 }
 
 type masterDataParentContact struct {
 	ID                   string `json:"id"`
 	ParentName           string `json:"parentName"`
 	Email                string `json:"email"`
+	Phone                string `json:"phone,omitempty"`
+	Relationship         string `json:"relationship"`
 	EmailActive          bool   `json:"emailActive"`
 	IsPrimary            bool   `json:"isPrimary"`
 	IsActive             bool   `json:"isActive"`
 	ReceivesBillingEmail bool   `json:"receivesBillingEmail"`
+	BillingReady         bool   `json:"billingReady"`
+}
+
+type masterDataStudentSibling struct {
+	ID                string   `json:"id"`
+	StudentCode       string   `json:"studentCode"`
+	StudentName       string   `json:"studentName"`
+	ClassName         string   `json:"className"`
+	Grade             string   `json:"grade"`
+	SchoolYearCode    string   `json:"schoolYearCode"`
+	SharedParentNames []string `json:"sharedParentNames"`
 }
 
 type masterDataStudentSaveInput struct {
@@ -99,6 +118,8 @@ type masterDataParentSaveInput struct {
 	ID                   string `json:"id,omitempty"`
 	ParentName           string `json:"parentName"`
 	Email                string `json:"email"`
+	Phone                string `json:"phone,omitempty"`
+	Relationship         string `json:"relationship,omitempty"`
 	EmailActive          *bool  `json:"emailActive,omitempty"`
 	IsPrimary            *bool  `json:"isPrimary,omitempty"`
 	IsActive             *bool  `json:"isActive,omitempty"`
@@ -115,6 +136,8 @@ type masterDataImportRow struct {
 	ClassName            string `json:"className"`
 	ParentName           string `json:"parentName"`
 	ParentEmail          string `json:"parentEmail"`
+	ParentPhone          string `json:"parentPhone"`
+	Relationship         string `json:"relationship"`
 	IsPrimary            bool   `json:"isPrimary"`
 	ParentActive         bool   `json:"parentActive"`
 	ReceivesBillingEmail bool   `json:"receivesBillingEmail"`
@@ -130,6 +153,8 @@ type masterDataImportRowResult struct {
 	ClassName      string `json:"className"`
 	ParentName     string `json:"parentName"`
 	ParentEmail    string `json:"parentEmail"`
+	ParentPhone    string `json:"parentPhone"`
+	Relationship   string `json:"relationship"`
 	Action         string `json:"action"`
 }
 
@@ -175,6 +200,7 @@ type masterDataParentExisting struct {
 	ID          string
 	ParentName  string
 	Email       string
+	Phone       string
 	EmailActive bool
 }
 
@@ -427,7 +453,7 @@ func listMasterDataStudents(ctx context.Context, exec masterDataExecutor, filter
 	if filters.Query != "" {
 		needle := "%" + filters.Query + "%"
 		placeholder := addArg(needle)
-		conditions = append(conditions, "(s.student_code ILIKE "+placeholder+" OR s.full_name ILIKE "+placeholder+" OR p.full_name ILIKE "+placeholder+" OR p.email ILIKE "+placeholder+")")
+		conditions = append(conditions, "(s.student_code ILIKE "+placeholder+" OR s.full_name ILIKE "+placeholder+" OR p.full_name ILIKE "+placeholder+" OR p.email ILIKE "+placeholder+" OR p.phone ILIKE "+placeholder+")")
 	}
 
 	query := `
@@ -446,6 +472,8 @@ SELECT
 	COALESCE(p.id::text, ''),
 	COALESCE(p.full_name, ''),
 	COALESCE(p.email, ''),
+	COALESCE(p.phone, ''),
+	COALESCE(sp.relationship, ''),
 	COALESCE(p.email_active, false),
 	COALESCE(sp.is_primary, false),
 	COALESCE(sp.is_active, false),
@@ -486,6 +514,8 @@ LIMIT 1000`
 			&parent.ID,
 			&parent.ParentName,
 			&parent.Email,
+			&parent.Phone,
+			&parent.Relationship,
 			&parent.EmailActive,
 			&parent.IsPrimary,
 			&parent.IsActive,
@@ -512,7 +542,151 @@ LIMIT 1000`
 	for _, id := range order {
 		students = append(students, *studentByID[id])
 	}
+	return enrichMasterDataStudentRelationships(ctx, exec, students)
+}
+
+func enrichMasterDataStudentRelationships(ctx context.Context, exec masterDataExecutor, students []masterDataStudent) ([]masterDataStudent, error) {
+	studentIDs := make([]string, 0, len(students))
+	for idx := range students {
+		deriveMasterDataStudentRelationshipState(&students[idx])
+		if students[idx].ID != "" {
+			studentIDs = append(studentIDs, students[idx].ID)
+		}
+	}
+	if len(studentIDs) == 0 {
+		return students, nil
+	}
+
+	attentionCounts, err := loadMasterDataInvoiceAttentionCounts(ctx, exec, studentIDs)
+	if err != nil {
+		return nil, err
+	}
+	siblingsByStudent, err := loadMasterDataStudentSiblings(ctx, exec, studentIDs)
+	if err != nil {
+		return nil, err
+	}
+	for idx := range students {
+		students[idx].InvoiceAttentionCount = attentionCounts[students[idx].ID]
+		students[idx].Siblings = siblingsByStudent[students[idx].ID]
+	}
 	return students, nil
+}
+
+func deriveMasterDataStudentRelationshipState(student *masterDataStudent) {
+	student.ParentCount = len(student.Parents)
+	student.BillingRecipientCount = 0
+	for idx := range student.Parents {
+		parent := &student.Parents[idx]
+		parent.Relationship = normalizeMasterDataParentRelationship(parent.Relationship)
+		parent.BillingReady = masterDataParentBillingReady(*parent)
+		if parent.BillingReady {
+			student.BillingRecipientCount++
+		}
+	}
+	student.MissingBillingRecipient = student.BillingRecipientCount == 0
+	switch {
+	case student.ParentCount == 0:
+		student.ContactWarning = "missing_parent"
+	case student.MissingBillingRecipient:
+		student.ContactWarning = "missing_billing_recipient"
+	default:
+		student.ContactWarning = ""
+	}
+}
+
+func masterDataParentBillingReady(parent masterDataParentContact) bool {
+	return parent.IsActive && parent.ReceivesBillingEmail && parent.EmailActive && strings.TrimSpace(parent.Email) != ""
+}
+
+func loadMasterDataInvoiceAttentionCounts(ctx context.Context, exec masterDataExecutor, studentIDs []string) (map[string]int, error) {
+	counts := map[string]int{}
+	placeholders, args := masterDataUUIDPlaceholders(studentIDs)
+	rows, err := exec.QueryContext(ctx, fmt.Sprintf(`
+SELECT student_id::text, COUNT(*)::integer
+FROM invoices
+WHERE student_id IN (%s)
+	AND status IN ('unpaid', 'partial', 'overpaid', 'manual_review')
+GROUP BY student_id`, placeholders), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var studentID string
+		var count int
+		if err := rows.Scan(&studentID, &count); err != nil {
+			return nil, err
+		}
+		counts[studentID] = count
+	}
+	return counts, rows.Err()
+}
+
+func loadMasterDataStudentSiblings(ctx context.Context, exec masterDataExecutor, studentIDs []string) (map[string][]masterDataStudentSibling, error) {
+	siblings := map[string][]masterDataStudentSibling{}
+	placeholders, args := masterDataUUIDPlaceholders(studentIDs)
+	rows, err := exec.QueryContext(ctx, fmt.Sprintf(`
+SELECT
+	base.student_id::text,
+	sibling.id::text,
+	sibling.student_code,
+	sibling.full_name,
+	c.name,
+	c.grade,
+	sy.code,
+	COALESCE(string_agg(DISTINCT p.full_name, E'\x1f'), '')
+FROM student_parents base
+JOIN student_parents sibling_link ON sibling_link.parent_id = base.parent_id
+JOIN parents p ON p.id = base.parent_id
+JOIN students sibling ON sibling.id = sibling_link.student_id
+JOIN classes c ON c.id = sibling.class_id
+JOIN school_years sy ON sy.id = c.school_year_id
+WHERE base.student_id IN (%s)
+	AND sibling_link.student_id <> base.student_id
+	AND base.is_active
+	AND sibling_link.is_active
+	AND p.status = 'active'
+	AND sibling.status <> 'inactive'
+GROUP BY base.student_id, sibling.id, sibling.student_code, sibling.full_name, c.name, c.grade, sy.code
+ORDER BY sibling.student_code`, placeholders), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var studentID string
+		var sibling masterDataStudentSibling
+		var sharedParents string
+		if err := rows.Scan(
+			&studentID,
+			&sibling.ID,
+			&sibling.StudentCode,
+			&sibling.StudentName,
+			&sibling.ClassName,
+			&sibling.Grade,
+			&sibling.SchoolYearCode,
+			&sharedParents,
+		); err != nil {
+			return nil, err
+		}
+		if sharedParents != "" {
+			sibling.SharedParentNames = strings.Split(sharedParents, "\x1f")
+		} else {
+			sibling.SharedParentNames = []string{}
+		}
+		siblings[studentID] = append(siblings[studentID], sibling)
+	}
+	return siblings, rows.Err()
+}
+
+func masterDataUUIDPlaceholders(ids []string) (string, []any) {
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for idx, id := range ids {
+		placeholders[idx] = fmt.Sprintf("$%d::uuid", idx+1)
+		args[idx] = id
+	}
+	return strings.Join(placeholders, ", "), args
 }
 
 func parseMasterDataCSVRows(input io.Reader) ([]masterDataImportRow, error) {
@@ -544,6 +718,8 @@ func parseMasterDataRows(table importTable, mapping map[string]string) ([]master
 			ClassName:            strings.TrimSpace(importFieldValue(record, table, mapping, "class_name", masterDataCSVAliases("class_name"))),
 			ParentName:           strings.TrimSpace(importFieldValue(record, table, mapping, "parent", masterDataCSVAliases("parent"))),
 			ParentEmail:          parentEmail,
+			ParentPhone:          normalizeAdminPhone(importFieldValue(record, table, mapping, "parent_phone", masterDataCSVAliases("parent_phone"))),
+			Relationship:         normalizeMasterDataParentRelationship(importFieldValue(record, table, mapping, "relationship", masterDataCSVAliases("relationship"))),
 			IsPrimary:            parseBoolWithDefault(importFieldValue(record, table, mapping, "parent_primary", masterDataCSVAliases("parent_primary")), true),
 			ParentActive:         parseBoolWithDefault(importFieldValue(record, table, mapping, "parent_active", masterDataCSVAliases("parent_active")), true),
 			ReceivesBillingEmail: parseBoolWithDefault(importFieldValue(record, table, mapping, "receives_billing_email", masterDataCSVAliases("receives_billing_email")), parentEmail != ""),
@@ -578,6 +754,10 @@ func masterDataCSVAliases(canonical string) []string {
 		return []string{"parent_name", "parent", "ten_phu_huynh", "phu_huynh", "ten_ba_me", "ba_me", "ten_bo_me"}
 	case "parent_email":
 		return []string{"parent_email", "billing_email", "email_phu_huynh", "email", "mail"}
+	case "parent_phone":
+		return []string{"parent_phone", "phone", "sdt_phu_huynh", "so_dien_thoai", "dien_thoai"}
+	case "relationship":
+		return []string{"relationship", "parent_relationship", "guardian_relationship", "quan_he", "moi_quan_he", "vai_tro"}
 	case "parent_primary":
 		return []string{"parent_primary", "is_primary", "primary", "lien_he_chinh", "chinh"}
 	case "parent_active":
@@ -636,12 +816,12 @@ func validateMasterDataImportRows(rows []masterDataImportRow) []masterDataImport
 				Message:     "grade is required or must be derivable from class_name",
 			})
 		}
-		if row.ParentName == "" && row.ParentEmail == "" {
+		if row.ParentName == "" && row.ParentEmail == "" && row.ParentPhone == "" {
 			issues = append(issues, masterDataImportIssue{
 				RowNumber:   row.RowNumber,
 				StudentCode: row.StudentCode,
 				Type:        "missing_parent",
-				Message:     "parent_name or parent_email is required",
+				Message:     "parent_name, parent_email, or parent_phone is required",
 			})
 		}
 		if row.ReceivesBillingEmail && row.ParentEmail == "" {
@@ -684,7 +864,7 @@ func validateMasterDataImportRows(rows []masterDataImportRow) []masterDataImport
 			}
 		}
 
-		if row.StudentCode != "" && (row.ParentEmail != "" || row.ParentName != "") {
+		if row.StudentCode != "" && (row.ParentEmail != "" || row.ParentName != "" || row.ParentPhone != "") {
 			linkKey := strings.ToLower(row.StudentCode) + "|" + importParentKey(row)
 			if previous, ok := linkByStudentParent[linkKey]; ok {
 				issues = append(issues, masterDataImportIssue{
@@ -699,7 +879,7 @@ func validateMasterDataImportRows(rows []masterDataImportRow) []masterDataImport
 			}
 		}
 
-		if row.StudentCode != "" && row.IsPrimary && (row.ParentEmail != "" || row.ParentName != "") {
+		if row.StudentCode != "" && row.IsPrimary && (row.ParentEmail != "" || row.ParentName != "" || row.ParentPhone != "") {
 			studentKey := strings.ToLower(row.StudentCode)
 			if previous, ok := primaryByStudent[studentKey]; ok && importParentKey(previous) != importParentKey(row) {
 				issues = append(issues, masterDataImportIssue{
@@ -770,6 +950,8 @@ func buildMasterDataImportResponse(ctx context.Context, exec masterDataExecutor,
 			ClassName:      row.ClassName,
 			ParentName:     row.ParentName,
 			ParentEmail:    row.ParentEmail,
+			ParentPhone:    row.ParentPhone,
+			Relationship:   row.Relationship,
 			Action:         "ready",
 		}
 		if rowHasIssue[row.RowNumber] {
@@ -933,7 +1115,7 @@ func applyMasterDataImportRows(ctx context.Context, exec masterDataExecutor, row
 		if err != nil {
 			return err
 		}
-		parentID, err := ensureMasterDataParent(ctx, exec, studentID, row.ParentName, row.ParentEmail, row.ParentActive)
+		parentID, err := ensureMasterDataParent(ctx, exec, studentID, row.ParentName, row.ParentEmail, row.ParentPhone, row.ParentActive)
 		if err != nil {
 			return err
 		}
@@ -1034,13 +1216,14 @@ WHERE student_id = $1::uuid AND is_primary`,
 		}
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO student_parents (student_id, parent_id, relationship, is_primary, is_active, receives_billing_email, created_by_user_id, updated_by_user_id)
-VALUES ($1::uuid, $2::uuid, 'guardian', $3, $4, $5, nullif($6, '')::uuid, nullif($6, '')::uuid)
+VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, nullif($7, '')::uuid, nullif($7, '')::uuid)
 ON CONFLICT (student_id, parent_id) DO UPDATE
-SET is_primary = EXCLUDED.is_primary,
+SET relationship = EXCLUDED.relationship,
+	is_primary = EXCLUDED.is_primary,
 	is_active = EXCLUDED.is_active,
 	receives_billing_email = EXCLUDED.receives_billing_email,
 	updated_by_user_id = EXCLUDED.updated_by_user_id`,
-			studentID, parentID, boolValue(parent.IsPrimary), boolValue(parent.IsActive), boolValue(parent.ReceivesBillingEmail), auditCtx.ActorUserID); err != nil {
+			studentID, parentID, normalizeMasterDataParentRelationship(parent.Relationship), boolValue(parent.IsPrimary), boolValue(parent.IsActive), boolValue(parent.ReceivesBillingEmail), auditCtx.ActorUserID); err != nil {
 			return masterDataStudent{}, err
 		}
 	}
@@ -1075,11 +1258,12 @@ func saveMasterDataParentForStudent(ctx context.Context, exec masterDataExecutor
 UPDATE parents
 SET full_name = $2,
 	email = $3,
-	email_active = $4,
-	updated_by_user_id = nullif($5, '')::uuid
+	phone = $4,
+	email_active = $5,
+	updated_by_user_id = nullif($6, '')::uuid
 WHERE id = $1::uuid
 RETURNING id::text`,
-			input.ID, input.ParentName, input.Email, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+			input.ID, input.ParentName, input.Email, input.Phone, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
 		return id, err
 	}
 
@@ -1096,11 +1280,12 @@ RETURNING id::text`,
 			err = exec.QueryRowContext(ctx, `
 UPDATE parents
 SET full_name = $2,
-	email_active = $3,
-	updated_by_user_id = nullif($4, '')::uuid
+	phone = $3,
+	email_active = $4,
+	updated_by_user_id = nullif($5, '')::uuid
 WHERE id = $1::uuid
 RETURNING id::text`,
-				existing.ID, input.ParentName, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+				existing.ID, input.ParentName, input.Phone, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
 			return id, err
 		}
 	}
@@ -1115,21 +1300,22 @@ RETURNING id::text`,
 			err = exec.QueryRowContext(ctx, `
 UPDATE parents
 SET full_name = $2,
-	email_active = $3,
-	updated_by_user_id = nullif($4, '')::uuid
+	phone = $3,
+	email_active = $4,
+	updated_by_user_id = nullif($5, '')::uuid
 WHERE id = $1::uuid
 RETURNING id::text`,
-				existing.ID, input.ParentName, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+				existing.ID, input.ParentName, input.Phone, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
 			return id, err
 		}
 	}
 
 	var id string
 	err := exec.QueryRowContext(ctx, `
-INSERT INTO parents (full_name, email, email_active, created_by_user_id, updated_by_user_id)
-VALUES ($1, $2, $3, nullif($4, '')::uuid, nullif($4, '')::uuid)
+INSERT INTO parents (full_name, email, phone, email_active, created_by_user_id, updated_by_user_id)
+VALUES ($1, $2, $3, $4, nullif($5, '')::uuid, nullif($5, '')::uuid)
 RETURNING id::text`,
-		input.ParentName, input.Email, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
+		input.ParentName, input.Email, input.Phone, boolValue(input.EmailActive), auditCtx.ActorUserID).Scan(&id)
 	return id, err
 }
 
@@ -1300,9 +1486,9 @@ func findMasterDataParentByEmail(ctx context.Context, exec masterDataExecutor, e
 	}
 	var parent masterDataParentExisting
 	err := exec.QueryRowContext(ctx, `
-SELECT id::text, full_name, email, email_active
+SELECT id::text, full_name, email, phone, email_active
 FROM parents
-WHERE email = $1`, email).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.EmailActive)
+WHERE email = $1`, email).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.Phone, &parent.EmailActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -1315,9 +1501,9 @@ WHERE email = $1`, email).Scan(&parent.ID, &parent.ParentName, &parent.Email, &p
 func findMasterDataParentByID(ctx context.Context, exec masterDataExecutor, id string) (*masterDataParentExisting, error) {
 	var parent masterDataParentExisting
 	err := exec.QueryRowContext(ctx, `
-SELECT id::text, full_name, email, email_active
+SELECT id::text, full_name, email, phone, email_active
 FROM parents
-WHERE id = $1::uuid`, id).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.EmailActive)
+WHERE id = $1::uuid`, id).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.Phone, &parent.EmailActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -1333,13 +1519,13 @@ func findMasterDataLinkedParentByName(ctx context.Context, exec masterDataExecut
 	}
 	var parent masterDataParentExisting
 	err := exec.QueryRowContext(ctx, `
-SELECT p.id::text, p.full_name, p.email, p.email_active
+SELECT p.id::text, p.full_name, p.email, p.phone, p.email_active
 FROM student_parents sp
 JOIN parents p ON p.id = sp.parent_id
 WHERE sp.student_id = $1::uuid
 	AND p.email = ''
 	AND lower(p.full_name) = lower($2)
-LIMIT 1`, studentID, strings.TrimSpace(parentName)).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.EmailActive)
+LIMIT 1`, studentID, strings.TrimSpace(parentName)).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.Phone, &parent.EmailActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -1382,13 +1568,13 @@ WHERE student_id = $1::uuid AND parent_id = $2::uuid`, studentID, parentID).Scan
 func findMasterDataPrimaryParent(ctx context.Context, exec masterDataExecutor, studentID string) (*masterDataParentExisting, error) {
 	var parent masterDataParentExisting
 	err := exec.QueryRowContext(ctx, `
-SELECT p.id::text, p.full_name, p.email, p.email_active
+SELECT p.id::text, p.full_name, p.email, p.phone, p.email_active
 FROM student_parents sp
 JOIN parents p ON p.id = sp.parent_id
 WHERE sp.student_id = $1::uuid
 	AND sp.is_primary
 	AND sp.is_active
-LIMIT 1`, studentID).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.EmailActive)
+LIMIT 1`, studentID).Scan(&parent.ID, &parent.ParentName, &parent.Email, &parent.Phone, &parent.EmailActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -1467,41 +1653,47 @@ LIMIT 1`, code, name, classID).Scan(&id)
 	return id, err
 }
 
-func ensureMasterDataParent(ctx context.Context, exec masterDataExecutor, studentID string, parentName string, email string, active bool) (string, error) {
+func ensureMasterDataParent(ctx context.Context, exec masterDataExecutor, studentID string, parentName string, email string, phone string, active bool) (string, error) {
 	if email == "" {
 		if existing, err := findMasterDataLinkedParentByName(ctx, exec, studentID, parentName); err != nil {
 			return "", err
 		} else if existing != nil {
+			if phone != "" && existing.Phone != phone {
+				_, err := exec.ExecContext(ctx, `UPDATE parents SET phone = $2 WHERE id = $1::uuid`, existing.ID, phone)
+				if err != nil {
+					return "", err
+				}
+			}
 			return existing.ID, nil
 		}
 		var id string
 		err := exec.QueryRowContext(ctx, `
-INSERT INTO parents (full_name, email, email_active)
-VALUES ($1, '', $2)
-RETURNING id::text`, parentName, active).Scan(&id)
+INSERT INTO parents (full_name, email, phone, email_active)
+VALUES ($1, '', $2, $3)
+RETURNING id::text`, parentName, phone, active).Scan(&id)
 		return id, err
 	}
 
 	var id string
 	err := exec.QueryRowContext(ctx, `
 WITH inserted AS (
-	INSERT INTO parents (full_name, email, email_active)
-	VALUES ($1, $2, $3)
+	INSERT INTO parents (full_name, email, phone, email_active)
+	VALUES ($1, $2, $3, $4)
 	ON CONFLICT (email) WHERE email <> '' DO NOTHING
 	RETURNING id::text
 )
 SELECT id FROM inserted
 UNION ALL
 SELECT id::text FROM parents WHERE email = $2
-LIMIT 1`, parentName, email, active).Scan(&id)
+LIMIT 1`, parentName, email, phone, active).Scan(&id)
 	return id, err
 }
 
 func ensureMasterDataStudentParent(ctx context.Context, exec masterDataExecutor, studentID string, parentID string, row masterDataImportRow) error {
 	_, err := exec.ExecContext(ctx, `
 INSERT INTO student_parents (student_id, parent_id, relationship, is_primary, is_active, receives_billing_email)
-VALUES ($1::uuid, $2::uuid, 'guardian', $3, $4, $5)
-ON CONFLICT (student_id, parent_id) DO NOTHING`, studentID, parentID, row.IsPrimary, row.ParentActive, row.ReceivesBillingEmail)
+VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)
+ON CONFLICT (student_id, parent_id) DO NOTHING`, studentID, parentID, normalizeMasterDataParentRelationship(row.Relationship), row.IsPrimary, row.ParentActive, row.ReceivesBillingEmail)
 	return err
 }
 
@@ -1518,6 +1710,8 @@ func normalizeMasterDataStudentSaveInput(input masterDataStudentSaveInput) maste
 		parent.ID = strings.TrimSpace(parent.ID)
 		parent.ParentName = strings.TrimSpace(parent.ParentName)
 		parent.Email = normalizeEmail(parent.Email)
+		parent.Phone = normalizeAdminPhone(parent.Phone)
+		parent.Relationship = normalizeMasterDataParentRelationship(parent.Relationship)
 		parent.EmailActive = boolDefault(parent.EmailActive, true)
 		parent.IsActive = boolDefault(parent.IsActive, true)
 		parent.ReceivesBillingEmail = boolDefault(parent.ReceivesBillingEmail, parent.Email != "")
@@ -1532,6 +1726,14 @@ func normalizeMasterDataStudentSaveInput(input masterDataStudentSaveInput) maste
 		input.Parents[idx].IsPrimary = boolDefault(input.Parents[idx].IsPrimary, false)
 	}
 	return input
+}
+
+func normalizeMasterDataParentRelationship(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "guardian"
+	}
+	return headerKey(value)
 }
 
 func validateMasterDataStudentSaveInput(input masterDataStudentSaveInput) error {
@@ -1566,6 +1768,8 @@ func validateMasterDataStudentSaveInput(input masterDataStudentSaveInput) error 
 		key := "name:" + strings.ToLower(parent.ParentName)
 		if parent.Email != "" {
 			key = "email:" + parent.Email
+		} else if parent.Phone != "" {
+			key = "phone:" + parent.Phone
 		}
 		if parentKeys[key] {
 			return fmt.Errorf("duplicate parent contact: %s", parent.ParentName)
@@ -1631,6 +1835,9 @@ func importParentDescription(row masterDataImportRow) string {
 	if row.ParentEmail != "" {
 		return row.ParentName + " <" + row.ParentEmail + ">"
 	}
+	if row.ParentPhone != "" {
+		return row.ParentName + " <" + row.ParentPhone + ">"
+	}
 	return row.ParentName
 }
 
@@ -1638,12 +1845,18 @@ func importExistingParentDescription(parent masterDataParentExisting) string {
 	if parent.Email != "" {
 		return parent.ParentName + " <" + parent.Email + ">"
 	}
+	if parent.Phone != "" {
+		return parent.ParentName + " <" + parent.Phone + ">"
+	}
 	return parent.ParentName
 }
 
 func importParentKey(row masterDataImportRow) string {
 	if row.ParentEmail != "" {
 		return "email:" + row.ParentEmail
+	}
+	if row.ParentPhone != "" {
+		return "phone:" + row.ParentPhone
 	}
 	return "name:" + strings.ToLower(strings.TrimSpace(row.ParentName))
 }

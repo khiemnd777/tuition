@@ -75,6 +75,48 @@ func TestAdminAttentionInvoicesKeepsUnpaidPartialAndReviewOnly(t *testing.T) {
 	}
 }
 
+func TestBuildAdminReadinessCenterSummarizesSortsAndAssignsIDs(t *testing.T) {
+	center := buildAdminReadinessCenterFromIssues([]adminReadinessIssue{
+		{Severity: adminReadinessSeverityInfo, Type: "cron_note", EntityType: "email_cron", EntityLabel: "Cron", Scope: "Email", Message: "info"},
+		{Severity: adminReadinessSeverityWarning, Type: "missing_email", EntityType: "student", EntityID: "student-2", EntityLabel: "S002", Scope: "Lop 1", Message: "warning"},
+		{Severity: adminReadinessSeverityBlocking, Type: "missing_fee", EntityType: "class", EntityID: "class-1", EntityLabel: "1A", Scope: "Lop 1", Message: "blocking"},
+	})
+
+	if center.Summary.BlockingCount != 1 || center.Summary.WarningCount != 1 || center.Summary.InfoCount != 1 || center.Summary.TotalCount != 3 {
+		t.Fatalf("unexpected readiness summary: %+v", center.Summary)
+	}
+	if center.Issues[0].Severity != adminReadinessSeverityBlocking || center.Issues[1].Severity != adminReadinessSeverityWarning || center.Issues[2].Severity != adminReadinessSeverityInfo {
+		t.Fatalf("expected readiness issues sorted by severity, got %+v", center.Issues)
+	}
+	for _, issue := range center.Issues {
+		if issue.ID == "" {
+			t.Fatalf("expected issue id to be assigned: %+v", issue)
+		}
+	}
+}
+
+func TestAppendAdminInvoiceReadinessIssuesClassifiesPaymentAndStatusProblems(t *testing.T) {
+	issues := appendAdminInvoiceReadinessIssues(nil, []adminInvoiceReportRow{
+		{invoiceSummary: invoiceSummary{ID: "invoice-1", InvoiceCode: "INV-001", Status: invoiceStatusUnpaid, TotalAmount: 1000, CollectionBankBIN: "970415", CollectionBankAccount: "123", QRBillNumber: "INV-001"}},
+		{invoiceSummary: invoiceSummary{ID: "invoice-2", InvoiceCode: "INV-002", Status: invoiceStatusManualReview, TotalAmount: 1000, CollectionBankBIN: "", CollectionBankAccount: "", QRBillNumber: ""}},
+	})
+	center := buildAdminReadinessCenterFromIssues(issues)
+
+	types := map[string]string{}
+	for _, issue := range center.Issues {
+		types[issue.Type] = issue.Severity
+	}
+	if types["invoice_unpaid"] != adminReadinessSeverityWarning {
+		t.Fatalf("expected unpaid invoice warning, got %+v", center.Issues)
+	}
+	if types["invoice_manual_review"] != adminReadinessSeverityBlocking {
+		t.Fatalf("expected manual review blocking, got %+v", center.Issues)
+	}
+	if types["invoice_missing_payment_data"] != adminReadinessSeverityBlocking {
+		t.Fatalf("expected missing payment data blocking, got %+v", center.Issues)
+	}
+}
+
 func TestValidateAdminUserSaveInputNormalizesFields(t *testing.T) {
 	input := adminUserSaveInput{
 		Email:       " USER@Example.COM ",
