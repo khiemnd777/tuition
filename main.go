@@ -132,7 +132,7 @@ func runServer() {
 	defer cancel()
 	go startEmailCronScheduler(ctx)
 
-	log.Printf("ABC SUN - QR Generating System: %s", localServerURL(addr))
+	log.Printf("ABC SUN Finance Hub: %s", localServerURL(addr))
 	log.Fatal(server.ListenAndServe())
 }
 

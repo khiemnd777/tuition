@@ -1,4 +1,4 @@
-# ABC SUN - QR Generating System
+# ABC SUN Finance Hub
 
 Demo nhỏ để kiểm tra flow sinh VietQR theo danh sách học sinh/phụ huynh trước khi mở rộng import Excel/PDF.
 

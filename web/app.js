@@ -345,6 +345,7 @@ let invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
 let invoicesLoaded = false;
 let invoicesData = [];
 let invoiceDetailCache = new Map();
+let invoiceStudentScope = { studentId: "", studentCode: "", label: "" };
 let selectedInvoiceId = "";
 let paymentReconciliationLoaded = false;
 let paymentReconciliationData = { providers: [], schools: [], schoolYears: [], classes: [], invoices: [], transactions: [], intents: {}, matches: {}, summary: {} };
@@ -1048,6 +1049,9 @@ function applyPermissionUI() {
   setElementAllowed(addRowBtn, hasPermission("payment.create"));
   setElementAllowed(toggleFeeColumnBtn, hasPermission("payment.create"));
   setElementAllowed(masterStudentEditorPanelEl, hasPermission("student.update"));
+  setElementAllowed(newMasterStudentBtn, hasPermission("student.create"));
+  setElementAllowed(addMasterParentBtn, hasPermission("student.create") || hasPermission("student.update"));
+  setElementAllowed(saveMasterStudentBtn, hasPermission("student.create") || hasPermission("student.update"));
   setElementAllowed(masterImportPanelEl, hasPermission("student.create"));
   setElementAllowed(openSchoolTreeSchoolDialogBtn, hasPermission("school_tree.update"));
   setElementAllowed(openSchoolTreeYearDialogBtn, hasPermission("school_tree.update"));
@@ -1306,13 +1310,8 @@ function updateCurrentSection(targetId) {
 
 function renderBreadcrumbs(metadata) {
   if (!appBreadcrumbsEl) return;
-  const parts = metadata.breadcrumbs?.length ? metadata.breadcrumbs : [metadata.kicker, metadata.title].filter(Boolean);
-  appBreadcrumbsEl.innerHTML = parts
-    .map((part, index) => {
-      const current = index === parts.length - 1 ? ` aria-current="page"` : "";
-      return `<span${current}>${escapeHtml(part)}</span>`;
-    })
-    .join(`<span class="breadcrumb-separator">/</span>`);
+  appBreadcrumbsEl.hidden = true;
+  appBreadcrumbsEl.innerHTML = "";
 }
 
 function uniqueContextOptions(items) {
@@ -2501,6 +2500,7 @@ async function openSchoolTreeInvoiceScope(node) {
     setMasterStatus("Không đủ quyền mở hóa đơn", "error");
     return;
   }
+  clearInvoiceStudentScope();
   await activateTab("invoiceTab");
   await loadInvoices(true);
   const schedule = findSchoolTreeInvoiceSchedule(node);
@@ -2509,6 +2509,7 @@ async function openSchoolTreeInvoiceScope(node) {
     return;
   }
   invoiceScheduleEl.value = optionValueOrEmpty(invoiceScheduleEl, schedule.id);
+  await loadInvoiceList();
   if (!openInvoiceDialogBtn.hidden) {
     openInvoiceDialog();
   }
@@ -4045,7 +4046,7 @@ function selectMasterStudent(key) {
 function openMasterStudentDialog() {
   openAppDialog({
     title: masterStudentIdEl.value ? "Sửa học sinh" : "Tạo học sinh",
-    kicker: "Manual upsert",
+    kicker: "Học sinh & phụ huynh",
     icon: "edit_note",
     nodes: [masterStudentEditorContentEl],
     size: "xl",
@@ -4074,6 +4075,14 @@ function renderMasterStudentDetail(student) {
         <span>${escapeHtml(student.studentCode || "Chưa có mã HS")}</span>
       </div>
     </div>
+    <div class="detail-actions">
+      ${hasPermission("student.update") ? `<button data-edit-master-student="true" type="button">${muiIcon("edit")}<span>Sửa học sinh</span></button>` : ""}
+      ${hasPermission("fee.view") ? `<button data-master-student-fees="true" type="button">${muiIcon("price_change")}<span>Bảng phí</span></button>` : ""}
+      ${hasPermission("invoice.view") ? `<button data-master-student-invoices="true" type="button">${muiIcon("request_quote")}<span>Hóa đơn</span></button>` : ""}
+      ${hasPermission("invoice.view") ? `<button data-master-student-qr="true" type="button">${muiIcon("qr_code")}<span>QR hóa đơn</span></button>` : ""}
+      ${hasPermission("notification.view") || hasPermission("notification.send") ? `<button data-master-student-notifications="true" type="button">${muiIcon("campaign")}<span>Thông báo</span></button>` : ""}
+      <button data-master-student-class="true" type="button">${muiIcon("account_tree")}<span>Lớp</span></button>
+    </div>
     <div class="student-relationship-metrics">
       <div>${muiIcon("supervisor_account")}<span>Phụ huynh</span><strong>${parentCount}</strong></div>
       <div>${muiIcon("alternate_email")}<span>Billing</span><strong>${billingCount}/${parentCount}</strong></div>
@@ -4095,15 +4104,11 @@ function renderMasterStudentDetail(student) {
       <p class="detail-section-title">Anh/chị em</p>
       ${renderMasterStudentSiblings(student)}
     </div>
-    <div class="detail-actions">
-      <button data-edit-master-student="true" type="button">${muiIcon("edit")}<span>Sửa học sinh</span></button>
-      ${hasPermission("invoice.view") ? `<button data-master-student-invoices="true" type="button">${muiIcon("request_quote")}<span>Hóa đơn</span></button>` : ""}
-      ${hasPermission("notification.view") || hasPermission("notification.send") ? `<button data-master-student-notifications="true" type="button">${muiIcon("campaign")}<span>Thông báo</span></button>` : ""}
-      <button data-master-student-class="true" type="button">${muiIcon("account_tree")}<span>Lớp</span></button>
-    </div>
   `;
   masterStudentDetailEl.querySelector("[data-edit-master-student]")?.addEventListener("click", openMasterStudentDialog);
+  masterStudentDetailEl.querySelector("[data-master-student-fees]")?.addEventListener("click", () => openMasterStudentFees(student));
   masterStudentDetailEl.querySelector("[data-master-student-invoices]")?.addEventListener("click", () => openMasterStudentInvoices(student));
+  masterStudentDetailEl.querySelector("[data-master-student-qr]")?.addEventListener("click", () => openMasterStudentInvoices(student, { showQR: true }));
   masterStudentDetailEl.querySelector("[data-master-student-notifications]")?.addEventListener("click", () => openMasterStudentNotifications(student));
   masterStudentDetailEl.querySelector("[data-master-student-class]")?.addEventListener("click", () => openMasterStudentClassScope(student));
 }
@@ -4120,10 +4125,10 @@ function renderMasterParentRelationshipTable(student) {
         const ready = parent.billingReady ?? masterParentBillingReady(parent);
         return `
           <div class="relationship-row">
-            <div><strong>${escapeHtml(parent.parentName || "-")}</strong><span>${escapeHtml(masterRelationshipLabel(parent.relationship))}</span></div>
-            <div><strong>${escapeHtml(parent.email || "Chưa có email")}</strong><span>${escapeHtml(parent.phone || "Chưa có SĐT")}</span></div>
-            <div class="relationship-flags">${masterParentFlagTags(parent)}</div>
-            <div><span class="relationship-pill ${ready ? "is-ready" : "is-warning"}">${muiIcon(ready ? "check_circle" : "priority_high")}<span>${ready ? "Valid" : "Blocked"}</span></span></div>
+            <div data-label="Quan hệ"><strong>${escapeHtml(parent.parentName || "-")}</strong><span>${escapeHtml(masterRelationshipLabel(parent.relationship))}</span></div>
+            <div data-label="Liên hệ"><strong>${escapeHtml(parent.email || "Chưa có email")}</strong><span>${escapeHtml(parent.phone || "Chưa có SĐT")}</span></div>
+            <div data-label="Flags" class="relationship-flags"><div class="relationship-flag-grid">${masterParentFlagTags(parent)}</div></div>
+            <div data-label="Billing"><span class="relationship-pill ${ready ? "is-ready" : "is-warning"}">${muiIcon(ready ? "check_circle" : "priority_high")}<span>${ready ? "Valid" : "Blocked"}</span></span></div>
           </div>
         `;
       }).join("")}
@@ -4173,12 +4178,12 @@ function masterRelationshipLabel(value) {
 
 function masterParentFlagTags(parent) {
   const tags = [
-    parent.isPrimary ? ["Chính", "is-ready"] : ["Phụ", ""],
-    parent.isActive ? ["Active", "is-ready"] : ["Inactive", "is-warning"],
-    parent.receivesBillingEmail ? ["Nhận phí", "is-info"] : ["Không gửi", ""],
-    parent.emailActive ? ["Email active", "is-ready"] : ["Email off", "is-warning"],
+    parent.isPrimary ? ["Chính", "is-ready", "check"] : ["Phụ", "is-neutral", "person"],
+    parent.isActive ? ["Active", "is-ready", "check"] : ["Inactive", "is-warning", "priority_high"],
+    parent.receivesBillingEmail ? ["Nhận phí", "is-info", "alternate_email"] : ["Không gửi", "is-neutral", "remove"],
+    parent.emailActive ? ["Email active", "is-ready", "check"] : ["Email off", "is-warning", "priority_high"],
   ];
-  return tags.map(([label, tone]) => `<span class="relationship-chip ${tone}">${escapeHtml(label)}</span>`).join("");
+  return tags.map(([label, tone, icon]) => `<span class="relationship-chip ${tone}">${muiIcon(icon)}<span>${escapeHtml(label)}</span></span>`).join("");
 }
 
 function masterRelationshipOptions(selected = "guardian") {
@@ -4192,19 +4197,145 @@ function masterRelationshipOptions(selected = "guardian") {
   return options.map(([value, label]) => `<option value="${escapeAttr(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
 }
 
-async function openMasterStudentInvoices(student) {
+function setAppContextForStudent(student) {
+  appContext = {
+    ...appContext,
+    schoolId: student.schoolId || appContext.schoolId,
+    schoolYearId: student.schoolYearId || appContext.schoolYearId,
+  };
+  renderAppContextControls();
+}
+
+async function openMasterStudentFees(student) {
+  if (!hasPermission("fee.view")) {
+    setMasterStatus("Không đủ quyền mở bảng phí", "error");
+    return;
+  }
+  setAppContextForStudent(student);
+  await activateTab("feeTemplateTab");
+  await loadFeeSchedules(true);
+  feeScheduleSchoolEl.value = optionValueOrEmpty(feeScheduleSchoolEl, student.schoolId || "");
+  feeScheduleYearEl.value = optionValueOrEmpty(feeScheduleYearEl, student.schoolYearId || "");
+  feeSchedulePeriodEl.value = appContext.periodCode || feeSchedulePeriodEl.value;
+  feeScheduleMonthEl.value = appContext.month || feeScheduleMonthEl.value;
+  renderFeeScheduleControls();
+  feeScheduleGradeEl.value = optionValueOrEmpty(feeScheduleGradeEl, student.grade || "");
+  renderFeeScheduleClassFilter();
+  feeScheduleClassEl.value = optionValueOrEmpty(feeScheduleClassEl, student.classId || "");
+  await loadFeeScheduleList();
+  setFeeScheduleStatus("Đã lọc bảng phí theo học sinh/lớp", "ready");
+}
+
+function setInvoiceStudentScope(student) {
+  invoiceStudentScope = {
+    studentId: student.id || student.studentId || "",
+    studentCode: student.studentCode || "",
+    label: [student.studentCode || "", student.studentName || ""].filter(Boolean).join(" · "),
+  };
+}
+
+function clearInvoiceStudentScope() {
+  invoiceStudentScope = { studentId: "", studentCode: "", label: "" };
+}
+
+function applyInvoiceStudentScopeParams(params) {
+  if (invoiceStudentScope.studentId) {
+    params.set("studentId", invoiceStudentScope.studentId);
+  } else if (invoiceStudentScope.studentCode) {
+    params.set("studentCode", invoiceStudentScope.studentCode);
+  }
+}
+
+function invoiceMatchesStudent(invoice, student) {
+  if (!invoice || !student) return false;
+  if (student.id && invoice.studentId && invoice.studentId === student.id) return true;
+  return !!student.studentCode && invoice.studentCode === student.studentCode;
+}
+
+function findInvoiceScheduleForStudent(student) {
+  const targetYearId = student.schoolYearId || "";
+  const targetClassId = student.classId || "";
+  const targetGrade = student.grade || "";
+  return [...(invoiceOptions.schedules || [])]
+    .map((schedule) => {
+      if (targetYearId && schedule.schoolYearId !== targetYearId) return { schedule, score: -1 };
+      if (appContext.periodCode && String(schedule.periodCode || "").toLowerCase() !== appContext.periodCode.toLowerCase()) return { schedule, score: -1 };
+      if (appContext.month && Number(schedule.month || 0) !== Number(appContext.month)) return { schedule, score: -1 };
+      let score = -1;
+      if (targetClassId && schedule.classId === targetClassId) {
+        score = 30;
+      } else if (targetGrade && schedule.scopeType === "grade" && String(schedule.grade || "").toLowerCase() === targetGrade.toLowerCase()) {
+        score = 20;
+      } else if (schedule.scopeType === "school_year") {
+        score = 10;
+      }
+      if (score < 0) return { schedule, score };
+      if (schedule.status === "active") score += 5;
+      if (schedule.periodCode) score += 1;
+      return { schedule, score };
+    })
+    .filter((item) => item.score >= 0)
+    .sort((a, b) => b.score - a.score)[0]?.schedule || null;
+}
+
+async function fetchStudentInvoices(student, options = {}) {
+  const params = new URLSearchParams();
+  if (student.id) params.set("studentId", student.id);
+  else if (student.studentCode) params.set("studentCode", student.studentCode);
+  if (!params.toString()) return [];
+  if (options.periodCode) params.set("periodCode", options.periodCode);
+  const res = await fetch(`/api/v1/invoices?${params.toString()}`);
+  const text = await res.text();
+  if (!res.ok) return [];
+  try {
+    const data = JSON.parse(text);
+    return data.invoices || [];
+  } catch {
+    return [];
+  }
+}
+
+function preferredStudentInvoice(invoices = []) {
+  const statusRank = { unpaid: 1, partial: 2, manual_review: 3, overpaid: 4, paid: 5 };
+  return [...invoices].sort((a, b) => {
+    const rankA = statusRank[a.status] || 9;
+    const rankB = statusRank[b.status] || 9;
+    if (rankA !== rankB) return rankA - rankB;
+    return String(b.issuedAt || "").localeCompare(String(a.issuedAt || ""));
+  })[0] || null;
+}
+
+async function findPreferredStudentInvoice(student) {
+  const scoped = await fetchStudentInvoices(student, { periodCode: appContext.periodCode });
+  if (scoped.length || !appContext.periodCode) return preferredStudentInvoice(scoped);
+  return preferredStudentInvoice(await fetchStudentInvoices(student));
+}
+
+async function openMasterStudentInvoices(student, options = {}) {
   if (!hasPermission("invoice.view")) {
     setMasterStatus("Không đủ quyền xem hóa đơn", "error");
     return;
   }
+  setAppContextForStudent(student);
+  setInvoiceStudentScope(student);
   await activateTab("invoiceTab");
-  await loadInvoices(true);
-  const match = invoicesData.find((invoice) => invoice.studentCode === student.studentCode);
+  const schedule = findInvoiceScheduleForStudent(student);
+  if (schedule) {
+    invoiceScheduleEl.value = optionValueOrEmpty(invoiceScheduleEl, schedule.id);
+  }
+  await loadInvoiceList();
+  const match = invoicesData.find((invoice) => invoiceMatchesStudent(invoice, student)) || invoicesData[0];
   if (match) {
+    if (match.feeScheduleId) {
+      invoiceScheduleEl.value = optionValueOrEmpty(invoiceScheduleEl, match.feeScheduleId);
+    }
     selectInvoice(match.id);
-    setInvoiceStatus("Đã chọn hóa đơn của học sinh", "ready");
+    if (options.showQR) {
+      await loadInvoicePayment(match.id);
+    }
+    setInvoiceStatus(options.showQR ? "Đã mở QR hóa đơn của học sinh" : "Đã chọn hóa đơn của học sinh", "ready");
   } else {
-    setInvoiceStatus("Chưa có hóa đơn cho học sinh này trong danh sách hiện tại", "error");
+    setInvoiceStatus("Chưa có hóa đơn cho học sinh này trong scope hiện tại", "error");
   }
 }
 
@@ -4213,6 +4344,13 @@ async function openMasterStudentNotifications(student) {
     setMasterStatus("Không đủ quyền mở thông báo", "error");
     return;
   }
+  const invoice = await findPreferredStudentInvoice(student);
+  if (invoice) {
+    await openNotificationFromInvoice(invoice);
+    setInvoiceStatus("Đã mở thông báo theo hóa đơn của học sinh", "ready");
+    return;
+  }
+  setAppContextForStudent(student);
   await activateTab("notificationTab");
   await loadNotifications(true);
   notificationSchoolYearEl.value = optionValueOrEmpty(notificationSchoolYearEl, student.schoolYearId || "");
@@ -4220,6 +4358,7 @@ async function openMasterStudentNotifications(student) {
   notificationGradeEl.value = optionValueOrEmpty(notificationGradeEl, student.grade || "");
   renderNotificationClassOptions();
   notificationClassEl.value = optionValueOrEmpty(notificationClassEl, student.classId || "");
+  setMasterStatus("Chưa có hóa đơn của học sinh; đã mở thông báo theo lớp", "error");
   if (hasPermission("notification.send") && !openNotificationDialogBtn.hidden) {
     openNotificationDialog();
   }
@@ -4996,7 +5135,7 @@ function renderFeeSchedules(schedules) {
             <span class="money">${formatMoney(schedule.itemTotal || 0)}</span>
             <span>${Number(schedule.adjustmentCount || 0)} điều chỉnh</span>
             <button type="button" data-fee-schedule-invoice="${escapeAttr(schedule.id)}">
-              ${muiIcon("request_quote")}<span>Sinh hóa đơn</span>
+              ${muiIcon("request_quote")}<span>Preview hóa đơn</span>
             </button>
           </div>
         </div>
@@ -5017,6 +5156,7 @@ async function openInvoiceFromFeeSchedule(scheduleId) {
     setFeeScheduleStatus("Không tìm thấy bảng phí", "error");
     return;
   }
+  clearInvoiceStudentScope();
   appContext.schoolId = schedule.schoolId || appContext.schoolId;
   appContext.schoolYearId = schedule.schoolYearId || appContext.schoolYearId;
   appContext.periodCode = schedule.periodCode || appContext.periodCode;
@@ -5030,6 +5170,7 @@ async function openInvoiceFromFeeSchedule(scheduleId) {
     setInvoiceStatus("Không tìm thấy bảng phí trong danh sách hóa đơn", "error");
     return;
   }
+  await loadInvoiceList();
   await previewInvoices();
   if (!openInvoiceDialogBtn.hidden) {
     openInvoiceDialog();
@@ -5072,10 +5213,12 @@ async function loadInvoiceList() {
   }
   const params = new URLSearchParams();
   const schedule = selectedInvoiceSchedule();
+  if (schedule?.id) params.set("feeScheduleId", schedule.id);
   if (schedule?.schoolYearId) params.set("schoolYearId", schedule.schoolYearId);
   if (schedule?.classId) params.set("classId", schedule.classId);
   if (!schedule?.classId && schedule?.grade) params.set("grade", schedule.grade);
   if (schedule?.periodCode) params.set("periodCode", schedule.periodCode);
+  applyInvoiceStudentScopeParams(params);
   const res = await fetch(`/api/v1/invoices${params.toString() ? `?${params.toString()}` : ""}`);
   const text = await res.text();
   if (!res.ok) {
@@ -5085,11 +5228,19 @@ async function loadInvoiceList() {
   }
   const data = JSON.parse(text);
   renderInvoices(data.invoices || []);
-  setInvoiceStatus("Sẵn sàng", "ready");
+  setInvoiceStatus(invoiceStudentScope.label ? `Đang lọc ${invoiceStudentScope.label}` : "Sẵn sàng", "ready");
 }
 
 function selectedInvoiceSchedule() {
   return (invoiceOptions.schedules || []).find((schedule) => schedule.id === invoiceScheduleEl.value) || null;
+}
+
+function invoiceScheduleLabel(invoice) {
+  const schedule = (invoiceOptions.schedules || []).find((item) => item.id === invoice?.feeScheduleId);
+  if (!schedule) return invoice?.feeScheduleId || "-";
+  const scope = schedule.className || (schedule.grade ? `Khối ${schedule.grade}` : "Toàn năm học");
+  const period = [schedule.periodCode, schedule.month ? `T${schedule.month}` : ""].filter(Boolean).join(" · ");
+  return [schedule.name || period || "Bảng phí", scope].filter(Boolean).join(" · ");
 }
 
 function renderInvoiceControls() {
@@ -5516,11 +5667,13 @@ function renderInvoiceDetail(invoice) {
       </div>
     </div>
     <div class="detail-grid">
+      <span>Bảng phí nguồn</span><strong>${escapeHtml(invoiceScheduleLabel(invoice))}</strong>
       <span>Lớp / kỳ</span><strong>${escapeHtml([invoice.className || "", invoice.periodCode || ""].filter(Boolean).join(" · ") || "-")}</strong>
       <span>Tổng tiền</span><strong>${formatMoney(invoice.totalAmount || 0)}</strong>
       <span>Đã thu</span><strong>${formatMoney(invoice.paidAmount || 0)}</strong>
       <span>Còn thiếu</span><strong>${formatMoney(outstanding)}</strong>
       <span>Status</span><strong>${escapeHtml(invoice.status || "unpaid")}</strong>
+      <span>QR reference</span><strong>${escapeHtml([invoice.qrBillNumber || "", invoice.qrNote || ""].filter(Boolean).join(" · ") || "-")}</strong>
     </div>
     <div class="invoice-mini-grid">
       <div><strong>${Number(invoice.itemCount ?? items.length)}</strong><span>line item</span></div>
@@ -7606,13 +7759,13 @@ masterSearchEl.addEventListener("input", () => {
   masterSearchEl.dataset.timer = window.setTimeout(loadMasterStudents, 250);
 });
 refreshMasterDataBtn.addEventListener("click", () => loadMasterData(true));
-newMasterStudentBtn.addEventListener("click", () => {
+newMasterStudentBtn?.addEventListener("click", () => {
   clearMasterStudentForm();
   openMasterStudentDialog();
 });
-editMasterStudentBtn.addEventListener("click", openMasterStudentDialog);
-addMasterParentBtn.addEventListener("click", addMasterParentDraft);
-saveMasterStudentBtn.addEventListener("click", saveMasterStudent);
+editMasterStudentBtn?.addEventListener("click", openMasterStudentDialog);
+addMasterParentBtn?.addEventListener("click", addMasterParentDraft);
+saveMasterStudentBtn?.addEventListener("click", saveMasterStudent);
 masterCsvFileEl.addEventListener("change", async () => {
   const file = masterCsvFileEl.files[0];
   if (!file) {

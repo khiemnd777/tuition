@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ABC SUN - QR Generating System</title>
+    <title>ABC SUN Finance Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=swap" rel="stylesheet" />
@@ -16,7 +16,7 @@
           <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
           <div>
             <p class="eyebrow">ABC SUN</p>
-            <h1 id="loginTitle">QR Generating System</h1>
+            <h1 id="loginTitle">ABC SUN Finance Hub</h1>
             <p>Đăng nhập quản trị học phí</p>
           </div>
         </div>
@@ -69,8 +69,8 @@
           <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
           <div>
             <p class="eyebrow">ABC SUN</p>
-            <h1>QR Generating System</h1>
-            <p>Quản lý học phí và VietQR</p>
+            <h1>Finance Hub</h1>
+            <p>Học phí, hóa đơn, thanh toán & vận hành</p>
           </div>
         </div>
 
@@ -110,7 +110,7 @@
       <div class="app-main">
         <header class="app-bar">
           <div class="screen-heading">
-            <nav id="appBreadcrumbs" class="app-breadcrumbs" aria-label="Breadcrumb">Tổng quan / Việc cần xử lý</nav>
+            <nav id="appBreadcrumbs" class="app-breadcrumbs" aria-label="Breadcrumb" hidden></nav>
             <p id="currentSectionKicker" class="eyebrow">Tổng quan</p>
             <h1 id="currentSectionTitle">Dashboard thu học phí</h1>
             <p id="currentSectionDescription">Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.</p>
@@ -134,12 +134,6 @@
             </label>
           </div>
           <div class="app-bar-actions">
-            <div class="actions legacy-payment-actions" aria-label="Tác vụ QR/import legacy">
-              <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
-              <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-              <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
-              <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
-            </div>
             <div class="session-actions" aria-label="Phiên đăng nhập">
               <span id="authUserBadge" class="auth-user-badge">Chưa đăng nhập</span>
               <button id="logoutButton" type="button"><span class="mui-icon" aria-hidden="true">logout</span><span>Đăng xuất</span></button>
@@ -362,9 +356,13 @@
               <p class="section-kicker">Payment records</p>
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">table_chart</span><span>Bảng thanh toán</span></h2>
             </div>
-            <div class="panel-actions">
+            <div class="panel-actions legacy-payment-actions">
+              <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
+              <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
               <button id="addRow" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Thêm dòng</span></button>
               <button id="toggleFeeColumn" type="button" aria-expanded="true"><span class="mui-icon" aria-hidden="true">view_column</span><span>Thu gọn khoản phí</span></button>
+              <button id="generate" class="primary" type="button"><span class="mui-icon" aria-hidden="true">qr_code_scanner</span><span>Sinh QR</span></button>
               <span id="rowCount" class="count-badge">0 bản ghi</span>
             </div>
           </div>
@@ -1010,11 +1008,15 @@
             <button type="button" data-notification-step="send"><span class="mui-icon" aria-hidden="true">send</span><span>Send & logs</span></button>
             <button type="button" data-notification-step="cron"><span class="mui-icon" aria-hidden="true">event</span><span>Cron</span></button>
           </div>
-          <div class="notification-actions">
-            <button id="previewNotifications" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
-            <button id="saveNotificationCampaign" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu campaign</span></button>
-            <button id="retryNotificationRecipients" type="button"><span class="mui-icon" aria-hidden="true">replay</span><span>Retry selected</span></button>
-            <button id="sendNotificationCampaign" class="primary" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi campaign</span></button>
+          <div class="notification-actions" aria-label="Tác vụ campaign">
+            <div class="notification-action-group">
+              <button id="previewNotifications" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview</span></button>
+              <button id="saveNotificationCampaign" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu campaign</span></button>
+            </div>
+            <div class="notification-action-group notification-action-group-critical">
+              <button id="retryNotificationRecipients" type="button"><span class="mui-icon" aria-hidden="true">replay</span><span>Retry selected</span></button>
+              <button id="sendNotificationCampaign" class="primary" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi campaign</span></button>
+            </div>
           </div>
           <div id="notificationSummary" class="notification-summary">Chưa có preview</div>
         </section>
@@ -1601,22 +1603,8 @@
           </div>
         </section>
 
-        <section class="panel master-editor-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Manual upsert</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">edit_note</span><span>Tạo/sửa học sinh</span></h2>
-            </div>
-            <div class="panel-actions">
-              <button id="newMasterStudent" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>Học sinh mới</span></button>
-              <button id="editMasterStudent" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa học sinh</span></button>
-            </div>
-          </div>
+        <div class="dialog-content-source" hidden>
           <div id="masterStudentEditorContent" hidden>
-            <div class="dialog-inline-actions">
-              <button id="addMasterParent" type="button"><span class="mui-icon" aria-hidden="true">group_add</span><span>Thêm phụ huynh</span></button>
-              <button id="saveMasterStudent" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu học sinh</span></button>
-            </div>
             <div class="master-student-form">
               <input id="masterStudentId" type="hidden" />
               <label>
@@ -1642,7 +1630,7 @@
             </div>
             <div id="masterParentEditorRows" class="master-parent-editor-rows"></div>
           </div>
-        </section>
+        </div>
 
         <section class="panel master-import-panel">
           <div class="panel-head">
@@ -1694,7 +1682,10 @@
               <p class="section-kicker">Student list</p>
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">table_view</span><span>Danh sách học sinh</span></h2>
             </div>
-            <span id="masterStudentCount" class="count-badge">0 học sinh</span>
+            <div class="panel-actions">
+              <span id="masterStudentCount" class="count-badge">0 học sinh</span>
+              <button id="newMasterStudent" class="primary" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Tạo học sinh</span></button>
+            </div>
           </div>
           <div class="table-wrap master-table-wrap">
             <table class="master-table" aria-label="Danh sách học sinh production">

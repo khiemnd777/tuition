@@ -43,12 +43,15 @@ type invoiceGenerateInput struct {
 }
 
 type invoiceListFilters struct {
-	SchoolID     string
-	SchoolYearID string
-	ClassID      string
-	Grade        string
-	PeriodCode   string
-	Status       string
+	FeeScheduleID string
+	StudentID     string
+	StudentCode   string
+	SchoolID      string
+	SchoolYearID  string
+	ClassID       string
+	Grade         string
+	PeriodCode    string
+	Status        string
 }
 
 type invoiceScheduleMeta struct {
@@ -136,6 +139,7 @@ type invoicePreviewRow struct {
 type invoiceSummary struct {
 	ID                    string    `json:"id"`
 	InvoiceCode           string    `json:"invoiceCode"`
+	StudentID             string    `json:"studentId"`
 	StudentCode           string    `json:"studentCode"`
 	StudentName           string    `json:"studentName"`
 	ClassID               string    `json:"classId"`
@@ -244,11 +248,14 @@ func handleInvoiceList(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	invoices, err := listInvoiceSummaries(r.Context(), db, invoiceListFilters{
-		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
-		ClassID:      strings.TrimSpace(query.Get("classId")),
-		Grade:        normalizeGrade(query.Get("grade")),
-		PeriodCode:   strings.TrimSpace(query.Get("periodCode")),
-		Status:       headerKey(query.Get("status")),
+		FeeScheduleID: strings.TrimSpace(query.Get("feeScheduleId")),
+		StudentID:     strings.TrimSpace(query.Get("studentId")),
+		StudentCode:   normalizeStudentCode(query.Get("studentCode")),
+		SchoolYearID:  strings.TrimSpace(query.Get("schoolYearId")),
+		ClassID:       strings.TrimSpace(query.Get("classId")),
+		Grade:         normalizeGrade(query.Get("grade")),
+		PeriodCode:    strings.TrimSpace(query.Get("periodCode")),
+		Status:        headerKey(query.Get("status")),
 	})
 	if err != nil {
 		http.Error(w, "cannot load invoices", http.StatusInternalServerError)
@@ -308,8 +315,9 @@ func handleInvoiceGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	invoices, err := listInvoiceSummaries(r.Context(), db, invoiceListFilters{
-		SchoolYearID: saved.Schedule.SchoolYearID,
-		PeriodCode:   saved.Schedule.PeriodCode,
+		FeeScheduleID: input.FeeScheduleID,
+		SchoolYearID:  saved.Schedule.SchoolYearID,
+		PeriodCode:    saved.Schedule.PeriodCode,
 	})
 	if err != nil {
 		http.Error(w, "cannot load invoices", http.StatusInternalServerError)
@@ -978,6 +986,15 @@ func listInvoiceSummaries(ctx context.Context, db *sql.DB, filters invoiceListFi
 	if filters.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(filters.SchoolYearID)+"::uuid")
 	}
+	if filters.FeeScheduleID != "" {
+		conditions = append(conditions, "i.fee_schedule_id = "+addArg(filters.FeeScheduleID)+"::uuid")
+	}
+	if filters.StudentID != "" {
+		conditions = append(conditions, "i.student_id = "+addArg(filters.StudentID)+"::uuid")
+	}
+	if filters.StudentCode != "" {
+		conditions = append(conditions, "i.student_code = "+addArg(filters.StudentCode))
+	}
 	if filters.SchoolID != "" {
 		conditions = append(conditions, `EXISTS (
 			SELECT 1 FROM school_years sy_filter
@@ -1001,6 +1018,7 @@ func listInvoiceSummaries(ctx context.Context, db *sql.DB, filters invoiceListFi
 	query := `
 SELECT i.id::text,
 	i.invoice_code,
+	i.student_id::text,
 	i.student_code,
 	i.student_name,
 	i.class_id::text,
@@ -1080,6 +1098,7 @@ LIMIT 1000`
 		if err := rows.Scan(
 			&invoice.ID,
 			&invoice.InvoiceCode,
+			&invoice.StudentID,
 			&invoice.StudentCode,
 			&invoice.StudentName,
 			&invoice.ClassID,

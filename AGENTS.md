@@ -38,6 +38,7 @@ ABC SUN QR Generating System is a small Go app for school payment workflows. It 
 - For every user request, make a plan for user review before implementation, validation, or file edits.
 - Wait for explicit user approval before executing the reviewed plan, unless the user clearly asks only for investigation or status reporting.
 - For UI-related requests, including UI changes, UI proposals, layout adjustments, visual design, interaction design, or frontend copy changes, include a `Mock Up as Text` section in the plan so the user can review the intended screen structure before implementation.
+- Do not run browser verification automatically. For UI changes, only run browser/browser-verify when the user explicitly asks for it or explicitly approves that validation step in the reviewed plan.
 - Keep plans concrete and scoped: include affected files or modules, implementation steps, validation steps, and any assumptions or blockers.
 
 ## Agent Skills
