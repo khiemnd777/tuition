@@ -1,0 +1,9 @@
+student_code,adjustment_type,fee_type_code,amount,reason
+DEMO-S003,discount,tuition,500000,Sibling discount
+DEMO-S004,waiver,shuttle,0,No shuttle service
+DEMO-S005,discount,tuition,400000,Sibling discount
+DEMO-S006,discount,tuition,400000,Sibling discount
+DEMO-S007,carry_over,previous_fees,600000,Previous month balance
+DEMO-S010,surcharge,materials,250000,Extra workbook set
+DEMO-S011,waiver,uniform,0,Uniform already purchased
+DEMO-S012,discount,tuition,300000,Early payment policy
