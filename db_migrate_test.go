@@ -404,6 +404,35 @@ func TestLoadEmbeddedMigrationsIncludesUserContactsAndRoles(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesPaidConfirmationNotifications(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var paidConfirmation migration
+	for _, item := range migrations {
+		if item.Version == "0013" {
+			paidConfirmation = item
+			break
+		}
+	}
+	if paidConfirmation.Name != "paid_confirmation_notifications" {
+		t.Fatalf("expected paid confirmation migration 0013, got %+v", paidConfirmation)
+	}
+
+	for _, want := range []string{
+		"payment_confirmation",
+		"payment_paid",
+		"auto_paid_confirmation",
+		"notification_campaigns_type_check",
+	} {
+		if !strings.Contains(paidConfirmation.SQL, want) {
+			t.Fatalf("expected paid confirmation migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

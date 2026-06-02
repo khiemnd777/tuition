@@ -199,6 +199,21 @@ type paymentMatchCandidate struct {
 	Reason        string
 }
 
+type invoicePaymentStatusRefresh struct {
+	InvoiceID  string
+	OldStatus  string
+	NewStatus  string
+	PaidAmount int
+}
+
+func (item invoicePaymentStatusRefresh) BecamePaid() bool {
+	return invoiceStatusBecamePaid(item.OldStatus, item.NewStatus)
+}
+
+func invoiceStatusBecamePaid(oldStatus string, newStatus string) bool {
+	return oldStatus != invoiceStatusPaid && newStatus == invoiceStatusPaid
+}
+
 type manualCashReceiptRequest struct {
 	InvoiceID        string `json:"invoiceId"`
 	Amount           int    `json:"amount"`
@@ -445,7 +460,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	inserted, match, err := recordAndReconcilePaymentTransaction(r.Context(), db, provider, normalized)
+	inserted, match, statusRefresh, err := recordAndReconcilePaymentTransaction(r.Context(), db, provider, normalized)
 	if err != nil {
 		_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", normalized.ProviderTransactionID, normalized.RawPayload, err.Error())
 		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "reconcile_failed", err))
@@ -458,6 +473,9 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 		status = "duplicate"
 	}
 	_ = updateProviderEventStatus(r.Context(), db, event.ID, status, normalized.ProviderTransactionID, normalized.RawPayload, "")
+	if statusRefresh.BecamePaid() {
+		sendAutomaticPaidConfirmationBestEffort(r.Context(), db, statusRefresh.InvoiceID, "payment.webhook")
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success":         true,
@@ -1064,25 +1082,25 @@ func normalizePayOSWebhook(raw map[string]any) (normalizedPaymentTransaction, er
 	}, nil
 }
 
-func recordAndReconcilePaymentTransaction(ctx context.Context, db *sql.DB, provider paymentProvider, normalized normalizedPaymentTransaction) (insertedPaymentTransaction, *paymentMatchCandidate, error) {
+func recordAndReconcilePaymentTransaction(ctx context.Context, db *sql.DB, provider paymentProvider, normalized normalizedPaymentTransaction) (insertedPaymentTransaction, *paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return insertedPaymentTransaction{}, nil, err
+		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
 	}
 	defer tx.Rollback()
 
 	inserted, err := insertPaymentTransaction(ctx, tx, provider.ID, normalized)
 	if err != nil {
-		return insertedPaymentTransaction{}, nil, err
+		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
 	}
-	match, err := reconcilePaymentTransaction(ctx, tx, inserted.Summary)
+	match, statusRefresh, err := reconcilePaymentTransaction(ctx, tx, inserted.Summary)
 	if err != nil {
-		return insertedPaymentTransaction{}, nil, err
+		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
 	}
 	if err := tx.Commit(); err != nil {
-		return insertedPaymentTransaction{}, nil, err
+		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
 	}
-	return inserted, match, nil
+	return inserted, match, statusRefresh, nil
 }
 
 func insertPaymentTransaction(ctx context.Context, exec masterDataExecutor, providerID string, normalized normalizedPaymentTransaction) (insertedPaymentTransaction, error) {
@@ -1185,13 +1203,13 @@ WHERE pt.id = $1::uuid`, transactionID).Scan(
 	return item, err
 }
 
-func reconcilePaymentTransaction(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary) (*paymentMatchCandidate, error) {
+func reconcilePaymentTransaction(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary) (*paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
 	if transaction.Status == paymentTransactionStatusMatched && transaction.InvoiceID != "" {
-		return nil, nil
+		return nil, invoicePaymentStatusRefresh{}, nil
 	}
 	candidates, err := loadPaymentInvoiceCandidates(ctx, exec, transaction)
 	if err != nil {
-		return nil, err
+		return nil, invoicePaymentStatusRefresh{}, err
 	}
 	match, ok := matchPaymentTransactionToInvoices(transaction, candidates)
 	if !ok {
@@ -1203,7 +1221,7 @@ WHERE id = $1::uuid
 			transaction.ID,
 			paymentTransactionStatusManualReview,
 		)
-		return nil, err
+		return nil, invoicePaymentStatusRefresh{}, err
 	}
 
 	if _, err := exec.ExecContext(ctx, `
@@ -1215,7 +1233,7 @@ WHERE id = $1::uuid`,
 		match.Invoice.ID,
 		paymentTransactionStatusMatched,
 	); err != nil {
-		return nil, err
+		return nil, invoicePaymentStatusRefresh{}, err
 	}
 	metadata, err := jsonObjectString(map[string]any{
 		"provider":              transaction.ProviderCode,
@@ -1224,7 +1242,7 @@ WHERE id = $1::uuid`,
 		"description":           transaction.Description,
 	})
 	if err != nil {
-		return nil, err
+		return nil, invoicePaymentStatusRefresh{}, err
 	}
 	if _, err := exec.ExecContext(ctx, `
 INSERT INTO reconciliation_matches (invoice_id, transaction_id, match_type, status, score, amount_applied, reason, metadata)
@@ -1239,12 +1257,13 @@ ON CONFLICT (transaction_id, invoice_id) WHERE status <> 'reversed' DO NOTHING`,
 		match.Reason,
 		metadata,
 	); err != nil {
-		return nil, err
+		return nil, invoicePaymentStatusRefresh{}, err
 	}
-	if err := refreshInvoicePaymentStatus(ctx, exec, match.Invoice.ID, "reconciled payment transaction"); err != nil {
-		return nil, err
+	statusRefresh, err := refreshInvoicePaymentStatus(ctx, exec, match.Invoice.ID, "reconciled payment transaction")
+	if err != nil {
+		return nil, invoicePaymentStatusRefresh{}, err
 	}
-	return &match, nil
+	return &match, statusRefresh, nil
 }
 
 func loadPaymentInvoiceCandidates(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary) ([]paymentInvoiceCandidate, error) {
@@ -1364,15 +1383,16 @@ func matchPaymentTransactionToInvoices(transaction paymentTransactionSummary, ca
 	return best, true
 }
 
-func refreshInvoicePaymentStatus(ctx context.Context, exec masterDataExecutor, invoiceID string, reason string) error {
+func refreshInvoicePaymentStatus(ctx context.Context, exec masterDataExecutor, invoiceID string, reason string) (invoicePaymentStatusRefresh, error) {
 	var totalAmount int
 	var oldStatus string
 	err := exec.QueryRowContext(ctx, `
 SELECT total_amount, status
 FROM invoices
-WHERE id = $1::uuid`, invoiceID).Scan(&totalAmount, &oldStatus)
+WHERE id = $1::uuid
+FOR UPDATE`, invoiceID).Scan(&totalAmount, &oldStatus)
 	if err != nil {
-		return err
+		return invoicePaymentStatusRefresh{}, err
 	}
 	var paidAmount int
 	if err := exec.QueryRowContext(ctx, `
@@ -1380,7 +1400,7 @@ SELECT COALESCE(SUM(amount_applied), 0)
 FROM reconciliation_matches
 WHERE invoice_id = $1::uuid
 	AND status <> 'reversed'`, invoiceID).Scan(&paidAmount); err != nil {
-		return err
+		return invoicePaymentStatusRefresh{}, err
 	}
 	newStatus := deriveInvoiceStatus(totalAmount, paidAmount)
 	if _, err := exec.ExecContext(ctx, `
@@ -1392,12 +1412,18 @@ WHERE id = $1::uuid`,
 		paidAmount,
 		newStatus,
 	); err != nil {
-		return err
+		return invoicePaymentStatusRefresh{}, err
+	}
+	refresh := invoicePaymentStatusRefresh{
+		InvoiceID:  invoiceID,
+		OldStatus:  oldStatus,
+		NewStatus:  newStatus,
+		PaidAmount: paidAmount,
 	}
 	if newStatus != oldStatus {
-		return insertInvoiceStatusHistory(ctx, exec, invoiceID, oldStatus, newStatus, reason)
+		return refresh, insertInvoiceStatusHistory(ctx, exec, invoiceID, oldStatus, newStatus, reason)
 	}
-	return nil
+	return refresh, nil
 }
 
 func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest, auditCtx requestAuditContext) (manualCashReceiptResponse, error) {
@@ -1488,7 +1514,8 @@ VALUES ($1::uuid, $2::uuid, 'cash', 'matched', 100, $3, $4, $5::jsonb)`,
 	); err != nil {
 		return manualCashReceiptResponse{}, err
 	}
-	if err := refreshInvoicePaymentStatus(ctx, tx, input.InvoiceID, input.Reason); err != nil {
+	statusRefresh, err := refreshInvoicePaymentStatus(ctx, tx, input.InvoiceID, input.Reason)
+	if err != nil {
 		return manualCashReceiptResponse{}, err
 	}
 	if err := insertAuditLog(ctx, tx, auditLogInput{
@@ -1511,6 +1538,9 @@ VALUES ($1::uuid, $2::uuid, 'cash', 'matched', 100, $3, $4, $5::jsonb)`,
 	}
 	if err := tx.Commit(); err != nil {
 		return manualCashReceiptResponse{}, err
+	}
+	if statusRefresh.BecamePaid() {
+		sendAutomaticPaidConfirmationBestEffort(ctx, db, statusRefresh.InvoiceID, "manual_cash_receipt")
 	}
 
 	invoices, err := listInvoiceSummaries(ctx, db, invoiceListFilters{})

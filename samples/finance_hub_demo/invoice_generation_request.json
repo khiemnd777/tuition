@@ -1,0 +1,18 @@
+{
+  "description": "Use after saving a fee schedule. Replace <FEE_SCHEDULE_ID> with the saved schedule id from the Hoa don tab or /api/v1/invoices/options.",
+  "preview": {
+    "feeScheduleId": "<FEE_SCHEDULE_ID>",
+    "bankBin": "970415",
+    "bankAccount": "FHCOLLECT001",
+    "issueDate": "2026-04-05",
+    "dueDate": "2026-04-20"
+  },
+  "generate": {
+    "feeScheduleId": "<FEE_SCHEDULE_ID>",
+    "bankBin": "970415",
+    "bankAccount": "FHCOLLECT001",
+    "issueDate": "2026-04-05",
+    "dueDate": "2026-04-20",
+    "regenerate": false
+  }
+}

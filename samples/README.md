@@ -4,11 +4,25 @@ These files are fictional data for customer demos. They are safe for preview, QR
 
 ## Files
 
+- `finance_hub_demo/`: end-to-end Finance Hub demo pack covering master data, fee schedules, invoices, reconciliation, notifications, and the legacy QR/import tool.
 - `demo_master_data.csv`: production master data for 14 demo students across classes `1.01`, `2.01`, `3.02`, and `3.03`.
 - `demo_payments.csv`: legacy QR/import payment rows with fee columns that override the raw `amount` field.
 - `demo_fee_adjustments.csv`: paste-ready student fee adjustments for the tuition setup workflow.
 
 The smaller `students.csv` and `master_data.csv` files are still kept as compact technical samples.
+
+## Finance Hub Demo Pack
+
+Use `finance_hub_demo/` when demoing the full Finance Hub story to customers:
+
+1. `finance_hub_demo/master_data.csv` for `Hoc sinh & phu huynh`.
+2. `finance_hub_demo/fee_schedule_profiles.csv` and `finance_hub_demo/fee_adjustments.csv` for `Bang phi`.
+3. `finance_hub_demo/invoice_generation_request.json` as the invoice preview/generation API template after a fee schedule is saved.
+4. `finance_hub_demo/reconciliation_webhooks.jsonl` and `finance_hub_demo/manual_cash_receipts.csv` for `Doi soat`.
+5. `finance_hub_demo/notification_campaigns.json` for notification preview, reminder, and email-preview demos.
+6. `finance_hub_demo/legacy_qr_payments.csv` for the secondary QR/import workflow.
+
+See `finance_hub_demo/README.md` for the step-by-step runbook and the placeholder replacement points.
 
 ## Suggested Demo Flow
 

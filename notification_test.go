@@ -20,6 +20,29 @@ func TestNotificationReminderRejectsPaidInvoiceStatus(t *testing.T) {
 	}
 }
 
+func TestNotificationPaymentConfirmationDefaultsToPaidOnly(t *testing.T) {
+	input := normalizeNotificationCampaignInput(notificationCampaignInput{
+		CampaignType: notificationCampaignPaymentConfirmation,
+	})
+	if input.InvoiceStatus != invoiceStatusPaid {
+		t.Fatalf("expected paid invoice status by default, got %q", input.InvoiceStatus)
+	}
+	if issues := validateNotificationCampaignInput(input); len(issues) > 0 {
+		t.Fatalf("expected paid confirmation input to validate, got %+v", issues)
+	}
+
+	issues := validateNotificationCampaignInput(normalizeNotificationCampaignInput(notificationCampaignInput{
+		CampaignType:  notificationCampaignPaymentConfirmation,
+		InvoiceStatus: invoiceStatusPartial,
+	}))
+	if len(issues) != 1 {
+		t.Fatalf("expected one issue, got %+v", issues)
+	}
+	if issues[0].Type != "invalid_payment_confirmation_status" {
+		t.Fatalf("expected invalid_payment_confirmation_status, got %+v", issues[0])
+	}
+}
+
 func TestNotificationPaymentRowKeepsInvoicePaymentContract(t *testing.T) {
 	invoice := invoiceDocument{
 		invoiceSummary: invoiceSummary{

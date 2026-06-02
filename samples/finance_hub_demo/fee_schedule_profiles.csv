@@ -1,0 +1,21 @@
+profile,grade,class_name,fee_type_code,label_vi,label_en,amount,display_order
+grade_1_apr_may,1,1.01,tuition,Hoc phi T04-T05,Tuition Apr-May,8400000,10
+grade_1_apr_may,1,1.01,shuttle,Phi xe T04,Shuttle Apr,1200000,20
+grade_1_apr_may,1,1.01,insurance,Bao hiem y te,Health insurance,563850,30
+grade_1_apr_may,1,1.01,materials,Sach CTQT,International material,800000,40
+grade_2_apr_may,2,2.01,tuition,Hoc phi T04-T05,Tuition Apr-May,9000000,10
+grade_2_apr_may,2,2.01,shuttle,Phi xe T04,Shuttle Apr,1500000,20
+grade_2_apr_may,2,2.01,insurance,Bao hiem y te,Health insurance,563850,30
+grade_2_apr_may,2,2.01,materials,Sach CTQT,International material,950000,40
+grade_3_apr_may,3,3.02,tuition,Hoc phi T04-T05,Tuition Apr-May,9600000,10
+grade_3_apr_may,3,3.02,shuttle,Phi xe T04,Shuttle Apr,1700000,20
+grade_3_apr_may,3,3.02,insurance,Bao hiem y te,Health insurance,563850,30
+grade_3_apr_may,3,3.02,materials,Sach CTQT,International material,1200000,40
+grade_3_apr_may,3,3.03,tuition,Hoc phi T04-T05,Tuition Apr-May,9600000,10
+grade_3_apr_may,3,3.03,shuttle,Phi xe T04,Shuttle Apr,1700000,20
+grade_3_apr_may,3,3.03,insurance,Bao hiem y te,Health insurance,563850,30
+grade_3_apr_may,3,3.03,uniform,Dong phuc,Uniform,850000,40
+grade_3_apr_may,3,3.03,materials,Sach CTQT,International material,1200000,50
+grade_4_apr_may,4,4.01,tuition,Hoc phi T04-T05,Tuition Apr-May,10200000,10
+grade_4_apr_may,4,4.01,lunch,Phi an ban tru,Lunch,1800000,20
+grade_4_apr_may,4,4.01,materials,Sach CTQT,International material,1300000,30

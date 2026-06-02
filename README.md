@@ -264,8 +264,11 @@ Template mặc định:
 
 - `first_notice`: thông báo thanh toán lần đầu cho invoice `unpaid`.
 - `reminder`: nhắc thanh toán, chỉ cho invoice `unpaid` hoặc `partial`; backend chặn chọn nhầm `paid`.
+- `payment_confirmation`: xác nhận đã thanh toán cho invoice `paid`, dùng template `payment_paid` và không đính kèm QR.
 
 Dry-run/preview trả đúng danh sách recipient, số invoice, tổng phải thu, số tiền còn phải thu, QR readiness, trạng thái gửi trước, lỗi và retry eligibility trước khi gửi. Operator có thể chọn từng recipient để render subject/HTML email theo template và invoice trước khi gửi thật. Khi gửi thật, app dùng lại email provider hiện tại, render email học phí với QR inline CID, ghi `notification_logs` theo campaign/template/invoice/recipient/provider/message-id/error/timestamp, và bỏ qua recipient đã gửi trong cùng campaign/template/invoice/email nếu không bật resend rõ ràng. Retry selected yêu cầu campaign đã lưu, recipient được chọn, confirm dialog, `confirmSend=true`, và `forceResend=true`. Email gửi từ campaign cũng tính vào quota rolling 24 giờ giống gửi thủ công và cron.
+
+Khi đối soát webhook hoặc phiếu thu tiền mặt làm invoice chuyển từ `unpaid`/`partial` sang `paid`, app tự gửi email `payment_confirmation` cho billing recipients sau khi transaction thanh toán đã commit. Nếu email config/quota/provider lỗi, payment vẫn giữ thành công và lỗi được ghi vào notification/operation log để operator retry thủ công từ invoice paid.
 
 Panel Cron trong tab `Thông báo` chỉ đọc trạng thái scheduler: enabled, send time, daily limit, queued, sent, errors, sent 24h, next/last run, và recent results. Cấu hình cron vẫn dùng app dialog chung; chạy cron thật chỉ nằm trong tab Email & Cron và luôn cần xác nhận.
 
@@ -319,6 +322,7 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/notifications/campaigns/email-preview`: render subject/HTML cho template và recipient/invoice đã chọn, không gửi email thật.
 - `POST /api/v1/notifications/campaigns/save`: lưu campaign và snapshot recipient hiện tại.
 - `POST /api/v1/notifications/campaigns/send`: gửi campaign; yêu cầu `confirmSend=true` khi gửi thật, hỗ trợ `recipientIds` cho retry selected và `forceResend=true` để gửi lại có chủ đích.
+- `POST /api/v1/notifications/paid-confirmation/send`: gửi hoặc gửi lại confirmation cho một invoice `paid`; yêu cầu `confirmSend=true`.
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
 - `GET /api/v1/healthz`: healthcheck public cho Docker/API liveness.
 - `GET /api/v1/admin/dashboard`: dashboard công nợ và readiness center, hỗ trợ `schoolId`, `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.

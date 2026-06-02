@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	notificationCampaignFirstNotice = "first_notice"
-	notificationCampaignReminder    = "reminder"
+	notificationCampaignFirstNotice              = "first_notice"
+	notificationCampaignReminder                 = "reminder"
+	notificationCampaignPaymentConfirmation      = "payment_confirmation"
+	notificationAutoPaidConfirmationCampaignCode = "auto_paid_confirmation"
 
 	notificationStatusDraft   = "draft"
 	notificationStatusDryRun  = "dry_run"
@@ -175,6 +177,25 @@ type notificationEmailPreviewResponse struct {
 	Template  notificationTemplate           `json:"template"`
 	Recipient notificationRecipientCandidate `json:"recipient"`
 	QRReady   bool                           `json:"qrReady"`
+}
+
+type paidConfirmationSendInput struct {
+	InvoiceID   string `json:"invoiceId"`
+	ForceResend bool   `json:"forceResend,omitempty"`
+	ConfirmSend bool   `json:"confirmSend,omitempty"`
+}
+
+type paidConfirmationSendResponse struct {
+	InvoiceID string            `json:"invoiceId"`
+	Results   []emailSendResult `json:"results"`
+}
+
+type paidConfirmationSendOptions struct {
+	ForceResend  bool
+	CampaignCode string
+	CampaignName string
+	Trigger      string
+	Operation    string
 }
 
 func handleNotificationOptions(w http.ResponseWriter, r *http.Request) {
@@ -470,6 +491,45 @@ func handleNotificationLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"logs": logs})
 }
 
+func handleNotificationPaidConfirmationSend(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input paidConfirmationSendInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input.InvoiceID = strings.TrimSpace(input.InvoiceID)
+	if input.InvoiceID == "" {
+		http.Error(w, "invoiceId is required", http.StatusBadRequest)
+		return
+	}
+	if !input.ConfirmSend {
+		http.Error(w, "confirmSend is required for paid confirmation sends", http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	results, err := sendPaidConfirmationForInvoice(r.Context(), db, input.InvoiceID, paidConfirmationSendOptions{
+		ForceResend: input.ForceResend,
+		Trigger:     "manual",
+		Operation:   "notification.paid_confirmation.manual",
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, paidConfirmationSendResponse{
+		InvoiceID: input.InvoiceID,
+		Results:   results,
+	})
+}
+
 func decodeNotificationCampaignInput(w http.ResponseWriter, r *http.Request) (notificationCampaignInput, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
 	var input notificationCampaignInput
@@ -534,7 +594,9 @@ func normalizeNotificationCampaignInput(input notificationCampaignInput) notific
 	if input.CampaignType == "" {
 		input.CampaignType = notificationCampaignFirstNotice
 	}
-	if input.CampaignType != notificationCampaignFirstNotice && input.CampaignType != notificationCampaignReminder {
+	if input.CampaignType != notificationCampaignFirstNotice &&
+		input.CampaignType != notificationCampaignReminder &&
+		input.CampaignType != notificationCampaignPaymentConfirmation {
 		input.CampaignType = notificationCampaignFirstNotice
 	}
 	input.TemplateID = strings.TrimSpace(input.TemplateID)
@@ -549,8 +611,13 @@ func normalizeNotificationCampaignInput(input notificationCampaignInput) notific
 		label := "Thông báo thanh toán"
 		if input.CampaignType == notificationCampaignReminder {
 			label = "Nhắc thanh toán"
+		} else if input.CampaignType == notificationCampaignPaymentConfirmation {
+			label = "Xác nhận đã thanh toán"
 		}
 		input.Name = strings.TrimSpace(label + " " + firstNonEmpty(input.PeriodCode, time.Now().Format("2006-01-02")))
+	}
+	if input.CampaignType == notificationCampaignPaymentConfirmation && input.InvoiceStatus == "" {
+		input.InvoiceStatus = invoiceStatusPaid
 	}
 	return input
 }
@@ -626,6 +693,13 @@ func validateNotificationCampaignInput(input notificationCampaignInput) []notifi
 				Message: "reminder campaigns can only target unpaid or partial invoices",
 			})
 		}
+	}
+	if input.CampaignType == notificationCampaignPaymentConfirmation && input.InvoiceStatus != "" && input.InvoiceStatus != invoiceStatusPaid {
+		issues = append(issues, notificationIssue{
+			Type:    "invalid_payment_confirmation_status",
+			Field:   "invoiceStatus",
+			Message: "payment confirmation campaigns can only target paid invoices",
+		})
 	}
 	if input.DueOnOrBefore != "" {
 		if _, err := parseInvoiceDate(input.DueOnOrBefore); err != nil {
@@ -863,6 +937,8 @@ func listNotificationRecipientCandidates(ctx context.Context, db *sql.DB, input 
 	switch {
 	case input.CampaignType == notificationCampaignReminder && input.InvoiceStatus == "":
 		conditions = append(conditions, "i.status IN ('unpaid', 'partial')")
+	case input.CampaignType == notificationCampaignPaymentConfirmation && input.InvoiceStatus == "":
+		conditions = append(conditions, "i.status = 'paid'")
 	case input.InvoiceStatus != "":
 		conditions = append(conditions, "i.status = "+addArg(input.InvoiceStatus))
 	default:
@@ -1231,7 +1307,7 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 			continue
 		}
 		if !input.DryRun && !input.ForceResend {
-			alreadySent, err := notificationAlreadySent(ctx, db, input.CampaignID, template.ID, recipient.InvoiceID, recipient.RecipientEmail)
+			alreadySent, err := notificationAlreadySent(ctx, db, input.CampaignID, template, recipient.InvoiceID, recipient.RecipientEmail)
 			if err != nil {
 				return notificationSendResponse{}, err
 			}
@@ -1356,8 +1432,20 @@ func notificationPaymentPeriod(invoice invoiceDocument) string {
 	return strings.Join(parts, " - ")
 }
 
-func notificationAlreadySent(ctx context.Context, db *sql.DB, campaignID string, templateID string, invoiceID string, email string) (bool, error) {
+func notificationAlreadySent(ctx context.Context, db *sql.DB, campaignID string, template notificationTemplate, invoiceID string, email string) (bool, error) {
 	var exists bool
+	if template.Code == notificationCampaignPaymentConfirmation {
+		err := db.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM notification_logs
+	WHERE template_code = $1
+		AND invoice_id = $2::uuid
+		AND lower(recipient_email) = lower($3)
+		AND status = 'sent'
+)`, template.Code, invoiceID, email).Scan(&exists)
+		return exists, err
+	}
 	err := db.QueryRowContext(ctx, `
 SELECT EXISTS (
 	SELECT 1
@@ -1367,8 +1455,382 @@ SELECT EXISTS (
 		AND invoice_id = $3::uuid
 		AND lower(recipient_email) = lower($4)
 		AND status = 'sent'
-)`, campaignID, templateID, invoiceID, email).Scan(&exists)
+)`, campaignID, template.ID, invoiceID, email).Scan(&exists)
 	return exists, err
+}
+
+func sendAutomaticPaidConfirmationBestEffort(ctx context.Context, db *sql.DB, invoiceID string, trigger string) {
+	if strings.TrimSpace(invoiceID) == "" {
+		return
+	}
+	if _, err := sendPaidConfirmationForInvoice(ctx, db, invoiceID, paidConfirmationSendOptions{
+		CampaignCode: notificationAutoPaidConfirmationCampaignCode,
+		CampaignName: "Tự động xác nhận đã thanh toán",
+		Trigger:      trigger,
+		Operation:    "notification.paid_confirmation.auto",
+	}); err != nil {
+		_ = recordOperationLog(ctx, db, operationLogInput{
+			Source:     "email",
+			Level:      "error",
+			Operation:  "notification.paid_confirmation.auto",
+			Status:     "error",
+			Message:    err.Error(),
+			EntityType: "invoice",
+			EntityID:   invoiceID,
+			Metadata: map[string]any{
+				"trigger": trigger,
+			},
+		})
+	}
+}
+
+func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID string, options paidConfirmationSendOptions) ([]emailSendResult, error) {
+	invoiceID = strings.TrimSpace(invoiceID)
+	if invoiceID == "" {
+		return nil, errors.New("invoiceId is required")
+	}
+	invoice, err := loadInvoiceDocument(ctx, db, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	if invoice.Status != invoiceStatusPaid {
+		return nil, fmt.Errorf("invoice %s is not paid", invoice.InvoiceCode)
+	}
+
+	template, err := loadLatestNotificationTemplateByCode(ctx, db, notificationCampaignPaymentConfirmation)
+	if err != nil {
+		return nil, err
+	}
+	campaignID, err := ensurePaidConfirmationCampaign(ctx, db, template, invoice, options)
+	if err != nil {
+		return nil, err
+	}
+	recipients, err := listPaidConfirmationRecipients(ctx, db, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	if len(recipients) == 0 {
+		_ = recordPaidConfirmationOperationLog(ctx, db, options, invoiceID, notificationRecipientCandidate{}, notificationSkippedResult(notificationRecipientCandidate{InvoiceID: invoiceID, InvoiceCode: invoice.InvoiceCode}, "paid invoice has no active billing recipients"), "warn")
+		return []emailSendResult{}, nil
+	}
+	for idx := range recipients {
+		recipientID, err := upsertNotificationRecipient(ctx, db, campaignID, recipients[idx])
+		if err != nil {
+			return nil, err
+		}
+		recipients[idx].ID = recipientID
+		recipients[idx].CampaignID = campaignID
+	}
+
+	cfg, err := loadEmailConfig()
+	if err != nil {
+		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, "", err.Error()), nil
+	}
+	cfg = normalizeEmailConfig(cfg)
+	if err := validateEmailConfigForSend(cfg); err != nil {
+		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, cfg.Provider, err.Error()), nil
+	}
+	quota, err := emailSendQuotaStatus(time.Now())
+	if err != nil {
+		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, cfg.Provider, err.Error()), nil
+	}
+
+	results := make([]emailSendResult, 0, len(recipients))
+	sent := 0
+	for _, recipient := range recipients {
+		if !options.ForceResend {
+			alreadySent, err := notificationAlreadySent(ctx, db, campaignID, template, recipient.InvoiceID, recipient.RecipientEmail)
+			if err != nil {
+				return results, err
+			}
+			if alreadySent {
+				continue
+			}
+		}
+		if sent >= quota.Remaining {
+			result := notificationSkippedResult(recipient, "daily email limit reached")
+			result.Provider = cfg.Provider
+			results = append(results, result)
+			_ = insertNotificationLog(ctx, db, template, recipient, campaignID, result, false)
+			_ = updateNotificationRecipientStatus(ctx, db, recipient.ID, result.Status, result.Error)
+			_ = recordPaidConfirmationOperationLog(ctx, db, options, invoiceID, recipient, result, "warn")
+			continue
+		}
+
+		emailCfg := notificationEmailConfig(cfg, template, invoice)
+		result := sendPaymentEmailRow(ctx, emailCfg, notificationPaymentRow(invoice, recipient), template.EmailTemplate, schedulerBaseURL(emailCfg), false)
+		result.ID = recipient.ID
+		results = append(results, result)
+		_ = insertNotificationLog(ctx, db, template, recipient, campaignID, result, false)
+		_ = updateNotificationRecipientStatus(ctx, db, recipient.ID, result.Status, result.Error)
+		_ = recordPaidConfirmationOperationLog(ctx, db, options, invoiceID, recipient, result, "error")
+		if result.Status == "sent" {
+			sent++
+			sleepEmailSendPace(ctx, emailCfg)
+		}
+		if result.Transient {
+			break
+		}
+	}
+	if sent > 0 {
+		recordEmailCronSent(sent, time.Now())
+	}
+	status := notificationCampaignStatusFromResults(results, false)
+	if len(results) == 0 {
+		status = notificationStatusSent
+	}
+	_, _ = db.ExecContext(ctx, `
+UPDATE notification_campaigns
+SET status = $2,
+	sent_at = CASE WHEN $2 IN ('sent', 'partial') THEN now() ELSE sent_at END
+WHERE id = $1::uuid`, campaignID, status)
+	return results, nil
+}
+
+func ensurePaidConfirmationCampaign(ctx context.Context, db *sql.DB, template notificationTemplate, invoice invoiceDocument, options paidConfirmationSendOptions) (string, error) {
+	code := strings.TrimSpace(options.CampaignCode)
+	name := strings.TrimSpace(options.CampaignName)
+	if code == "" {
+		if options.ForceResend {
+			now := time.Now()
+			code = cleanANS("NC"+now.Format("20060102150405")+fmt.Sprintf("%09d", now.Nanosecond())+"PAID", 32)
+		} else {
+			code = notificationAutoPaidConfirmationCampaignCode
+		}
+	}
+	if name == "" {
+		name = "Xác nhận đã thanh toán " + firstNonEmpty(invoice.InvoiceCode, invoice.StudentCode, time.Now().Format("2006-01-02"))
+	}
+	autoCampaign := code == notificationAutoPaidConfirmationCampaignCode
+	filter := map[string]any{
+		"auto":    autoCampaign,
+		"trigger": strings.TrimSpace(options.Trigger),
+	}
+	schoolYearID := nullableString(invoice.SchoolYearID)
+	classID := nullableString(invoice.ClassID)
+	grade := invoice.Grade
+	periodCode := invoice.PeriodCode
+	if !autoCampaign {
+		filter["invoiceId"] = invoice.ID
+		filter["invoiceCode"] = invoice.InvoiceCode
+	} else {
+		schoolYearID = nil
+		classID = nil
+		grade = ""
+		periodCode = ""
+	}
+	filterJSON, err := jsonObjectString(filter)
+	if err != nil {
+		return "", err
+	}
+	var campaignID string
+	err = db.QueryRowContext(ctx, `
+INSERT INTO notification_campaigns (
+	code, name, campaign_type, template_id, school_year_id, class_id,
+	grade, period_code, invoice_status, status, target_filter
+)
+VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7, $8, 'paid', 'draft', $9::jsonb)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name,
+	campaign_type = EXCLUDED.campaign_type,
+	template_id = EXCLUDED.template_id,
+	school_year_id = EXCLUDED.school_year_id,
+	class_id = EXCLUDED.class_id,
+	grade = EXCLUDED.grade,
+	period_code = EXCLUDED.period_code,
+	invoice_status = EXCLUDED.invoice_status,
+	target_filter = EXCLUDED.target_filter,
+	status = CASE
+		WHEN notification_campaigns.status = 'archived' THEN 'draft'
+		ELSE notification_campaigns.status
+	END
+RETURNING id::text`,
+		code,
+		name,
+		notificationCampaignPaymentConfirmation,
+		template.ID,
+		schoolYearID,
+		classID,
+		grade,
+		periodCode,
+		filterJSON,
+	).Scan(&campaignID)
+	return campaignID, err
+}
+
+func listPaidConfirmationRecipients(ctx context.Context, db *sql.DB, invoiceID string) ([]notificationRecipientCandidate, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT i.id::text,
+	COALESCE(p.id::text, ''),
+	p.full_name,
+	p.email,
+	i.invoice_code,
+	i.student_code,
+	i.student_name,
+	i.class_name,
+	i.grade,
+	i.school_year_id::text,
+	i.school_year_code,
+	i.period_code,
+	i.due_date,
+	i.status,
+	i.total_amount,
+	i.paid_amount,
+	GREATEST(i.total_amount - i.paid_amount, 0),
+	(i.qr_bill_number <> '' AND i.collection_bank_bin <> '' AND i.collection_bank_account <> ''),
+	COALESCE(log_counts.send_count, 0),
+	log_counts.last_sent_at,
+	COALESCE(log_counts.last_status, ''),
+	COALESCE(log_counts.last_error, '')
+FROM invoices i
+JOIN students s ON s.id = i.student_id
+JOIN student_parents sp ON sp.student_id = s.id
+JOIN parents p ON p.id = sp.parent_id
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (WHERE nl.status = 'sent')::integer AS send_count,
+		MAX(nl.sent_at) FILTER (WHERE nl.status = 'sent') AS last_sent_at,
+		(ARRAY_AGG(nl.status ORDER BY nl.sent_at DESC, nl.id DESC))[1] AS last_status,
+		(ARRAY_AGG(nl.error_message ORDER BY nl.sent_at DESC, nl.id DESC))[1] AS last_error
+	FROM notification_logs nl
+	WHERE nl.template_code = 'payment_confirmation'
+		AND nl.invoice_id = i.id
+		AND lower(nl.recipient_email) = lower(p.email)
+) log_counts ON true
+WHERE i.id = $1::uuid
+	AND i.status = 'paid'
+	AND sp.is_active
+	AND sp.receives_billing_email
+	AND p.email_active
+	AND p.status = 'active'
+	AND p.email <> ''
+ORDER BY sp.is_primary DESC, p.full_name
+LIMIT 20`, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	recipients := []notificationRecipientCandidate{}
+	seen := map[string]bool{}
+	for rows.Next() {
+		var item notificationRecipientCandidate
+		var dueDate sql.NullTime
+		var lastSentAt sql.NullTime
+		if err := rows.Scan(
+			&item.InvoiceID,
+			&item.ParentID,
+			&item.RecipientName,
+			&item.RecipientEmail,
+			&item.InvoiceCode,
+			&item.StudentCode,
+			&item.StudentName,
+			&item.ClassName,
+			&item.Grade,
+			&item.SchoolYearID,
+			&item.SchoolYearCode,
+			&item.PeriodCode,
+			&dueDate,
+			&item.InvoiceStatus,
+			&item.Amount,
+			&item.PaidAmount,
+			&item.OutstandingAmount,
+			&item.QRReady,
+			&item.SendCount,
+			&lastSentAt,
+			&item.LastLogStatus,
+			&item.LastError,
+		); err != nil {
+			return nil, err
+		}
+		item.RecipientEmail = strings.ToLower(strings.TrimSpace(item.RecipientEmail))
+		if seen[item.RecipientEmail] {
+			continue
+		}
+		seen[item.RecipientEmail] = true
+		if dueDate.Valid {
+			item.DueDate = dueDate.Time.Format("2006-01-02")
+		}
+		if lastSentAt.Valid {
+			item.LastSentAt = lastSentAt.Time.UTC().Format(time.RFC3339)
+		}
+		recipients = append(recipients, finalizeNotificationRecipientState(item))
+	}
+	return recipients, rows.Err()
+}
+
+func upsertNotificationRecipient(ctx context.Context, db *sql.DB, campaignID string, recipient notificationRecipientCandidate) (string, error) {
+	if err := insertNotificationRecipient(ctx, db, campaignID, recipient); err != nil {
+		return "", err
+	}
+	var recipientID string
+	err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM notification_recipients
+WHERE campaign_id = $1::uuid
+	AND invoice_id = $2::uuid
+	AND lower(recipient_email) = lower($3)
+LIMIT 1`, campaignID, recipient.InvoiceID, recipient.RecipientEmail).Scan(&recipientID)
+	return recipientID, err
+}
+
+func recordPaidConfirmationFailure(ctx context.Context, db *sql.DB, template notificationTemplate, campaignID string, recipients []notificationRecipientCandidate, options paidConfirmationSendOptions, provider string, message string) []emailSendResult {
+	results := make([]emailSendResult, 0, len(recipients))
+	for _, recipient := range recipients {
+		result := notificationErrorResult(recipient, provider, message)
+		results = append(results, result)
+		_ = insertNotificationLog(ctx, db, template, recipient, campaignID, result, false)
+		_ = updateNotificationRecipientStatus(ctx, db, recipient.ID, result.Status, result.Error)
+		_ = recordPaidConfirmationOperationLog(ctx, db, options, recipient.InvoiceID, recipient, result, "error")
+	}
+	return results
+}
+
+func notificationErrorResult(recipient notificationRecipientCandidate, provider string, message string) emailSendResult {
+	return emailSendResult{
+		ID:          recipient.ID,
+		Email:       recipient.RecipientEmail,
+		StudentName: recipient.StudentName,
+		Provider:    provider,
+		Status:      "error",
+		Error:       message,
+	}
+}
+
+func recordPaidConfirmationOperationLog(ctx context.Context, db *sql.DB, options paidConfirmationSendOptions, invoiceID string, recipient notificationRecipientCandidate, result emailSendResult, defaultLevel string) error {
+	if result.Status != "error" && result.Status != "skipped" {
+		return nil
+	}
+	level := defaultLevel
+	if level == "" {
+		level = "error"
+	}
+	operation := strings.TrimSpace(options.Operation)
+	if operation == "" {
+		operation = "notification.paid_confirmation.send"
+	}
+	status := result.Status
+	if status == "" {
+		status = "error"
+	}
+	return recordOperationLog(ctx, db, operationLogInput{
+		Source:     "email",
+		Level:      level,
+		Operation:  operation,
+		Status:     status,
+		Message:    result.Error,
+		EntityType: "invoice",
+		EntityID:   invoiceID,
+		Metadata: map[string]any{
+			"trigger":        strings.TrimSpace(options.Trigger),
+			"recipientId":    recipient.ID,
+			"recipientEmail": recipient.RecipientEmail,
+			"invoiceCode":    firstNonEmpty(recipient.InvoiceCode, result.ID),
+			"forceResend":    options.ForceResend,
+			"provider":       result.Provider,
+			"transient":      result.Transient,
+		},
+	})
 }
 
 func insertNotificationLog(ctx context.Context, db *sql.DB, template notificationTemplate, recipient notificationRecipientCandidate, campaignID string, result emailSendResult, dryRun bool) error {

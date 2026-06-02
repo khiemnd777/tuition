@@ -34,6 +34,30 @@ func TestMatchPaymentTransactionToInvoicesMatchesByReferenceAccountAndAmount(t *
 	}
 }
 
+func TestInvoiceStatusBecamePaidOnlyOnPaidTransition(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want bool
+	}{
+		{name: "unpaid to paid", old: invoiceStatusUnpaid, new: invoiceStatusPaid, want: true},
+		{name: "partial to paid", old: invoiceStatusPartial, new: invoiceStatusPaid, want: true},
+		{name: "paid unchanged", old: invoiceStatusPaid, new: invoiceStatusPaid, want: false},
+		{name: "paid to overpaid", old: invoiceStatusPaid, new: invoiceStatusOverpaid, want: false},
+		{name: "partial to overpaid", old: invoiceStatusPartial, new: invoiceStatusOverpaid, want: false},
+		{name: "unpaid to manual review", old: invoiceStatusUnpaid, new: invoiceStatusManualReview, want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := invoiceStatusBecamePaid(tc.old, tc.new); got != tc.want {
+				t.Fatalf("invoiceStatusBecamePaid(%q, %q) = %v, want %v", tc.old, tc.new, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestMatchPaymentTransactionToInvoicesSupportsPartialAndOverpayment(t *testing.T) {
 	candidate := paymentInvoiceCandidate{
 		ID:                    "invoice-1",

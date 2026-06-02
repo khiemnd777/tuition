@@ -1,0 +1,36 @@
+{
+  "description": "Use preview/email-preview/dry-run first. Do not send real campaign email unless the customer demo explicitly requires it.",
+  "campaigns": [
+    {
+      "name": "FH Demo first notice 2025-04",
+      "campaignType": "first_notice",
+      "periodCode": "2025-04",
+      "invoiceStatus": "unpaid",
+      "dryRun": true
+    },
+    {
+      "name": "FH Demo reminder unpaid 2025-04",
+      "campaignType": "reminder",
+      "periodCode": "2025-04",
+      "invoiceStatus": "unpaid",
+      "dueOnOrBefore": "2026-04-20",
+      "dryRun": true
+    },
+    {
+      "name": "FH Demo reminder partial 2025-04",
+      "campaignType": "reminder",
+      "periodCode": "2025-04",
+      "invoiceStatus": "partial",
+      "dueOnOrBefore": "2026-04-20",
+      "dryRun": true,
+      "forceResend": false
+    }
+  ],
+  "emailPreview": {
+    "name": "FH Demo email preview",
+    "campaignType": "first_notice",
+    "periodCode": "2025-04",
+    "invoiceStatus": "unpaid",
+    "recipientId": "<RECIPIENT_ID_FROM_PREVIEW>"
+  }
+}

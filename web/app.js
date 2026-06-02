@@ -5502,6 +5502,9 @@ function renderInvoices(invoices = []) {
       const notificationAction = isInvoiceNotificationCandidate(invoice)
         ? `<button type="button" data-invoice-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>`
         : "";
+      const paidConfirmationAction = isPaidConfirmationCandidate(invoice)
+        ? `<button type="button" data-invoice-paid-confirm="${escapeAttr(invoice.id || "")}">${muiIcon("mark_email_read")}<span>Confirm</span></button>`
+        : "";
       const paymentIntentAction = hasPermission("payment.create")
         ? `<button type="button" data-invoice-intent="${escapeAttr(invoice.id || "")}">${muiIcon("add_card")}<span>Intent</span></button>`
         : "";
@@ -5527,6 +5530,7 @@ function renderInvoices(invoices = []) {
               <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
               ${paymentIntentAction}
               ${notificationAction}
+              ${paidConfirmationAction}
             </div>
           </td>
         </tr>
@@ -5550,6 +5554,9 @@ function renderInvoices(invoices = []) {
   });
   invoiceRowsEl.querySelectorAll("[data-invoice-notify]").forEach((button) => {
     button.addEventListener("click", () => openNotificationFromInvoice(invoicesData.find((invoice) => invoice.id === button.dataset.invoiceNotify)));
+  });
+  invoiceRowsEl.querySelectorAll("[data-invoice-paid-confirm]").forEach((button) => {
+    button.addEventListener("click", () => sendPaidConfirmationForInvoice(invoicesData.find((invoice) => invoice.id === button.dataset.invoicePaidConfirm), "invoice"));
   });
   if (selectedInvoiceId) {
     selectInvoice(selectedInvoiceId);
@@ -5655,6 +5662,9 @@ function renderInvoiceDetail(invoice) {
   const notificationAction = isInvoiceNotificationCandidate(invoice)
     ? `<button type="button" data-detail-invoice-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Mở thông báo</span></button>`
     : "";
+  const paidConfirmationAction = isPaidConfirmationCandidate(invoice)
+    ? `<button type="button" data-detail-invoice-paid-confirm="${escapeAttr(invoice.id || "")}">${muiIcon("mark_email_read")}<span>Gửi xác nhận</span></button>`
+    : "";
   const paymentIntentAction = hasPermission("payment.create")
     ? `<button type="button" data-detail-invoice-intent="${escapeAttr(invoice.id || "")}">${muiIcon("add_card")}<span>Tạo intent</span></button>`
     : "";
@@ -5754,6 +5764,7 @@ function renderInvoiceDetail(invoice) {
       <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>Mở PDF</span></a>
       ${paymentIntentAction}
       ${notificationAction}
+      ${paidConfirmationAction}
     </div>
   `;
   invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-qr]").forEach((button) => {
@@ -5765,12 +5776,19 @@ function renderInvoiceDetail(invoice) {
   invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-notify]").forEach((button) => {
     button.addEventListener("click", () => openNotificationFromInvoice(invoiceDetailCache.get(button.dataset.detailInvoiceNotify) || invoice));
   });
+  invoiceDetailSummaryEl.querySelectorAll("[data-detail-invoice-paid-confirm]").forEach((button) => {
+    button.addEventListener("click", () => sendPaidConfirmationForInvoice(invoiceDetailCache.get(button.dataset.detailInvoicePaidConfirm) || invoice, "invoice"));
+  });
 }
 
 function isInvoiceNotificationCandidate(invoice) {
   if (!invoice) return false;
   const outstanding = Number(invoice.outstandingAmount ?? Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0));
   return outstanding > 0 && ["unpaid", "partial", "manual_review"].includes(invoice.status || "unpaid");
+}
+
+function isPaidConfirmationCandidate(invoice) {
+  return Boolean(invoice?.id && invoice.status === "paid" && hasPermission("notification.send"));
 }
 
 async function openPaymentIntentFromInvoice(invoice) {
@@ -5792,17 +5810,85 @@ async function openNotificationFromInvoice(invoice) {
   }
   await activateTab("notificationTab");
   await loadNotifications(true);
+  currentNotificationCampaignId = "";
+  const isPaid = invoice.status === "paid";
+  notificationCampaignTypeEl.value = optionValueOrEmpty(notificationCampaignTypeEl, isPaid ? "payment_confirmation" : "reminder");
+  const match = (notificationOptions.templates || []).find((item) => item.code === notificationCampaignTypeEl.value);
+  if (match) notificationTemplateEl.value = match.id;
+  notificationCampaignNameEl.value = isPaid ? `Xác nhận đã thanh toán ${invoice.invoiceCode || invoice.periodCode || ""}` : `Nhắc thanh toán ${invoice.periodCode || ""}`.trim();
   notificationSchoolYearEl.value = optionValueOrEmpty(notificationSchoolYearEl, invoice.schoolYearId || "");
   renderNotificationGradeOptions();
   notificationGradeEl.value = optionValueOrEmpty(notificationGradeEl, invoice.grade || "");
   renderNotificationClassOptions();
   notificationClassEl.value = optionValueOrEmpty(notificationClassEl, invoice.classId || "");
   notificationPeriodEl.value = invoice.periodCode || "";
-  notificationInvoiceStatusEl.value = optionValueOrEmpty(notificationInvoiceStatusEl, ["partial", "manual_review"].includes(invoice.status) ? "partial" : "unpaid");
+  notificationInvoiceStatusEl.value = optionValueOrEmpty(
+    notificationInvoiceStatusEl,
+    isPaid ? "paid" : ["partial", "manual_review"].includes(invoice.status) ? "partial" : "unpaid",
+  );
   setInvoiceStatus("Đã mở bộ lọc thông báo theo hóa đơn", "ready");
   if (hasPermission("notification.send") && !openNotificationDialogBtn.hidden) {
     openNotificationDialog();
   }
+}
+
+async function sendPaidConfirmationForInvoice(invoice, source = "invoice") {
+  if (!invoice?.id) return false;
+  if (!hasPermission("notification.send")) {
+    const message = "Không đủ quyền gửi xác nhận thanh toán";
+    if (source === "reconciliation") setPaymentReconStatus(message, "error");
+    else setInvoiceStatus(message, "error");
+    return false;
+  }
+  const confirmed = await confirmDialog({
+    title: "Gửi lại xác nhận thanh toán?",
+    message: "Thao tác này sẽ gửi email thật qua provider hiện tại và ghi notification log cho invoice đã paid.",
+    confirmLabel: "Gửi xác nhận",
+    confirmIcon: "mark_email_read",
+    danger: false,
+    auditNote: "Email confirmation dùng template payment_paid và vẫn tính vào quota rolling 24 giờ.",
+    facts: [
+      { label: "Invoice", value: invoice.invoiceCode || invoice.id || "-" },
+      { label: "Học sinh", value: [invoice.studentCode, invoice.studentName].filter(Boolean).join(" · ") || "-" },
+      { label: "Đã thu", value: formatMoney(invoice.paidAmount || invoice.totalAmount || 0) },
+    ],
+  });
+  if (!confirmed) return false;
+
+  if (source === "reconciliation") setPaymentReconStatus("Đang gửi xác nhận", "busy");
+  else setInvoiceStatus("Đang gửi xác nhận", "busy");
+
+  const res = await fetch("/api/v1/notifications/paid-confirmation/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ invoiceId: invoice.id, forceResend: true, confirmSend: true }),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    if (source === "reconciliation") setPaymentReconStatus(text || "Không gửi được xác nhận", "error");
+    else setInvoiceStatus(text || "Không gửi được xác nhận", "error");
+    return false;
+  }
+  const sent = (data.results || []).filter((item) => item.status === "sent").length;
+  const failed = (data.results || []).filter((item) => item.status === "error" || item.status === "skipped").length;
+  const statusText = sent ? `Đã gửi xác nhận ${sent} email${failed ? ` · ${failed} lỗi` : ""}` : failed ? "Có lỗi khi gửi xác nhận" : "Không có recipient để gửi";
+  if (source === "reconciliation") {
+    setPaymentReconStatus(statusText, sent ? "ready" : "error");
+    paymentReconciliationLoaded = false;
+    await loadPaymentReconciliation(true);
+  } else {
+    setInvoiceStatus(statusText, sent ? "ready" : "error");
+    invoiceDetailCache.delete(invoice.id);
+    await loadInvoices(true);
+  }
+  notificationLoaded = false;
+  return true;
 }
 
 function exportInvoiceCsv() {
@@ -6004,6 +6090,7 @@ function renderPaymentReconInvoices(invoices, intents) {
       const matches = paymentReconMatchesForInvoice(invoice.id);
       const matchLabel = matches.length ? `${matches.length} match` : invoice.matchedPaymentCount ? `${Number(invoice.matchedPaymentCount || 0)} matched` : "Chưa match";
       const notifyAction = canNotify && isInvoiceNotificationCandidate(invoice) ? `<button type="button" data-recon-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>` : "";
+      const paidConfirmationAction = isPaidConfirmationCandidate(invoice) ? `<button type="button" data-recon-paid-confirm="${escapeAttr(invoice.id || "")}">${muiIcon("mark_email_read")}<span>Confirm</span></button>` : "";
       const paymentActions = canWritePayments
         ? `
           <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
@@ -6017,6 +6104,7 @@ function renderPaymentReconInvoices(invoices, intents) {
           ${paymentActions}
           <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
           ${notifyAction}
+          ${paidConfirmationAction}
         </div>
       `;
       return `
@@ -6046,6 +6134,9 @@ function renderPaymentReconInvoices(invoices, intents) {
   });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-notify]").forEach((button) => {
     button.addEventListener("click", () => openNotificationFromInvoice((paymentReconciliationData.invoices || []).find((item) => item.id === button.dataset.reconNotify)));
+  });
+  paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-paid-confirm]").forEach((button) => {
+    button.addEventListener("click", () => sendPaidConfirmationForInvoice((paymentReconciliationData.invoices || []).find((item) => item.id === button.dataset.reconPaidConfirm), "reconciliation"));
   });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-invoice-row]").forEach((row) => {
     row.classList.toggle("is-selected", paymentReconSelection.type === "invoice" && paymentReconSelection.id === row.dataset.reconInvoiceRow);
@@ -6357,6 +6448,9 @@ function bindPaymentReconDetailActions() {
   paymentReconDetailEl.querySelectorAll("[data-recon-detail-notify]").forEach((button) => {
     button.addEventListener("click", () => openNotificationFromInvoice((paymentReconciliationData.invoices || []).find((item) => item.id === button.dataset.reconDetailNotify)));
   });
+  paymentReconDetailEl.querySelectorAll("[data-recon-detail-paid-confirm]").forEach((button) => {
+    button.addEventListener("click", () => sendPaidConfirmationForInvoice((paymentReconciliationData.invoices || []).find((item) => item.id === button.dataset.reconDetailPaidConfirm), "reconciliation"));
+  });
 }
 
 function invoiceDetailTemplate(invoice) {
@@ -6375,6 +6469,7 @@ function invoiceDetailTemplate(invoice) {
     `
     : "";
   const notificationAction = (hasPermission("notification.view") || hasPermission("notification.send")) && isInvoiceNotificationCandidate(invoice) ? `<button type="button" data-recon-detail-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>` : "";
+  const paidConfirmationAction = isPaidConfirmationCandidate(invoice) ? `<button type="button" data-recon-detail-paid-confirm="${escapeAttr(invoice.id || "")}">${muiIcon("mark_email_read")}<span>Send confirmation</span></button>` : "";
   const intentDetail = intent
     ? `
       <div class="reconciliation-detail-grid">
@@ -6437,6 +6532,7 @@ function invoiceDetailTemplate(invoice) {
       ${paymentActions}
       <a class="button-link" href="/api/v1/invoices/pdf?id=${encodeURIComponent(invoice.id || "")}" target="_blank" rel="noreferrer">${muiIcon("picture_as_pdf")}<span>PDF</span></a>
       ${notificationAction}
+      ${paidConfirmationAction}
     </div>
   `;
 }
@@ -7857,6 +7953,11 @@ notificationCampaignTypeEl.addEventListener("change", () => {
   currentNotificationCampaignId = "";
   const match = (notificationOptions.templates || []).find((item) => item.code === notificationCampaignTypeEl.value);
   if (match) notificationTemplateEl.value = match.id;
+  if (notificationCampaignTypeEl.value === "payment_confirmation") {
+    notificationInvoiceStatusEl.value = optionValueOrEmpty(notificationInvoiceStatusEl, "paid");
+  } else if (notificationCampaignTypeEl.value === "reminder" && notificationInvoiceStatusEl.value === "paid") {
+    notificationInvoiceStatusEl.value = "";
+  }
 });
 notificationSchoolYearEl.addEventListener("change", () => {
   renderNotificationGradeOptions();

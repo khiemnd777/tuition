@@ -223,6 +223,34 @@ func TestRenderPaymentDueEmail(t *testing.T) {
 	}
 }
 
+func TestRenderPaymentPaidEmailDoesNotAttachQR(t *testing.T) {
+	item := buildQRItem(paymentRow{
+		ID:          "row-paid-001",
+		StudentName: "Nguyen An",
+		ParentName:  "Nguyen Van Binh",
+		ClassName:   "3.02",
+		BankBIN:     "970415",
+		BankAccount: "0011001932418",
+		Email:       "parent@example.com",
+		Amount:      120000,
+		BillNumber:  "SUN001",
+		Note:        "HP Nguyen An",
+	}, 256)
+	email, err := renderPaymentEmail(defaultEmailConfig(), item, "payment_paid", "http://localhost:18080", "cid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(email.HTML, "cid:") {
+		t.Fatalf("paid confirmation should not embed QR CID image, got %s", email.HTML)
+	}
+	if email.QRPNGBase64 != "" || email.QRContentID != "" {
+		t.Fatalf("paid confirmation should not attach QR, got content=%q cid=%q", email.QRPNGBase64, email.QRContentID)
+	}
+	if !strings.Contains(email.Text, "xác nhận thanh toán đã hoàn tất") {
+		t.Fatalf("expected paid confirmation text, got %s", email.Text)
+	}
+}
+
 func TestRenderPaymentDueEmailUsesPaymentItems(t *testing.T) {
 	item := buildQRItem(paymentRow{
 		ID:          "row-002",

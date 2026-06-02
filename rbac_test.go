@@ -78,20 +78,21 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		routes[route.Method+" "+route.Path] = route
 	}
 	cases := map[string]string{
-		"POST /api/v1/master-data/import/csv":       "student.create",
-		"POST /api/v1/master-data/students/save":    "student.update",
-		"GET /api/v1/school-tree":                   "school_tree.view",
-		"POST /api/v1/school-tree/classes/save":     "school_tree.update",
-		"POST /api/v1/fee-schedules/save":           "fee.update",
-		"POST /api/v1/invoices/generate":            "invoice.create",
-		"POST /api/v1/payments/cash-receipts":       "payment.create",
-		"POST /api/v1/notifications/campaigns/send": "notification.send",
-		"GET /api/v1/admin/reports/export":          "report.export",
-		"GET /api/v1/admin/operation-logs":          "operation_log.view",
-		"POST /api/v1/admin/users/roles":            "user.assign_role",
-		"POST /api/v1/vietqr/batch":                 "payment.create",
-		"POST /api/v1/email/preview":                "notification.send",
-		"POST /api/v1/email/cron/run":               "email_cron.update",
+		"POST /api/v1/master-data/import/csv":               "student.create",
+		"POST /api/v1/master-data/students/save":            "student.update",
+		"GET /api/v1/school-tree":                           "school_tree.view",
+		"POST /api/v1/school-tree/classes/save":             "school_tree.update",
+		"POST /api/v1/fee-schedules/save":                   "fee.update",
+		"POST /api/v1/invoices/generate":                    "invoice.create",
+		"POST /api/v1/payments/cash-receipts":               "payment.create",
+		"POST /api/v1/notifications/campaigns/send":         "notification.send",
+		"POST /api/v1/notifications/paid-confirmation/send": "notification.send",
+		"GET /api/v1/admin/reports/export":                  "report.export",
+		"GET /api/v1/admin/operation-logs":                  "operation_log.view",
+		"POST /api/v1/admin/users/roles":                    "user.assign_role",
+		"POST /api/v1/vietqr/batch":                         "payment.create",
+		"POST /api/v1/email/preview":                        "notification.send",
+		"POST /api/v1/email/cron/run":                       "email_cron.update",
 	}
 	for key, want := range cases {
 		route, ok := routes[key]
