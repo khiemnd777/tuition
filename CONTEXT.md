@@ -39,13 +39,13 @@ The externally reachable app URL embedded in email QR links. If missing, request
 The durable production identifier for a student. Student names are display data only and are not unique.
 
 **Tenant**:
-The subscription account that owns one or more schools. Existing production data is backfilled to the default `ABC_SUN` tenant, and tenant-owned student, parent, campaign, audit, and operation records are scoped to the active tenant.
+The subscription account that owns one or more schools. Existing production data is backfilled to the default `ABC_SUN` tenant, tenant-owned student, parent, campaign, audit, and operation records are scoped to the active tenant, and admins can onboard additional tenants with an initial school.
 
 **Tenant membership**:
 The link between an app user and a tenant. Existing app users are active default-tenant members; runtime RBAC reads tenant-scoped roles.
 
 **Active tenant**:
-The tenant selected for one authenticated browser session. API reads and writes for school-owned production data use this tenant as their isolation boundary.
+The tenant selected for one authenticated browser session. API reads and writes for school-owned production data use this tenant as their isolation boundary, and switching tenant issues a fresh browser session for the selected membership.
 
 **School**:
 The top-level school or campus in the production tree. Existing data is backfilled to the default `ABC_SUN` school.

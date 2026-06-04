@@ -312,6 +312,8 @@ const bootstrapPasswordConfirmEl = document.querySelector("#bootstrapPasswordCon
 const bootstrapSubmitBtn = document.querySelector("#bootstrapSubmit");
 const bootstrapStatusEl = document.querySelector("#bootstrapStatus");
 const authUserBadgeEl = document.querySelector("#authUserBadge");
+const tenantSwitcherWrapEl = document.querySelector("#tenantSwitcherWrap");
+const tenantSwitcherEl = document.querySelector("#tenantSwitcher");
 const logoutButton = document.querySelector("#logoutButton");
 const appDialogEl = document.querySelector("#appDialog");
 const appDialogKickerEl = document.querySelector("#appDialogKicker");
@@ -322,6 +324,20 @@ const appDialogActionsEl = document.querySelector("#appDialogActions");
 const appDialogCloseBtn = document.querySelector("#appDialogClose");
 const openEmailConfigDialogBtn = document.querySelector("#openEmailConfigDialog");
 const openCronConfigDialogBtn = document.querySelector("#openCronConfigDialog");
+const refreshTenantsBtn = document.querySelector("#refreshTenants");
+const newTenantBtn = document.querySelector("#newTenant");
+const editActiveTenantBtn = document.querySelector("#editActiveTenant");
+const tenantStatusEl = document.querySelector("#tenantStatus");
+const tenantSummaryEl = document.querySelector("#tenantSummary");
+const tenantListEl = document.querySelector("#tenantList");
+const tenantFormEl = document.querySelector("#tenantForm");
+const tenantIdEl = document.querySelector("#tenantId");
+const tenantCodeEl = document.querySelector("#tenantCode");
+const tenantNameEl = document.querySelector("#tenantName");
+const tenantSaveStatusEl = document.querySelector("#tenantSaveStatus");
+const tenantInitialSchoolFieldsEl = document.querySelector("#tenantInitialSchoolFields");
+const tenantInitialSchoolCodeEl = document.querySelector("#tenantInitialSchoolCode");
+const tenantInitialSchoolNameEl = document.querySelector("#tenantInitialSchoolName");
 
 let banks = [];
 let currentItems = [];
@@ -368,6 +384,8 @@ let operationsData = { operationLogs: [], auditLogs: [], operationSummary: {}, a
 let selectedOperationLog = { type: "", id: "" };
 let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
+let tenantsLoaded = false;
+let tenantsData = { tenants: [] };
 let authSession = null;
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
@@ -548,6 +566,10 @@ const permissionAliases = {
   "user.create": ["system.users.write"],
   "user.update": ["system.users.write"],
   "user.assign_role": ["system.users.assign_roles"],
+  "tenant.view": ["system.tenants.read"],
+  "tenant.create": ["system.tenants.write"],
+  "tenant.update": ["system.tenants.write"],
+  "tenant.switch": ["system.tenants.switch"],
 };
 
 const sessionRecoveryStorageKey = "abcsun.sessionRecovery.v1";
@@ -556,6 +578,7 @@ const permissionSummaryGroups = [
   { key: "create", label: "Create", verbs: ["create"] },
   { key: "update", label: "Update", verbs: ["update", "write", "manage"] },
   { key: "send", label: "Send", verbs: ["send"] },
+  { key: "switch", label: "Switch", verbs: ["switch"] },
   { key: "reconcile", label: "Reconcile", verbs: ["reconcile"] },
   { key: "export", label: "Export", verbs: ["export"] },
   { key: "administer", label: "Administer", verbs: ["assign_role", "administer"] },
@@ -833,6 +856,11 @@ async function init() {
 
 async function initializeAppData() {
   status("Đang tải", "busy");
+  renderTenantSwitcher();
+  renderTenantAdmin(null);
+  if (hasPermission("tenant.view")) {
+    await loadTenants(true);
+  }
   await loadBanks();
   if (hasPermission("email_config.view")) {
     await loadEmailConfig();
@@ -911,7 +939,7 @@ async function loadAuthBootstrapStatus() {
 async function authAwareFetch(input, options = {}) {
   const path = requestPath(input);
   const res = await nativeFetch(input, options);
-  if (res.status !== 401 || path.startsWith("/api/v1/auth/")) {
+  if (res.status !== 401 || authPathSkipsRefresh(path)) {
     return res;
   }
   if (!(await refreshAuthSession())) {
@@ -919,6 +947,10 @@ async function authAwareFetch(input, options = {}) {
     return res;
   }
   return nativeFetch(input, options);
+}
+
+function authPathSkipsRefresh(path) {
+  return ["/api/v1/auth/login", "/api/v1/auth/bootstrap", "/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout"].includes(path);
 }
 
 function requestPath(input) {
@@ -969,12 +1001,14 @@ function showBootstrap(message = "") {
 function showApp(session) {
   authSession = session;
   const recovery = readSessionRecoveryState();
-  if (recovery?.context) {
+  const activeTenantId = session?.user?.activeTenant?.id || "";
+  const usableRecovery = recovery?.tenantId && recovery.tenantId !== activeTenantId ? null : recovery;
+  if (usableRecovery?.context) {
     appContext = {
-      schoolId: recovery.context.schoolId || "",
-      schoolYearId: recovery.context.schoolYearId || "",
-      periodCode: recovery.context.periodCode || "",
-      month: recovery.context.month || "",
+      schoolId: usableRecovery.context.schoolId || "",
+      schoolYearId: usableRecovery.context.schoolYearId || "",
+      periodCode: usableRecovery.context.periodCode || "",
+      month: usableRecovery.context.month || "",
     };
   }
   loginScreenEl.hidden = true;
@@ -983,12 +1017,13 @@ function showApp(session) {
   setLoginStatus("", "");
   updateAuthBadge(session);
   applyPermissionUI();
-  activateInitialAllowedTab(recovery?.activeTabId || "");
+  activateInitialAllowedTab(usableRecovery?.activeTabId || "");
 }
 
 function updateAuthBadge(session) {
   const user = session?.user || {};
   authUserBadgeEl.textContent = user.displayName || user.email || user.phone || "Đã đăng nhập";
+  renderTenantSwitcher();
 }
 
 function currentPermissionSet() {
@@ -1080,6 +1115,9 @@ function applyPermissionUI() {
   setElementAllowed(newAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
   setElementAllowed(saveAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
   setElementAllowed(assignAdminUserRolesBtn, hasPermission("user.assign_role"));
+  setElementAllowed(refreshTenantsBtn, hasPermission("tenant.view"));
+  setElementAllowed(newTenantBtn, hasPermission("tenant.create"));
+  setElementAllowed(editActiveTenantBtn, hasPermission("tenant.update"));
   setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
   setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
   setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
@@ -1138,6 +1176,7 @@ function persistSessionRecoveryState(tabId = activeTabId()) {
       sessionRecoveryStorageKey,
       JSON.stringify({
         activeTabId: tabId || "dashboardTab",
+        tenantId: authSession?.user?.activeTenant?.id || "",
         context: appContext,
         savedAt: new Date().toISOString(),
       }),
@@ -1289,6 +1328,7 @@ async function loadActiveTabData(targetId) {
     await loadOperations();
   }
   if (targetId === "usersTab") {
+    await loadTenants();
     await loadAdminUsers();
   }
   if (targetId === "emailTab") {
@@ -3669,6 +3709,248 @@ async function loadAdminUsers(force = false) {
   setAdminStatus(adminUsersStatusEl, "Sẵn sàng", "ready");
 }
 
+function activeTenantSummary() {
+  return authSession?.user?.activeTenant || {};
+}
+
+function tenantRowsForUI() {
+  const source = tenantsData.tenants?.length ? tenantsData.tenants : authSession?.user?.tenants || [];
+  return (source || []).map((tenant) => ({
+    id: tenant.id || "",
+    code: tenant.code || "",
+    name: tenant.name || "",
+    status: tenant.status || "",
+    membershipStatus: tenant.membershipStatus || "",
+    isOwner: Boolean(tenant.isOwner),
+    schoolCount: Number(tenant.schoolCount || 0),
+    isActive: tenant.isActive || tenant.id === activeTenantSummary().id,
+  }));
+}
+
+function renderTenantSwitcher() {
+  if (!tenantSwitcherWrapEl || !tenantSwitcherEl) return;
+  const activeTenant = activeTenantSummary();
+  const tenants = tenantRowsForUI().filter((tenant) => tenant.membershipStatus === "active" && ["active", "trial"].includes(tenant.status));
+  if (!activeTenant.id && !tenants.length) {
+    tenantSwitcherWrapEl.hidden = true;
+    return;
+  }
+  const options = tenants.length ? tenants : [{ ...activeTenant, isActive: true }];
+  tenantSwitcherEl.innerHTML = options
+    .map((tenant) => {
+      const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
+      return `<option value="${escapeAttr(tenant.id || "")}">${escapeHtml(label || tenant.id || "Tenant")}</option>`;
+    })
+    .join("");
+  tenantSwitcherEl.value = optionValueOrEmpty(tenantSwitcherEl, activeTenant.id || "") || options[0]?.id || "";
+  tenantSwitcherEl.dataset.currentTenantId = activeTenant.id || "";
+  tenantSwitcherEl.disabled = !hasPermission("tenant.switch") || options.length < 2;
+  tenantSwitcherWrapEl.hidden = false;
+}
+
+async function loadTenants(force = false) {
+  if (!hasPermission("tenant.view")) {
+    tenantsLoaded = false;
+    tenantsData = { tenants: tenantRowsForUI() };
+    renderTenantSwitcher();
+    renderTenantAdmin(null);
+    return;
+  }
+  if (!force && tenantsLoaded) {
+    return;
+  }
+  setAdminStatus(tenantStatusEl, "Đang tải", "busy");
+  const res = await fetch("/api/v1/tenants");
+  const text = await res.text();
+  if (!res.ok) {
+    tenantsLoaded = false;
+    tenantsData = { tenants: [] };
+    renderTenantSwitcher();
+    renderTenantAdmin(null);
+    setAdminStatus(tenantStatusEl, text || "Không tải được tenant", "error");
+    return;
+  }
+  tenantsData = JSON.parse(text);
+  tenantsLoaded = true;
+  renderTenantSwitcher();
+  renderTenantAdmin(tenantsData);
+  setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
+}
+
+function renderTenantAdmin(data) {
+  if (!tenantSummaryEl || !tenantListEl) return;
+  const activeTenant = activeTenantSummary();
+  const tenants = data?.tenants || tenantRowsForUI();
+  const activeRow = tenants.find((tenant) => tenant.id === activeTenant.id) || activeTenant;
+  tenantSummaryEl.innerHTML = activeTenant.id
+    ? `
+      <div class="tenant-summary-item">
+        <span>${muiIcon("verified_user")}Active tenant</span>
+        <strong>${escapeHtml([activeTenant.code, activeTenant.name].filter(Boolean).join(" · ") || activeTenant.id)}</strong>
+      </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("school")}Schools</span>
+        <strong>${Number(activeRow.schoolCount || 0)}</strong>
+      </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("fact_check")}Status</span>
+        <strong>${escapeHtml(activeTenant.status || "-")}</strong>
+      </div>
+    `
+    : "";
+  tenantListEl.innerHTML = tenants
+    .map((tenant) => {
+      const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
+      return `
+        <button class="tenant-list-row${tenant.id === activeTenant.id ? " is-active" : ""}" type="button" data-switch-tenant="${escapeAttr(tenant.id || "")}">
+          <span>${muiIcon(tenant.id === activeTenant.id ? "radio_button_checked" : "radio_button_unchecked")}</span>
+          <strong>${escapeHtml(label || tenant.id || "-")}</strong>
+          <small>${escapeHtml(tenant.status || "-")} · ${escapeHtml(tenant.membershipStatus || "-")} · ${Number(tenant.schoolCount || 0)} school</small>
+        </button>
+      `;
+    })
+    .join("");
+  if (!tenants.length) {
+    tenantListEl.textContent = "Chưa có tenant";
+  }
+  tenantListEl.querySelectorAll("[data-switch-tenant]").forEach((button) => {
+    button.addEventListener("click", () => switchTenant(button.dataset.switchTenant || ""));
+  });
+}
+
+function openTenantDialog(mode = "create") {
+  const activeTenant = activeTenantSummary();
+  const editing = mode === "edit";
+  tenantIdEl.value = editing ? activeTenant.id || "" : "";
+  tenantCodeEl.value = editing ? activeTenant.code || "" : "";
+  tenantNameEl.value = editing ? activeTenant.name || "" : "";
+  tenantSaveStatusEl.value = optionValueOrEmpty(tenantSaveStatusEl, editing ? activeTenant.status || "active" : "active") || "active";
+  tenantInitialSchoolCodeEl.value = editing ? "" : tenantCodeEl.value;
+  tenantInitialSchoolNameEl.value = editing ? "" : tenantNameEl.value;
+  tenantInitialSchoolFieldsEl.hidden = editing;
+  openAppDialog({
+    title: editing ? "Sửa tenant" : "Tạo tenant",
+    kicker: "Tenant subscription",
+    icon: editing ? "edit" : "add_business",
+    nodes: [tenantFormEl],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: editing ? "Lưu tenant" : "Tạo tenant", icon: "save", variant: "primary", onClick: saveTenant, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function saveTenant() {
+  setAdminStatus(tenantStatusEl, "Đang lưu tenant", "busy");
+  const creating = !tenantIdEl.value;
+  const res = await fetch("/api/v1/tenants/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: tenantIdEl.value,
+      code: tenantCodeEl.value,
+      name: tenantNameEl.value,
+      status: tenantSaveStatusEl.value,
+      initialSchoolCode: tenantInitialSchoolCodeEl.value,
+      initialSchoolName: tenantInitialSchoolNameEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không lưu được tenant", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  tenantsData = { tenants: data.tenants || [] };
+  tenantsLoaded = true;
+  renderTenantSwitcher();
+  renderTenantAdmin(tenantsData);
+  if (creating && data.tenant?.id && ["active", "trial"].includes(data.tenant.status || "")) {
+    await switchTenant(data.tenant.id);
+    return true;
+  }
+  const session = await loadCurrentAuthSession();
+  if (session) {
+    authSession = session;
+    updateAuthBadge(session);
+    applyPermissionUI();
+  }
+  setAdminStatus(tenantStatusEl, "Đã lưu tenant", "ready");
+  return true;
+}
+
+async function switchTenant(tenantId) {
+  tenantId = String(tenantId || "").trim();
+  if (!tenantId || tenantId === activeTenantSummary().id) {
+    renderTenantSwitcher();
+    return true;
+  }
+  setAdminStatus(tenantStatusEl, "Đang chuyển tenant", "busy");
+  if (tenantSwitcherEl) tenantSwitcherEl.disabled = true;
+  const res = await fetch("/api/v1/auth/tenant/switch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tenantId }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    renderTenantSwitcher();
+    setAdminStatus(tenantStatusEl, text || "Không chuyển được tenant", "error");
+    return false;
+  }
+  const session = JSON.parse(text);
+  clearSessionRecoveryState();
+  resetTenantScopedState();
+  showApp(session);
+  await initializeAppData();
+  setAdminStatus(tenantStatusEl, "Đã chuyển tenant", "ready");
+  return true;
+}
+
+function resetTenantScopedState() {
+  appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
+  tenantsLoaded = false;
+  tenantsData = { tenants: [] };
+  masterDataLoaded = false;
+  masterDataOptions = { schools: [], schoolYears: [], classes: [] };
+  masterStudentsRawData = [];
+  masterStudentsData = [];
+  selectedMasterStudentKey = "";
+  masterStudentParentDrafts = [];
+  schoolTreeData = { schools: [] };
+  selectedSchoolTreeNode = { type: "", id: "" };
+  feeSchedulesLoaded = false;
+  feeScheduleOptions = { schools: [], feeTypes: [], schoolYears: [], classes: [] };
+  feeSchedulesData = [];
+  invoicesLoaded = false;
+  invoiceOptions = { schedules: [], schoolYears: [], classes: [] };
+  invoicesData = [];
+  invoiceDetailCache.clear();
+  invoiceStudentScope = { studentId: "", studentCode: "", label: "" };
+  selectedInvoiceId = "";
+  paymentReconciliationLoaded = false;
+  paymentReconciliationData = { providers: [], schools: [], schoolYears: [], classes: [], invoices: [], transactions: [], intents: {}, matches: {}, summary: {} };
+  paymentReconSelection = { type: "", id: "" };
+  notificationLoaded = false;
+  notificationOptions = { templates: [], campaigns: [], schoolYears: [], classes: [] };
+  notificationPreviewData = { recipients: [], summary: {}, campaign: null, logs: [] };
+  currentNotificationCampaignId = "";
+  selectedNotificationRecipientKey = "";
+  selectedNotificationRecipientIds = new Set();
+  adminOptions = { schools: [], schoolYears: [], classes: [] };
+  adminDashboardLoaded = false;
+  adminDashboardData = null;
+  adminReportsLoaded = false;
+  adminReportProviders = [];
+  adminReportsData = null;
+  operationsLoaded = false;
+  operationsData = { operationLogs: [], auditLogs: [], operationSummary: {}, auditSummary: {} };
+  selectedOperationLog = { type: "", id: "" };
+  adminUsersLoaded = false;
+  adminUsersData = { users: [], roles: [], permissions: [] };
+}
+
 function renderAdminUsers(data) {
   const users = data?.users || [];
   const roles = data?.roles || [];
@@ -3788,6 +4070,7 @@ function permissionModuleLabel(code) {
     report: "reports",
     school_tree: "school tree",
     student: "students",
+    tenant: "tenants",
     user: "users",
   };
   return labels[module] || module.replaceAll("_", " ");
@@ -7653,6 +7936,17 @@ function escapeAttr(value) {
 loginFormEl.addEventListener("submit", submitLogin);
 bootstrapFormEl.addEventListener("submit", submitBootstrap);
 logoutButton.addEventListener("click", logout);
+tenantSwitcherEl?.addEventListener("change", () => switchTenant(tenantSwitcherEl.value));
+tenantCodeEl?.addEventListener("input", () => {
+  if (!tenantIdEl.value && !tenantInitialSchoolCodeEl.value.trim()) {
+    tenantInitialSchoolCodeEl.value = tenantCodeEl.value;
+  }
+});
+tenantNameEl?.addEventListener("input", () => {
+  if (!tenantIdEl.value && !tenantInitialSchoolNameEl.value.trim()) {
+    tenantInitialSchoolNameEl.value = tenantNameEl.value;
+  }
+});
 
 generateBtn.addEventListener("click", generate);
 
@@ -7826,6 +8120,9 @@ operationEntityTypeFilterEl.addEventListener("change", () => loadOperations(true
 operationLimitEl.addEventListener("change", () => loadOperations(true));
 
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
+refreshTenantsBtn?.addEventListener("click", () => loadTenants(true));
+newTenantBtn?.addEventListener("click", () => openTenantDialog("create"));
+editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
 newAdminUserBtn.addEventListener("click", () => {
   clearAdminUserForm();
   openAdminUserDialog();

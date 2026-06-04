@@ -134,6 +134,12 @@
             </label>
           </div>
           <div class="app-bar-actions">
+            <div id="tenantSwitcherWrap" class="tenant-switcher" aria-label="Tenant subscription" hidden>
+              <label>
+                <span>Tenant</span>
+                <select id="tenantSwitcher"></select>
+              </label>
+            </div>
             <div class="session-actions" aria-label="Phiên đăng nhập">
               <span id="authUserBadge" class="auth-user-badge">Chưa đăng nhập</span>
               <button id="logoutButton" type="button"><span class="mui-icon" aria-hidden="true">logout</span><span>Đăng xuất</span></button>
@@ -1416,6 +1422,53 @@
 
     <section id="usersTab" class="tab-panel" role="tabpanel" hidden>
       <div class="admin-workspace users-workspace">
+        <section class="panel tenant-admin-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Tenant subscription</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant và trường</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshTenants" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="editActiveTenant" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa tenant</span></button>
+              <button id="newTenant" type="button"><span class="mui-icon" aria-hidden="true">add_business</span><span>Tenant mới</span></button>
+              <span id="tenantStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div id="tenantSummary" class="tenant-summary"></div>
+          <div id="tenantList" class="tenant-list">Chưa tải tenant</div>
+          <div id="tenantForm" class="tenant-form" hidden>
+            <input id="tenantId" type="hidden" />
+            <label>
+              <span>Tenant code</span>
+              <input id="tenantCode" placeholder="SCHOOL_B" />
+            </label>
+            <label>
+              <span>Tên tenant</span>
+              <input id="tenantName" placeholder="School B" />
+            </label>
+            <label>
+              <span>Trạng thái</span>
+              <select id="tenantSaveStatus">
+                <option value="active">active</option>
+                <option value="trial">trial</option>
+                <option value="suspended">suspended</option>
+                <option value="archived">archived</option>
+              </select>
+            </label>
+            <div id="tenantInitialSchoolFields" class="tenant-initial-school-fields">
+              <label>
+                <span>Code trường khởi tạo</span>
+                <input id="tenantInitialSchoolCode" placeholder="SCHOOL_B" />
+              </label>
+              <label>
+                <span>Tên trường khởi tạo</span>
+                <input id="tenantInitialSchoolName" placeholder="School B" />
+              </label>
+            </div>
+          </div>
+        </section>
+
         <section class="panel admin-user-editor-panel">
           <div class="panel-head">
             <div>

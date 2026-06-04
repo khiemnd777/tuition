@@ -535,6 +535,39 @@ func TestLoadEmbeddedMigrationsIncludesTenantDataIsolation(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesTenantOnboardingAndSwitching(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tenantOnboarding migration
+	for _, item := range migrations {
+		if item.Version == "0017" {
+			tenantOnboarding = item
+			break
+		}
+	}
+	if tenantOnboarding.Name != "tenant_onboarding_and_switching" {
+		t.Fatalf("expected tenant onboarding migration 0017, got %+v", tenantOnboarding)
+	}
+
+	for _, want := range []string{
+		"tenant.view",
+		"tenant.create",
+		"tenant.update",
+		"tenant.switch",
+		"admin",
+		"staff",
+		"accountant",
+		"tenant_memberships_user_status_idx",
+	} {
+		if !strings.Contains(tenantOnboarding.SQL, want) {
+			t.Fatalf("expected tenant onboarding migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

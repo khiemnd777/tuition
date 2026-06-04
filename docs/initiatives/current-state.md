@@ -6,13 +6,13 @@ Last updated: 2026-06-04
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, and backend data isolation complete.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, and tenant onboarding/switching complete.
 
-Current phase: `subscription_phase_3_complete`
+Current phase: `subscription_phase_4_complete`
 
-Current initiative: Subscription Phase 3 - Data Isolation is complete.
+Current initiative: Subscription Phase 4 - Tenant Onboarding And Switching is complete.
 
-Next recommended initiative: Subscription Phase 4 - Tenant Onboarding And Switching.
+Next recommended initiative: Subscription Phase 5 - Tenant-Scoped Payment Provider And Webhook Ownership.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -58,6 +58,15 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Scoped master data, school tree, fee schedule, invoice, notification, payment dashboard, admin report/export, audit, operation, and readiness queries by active tenant.
   - Added tenant guards on write paths for school/year/class/student/parent/fee schedule/invoice/notification flows.
   - Kept public payment webhooks and provider credentials as a follow-up because provider tenant routing needs separate configuration ownership.
+- Subscription Phase 4: Tenant Onboarding And Switching is complete:
+  - Added migration `0017_tenant_onboarding_and_switching`.
+  - Seeded tenant view/create/update/switch permissions and membership switcher index.
+  - Added tenant list/save APIs for tenant onboarding and active tenant updates.
+  - Added active tenant switch API that validates membership, issues a fresh browser session, and revokes the previous session.
+  - Added Web Admin tenant switcher in the top bar.
+  - Added tenant onboarding panel in `Người dùng & quyền` with create/edit tenant dialog and initial school creation.
+  - Made frontend session recovery tenant-scoped and reset tenant-owned caches after switching.
+  - Kept tenant-scoped payment provider credentials and public webhook routing as the next subscription phase.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

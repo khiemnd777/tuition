@@ -99,6 +99,8 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		routes[route.Method+" "+route.Path] = route
 	}
 	cases := map[string]string{
+		"POST /api/v1/auth/tenant/switch":                   "tenant.switch",
+		"GET /api/v1/tenants":                               "tenant.view",
 		"POST /api/v1/master-data/import/csv":               "student.create",
 		"POST /api/v1/master-data/students/save":            "student.update",
 		"GET /api/v1/school-tree":                           "school_tree.view",
@@ -126,6 +128,9 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	}
 	if routes["POST /api/v1/admin/users/save"].PermissionResolver == nil {
 		t.Fatal("admin user save must resolve create/update permission from request body")
+	}
+	if routes["POST /api/v1/tenants/save"].PermissionResolver == nil {
+		t.Fatal("tenant save must resolve create/update permission from request body")
 	}
 	if !routes["POST /api/v1/payments/webhooks/"].Public {
 		t.Fatal("payment webhook endpoint must remain public for providers")
@@ -166,6 +171,14 @@ func TestDynamicPermissionResolvers(t *testing.T) {
 	updateUserReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/users/save", strings.NewReader(`{"id":"user-id","email":"a@example.edu.vn"}`))
 	if got, err := adminUserSavePermission(updateUserReq); err != nil || got != "user.update" {
 		t.Fatalf("expected user update permission, got %q, %v", got, err)
+	}
+	createTenantReq := httptest.NewRequest(http.MethodPost, "/api/v1/tenants/save", strings.NewReader(`{"code":"SCHOOL_B","name":"School B"}`))
+	if got, err := tenantSavePermission(createTenantReq); err != nil || got != "tenant.create" {
+		t.Fatalf("expected tenant create permission, got %q, %v", got, err)
+	}
+	updateTenantReq := httptest.NewRequest(http.MethodPost, "/api/v1/tenants/save", strings.NewReader(`{"id":"tenant-id","code":"SCHOOL_B","name":"School B"}`))
+	if got, err := tenantSavePermission(updateTenantReq); err != nil || got != "tenant.update" {
+		t.Fatalf("expected tenant update permission, got %q, %v", got, err)
 	}
 	getCronReq := httptest.NewRequest(http.MethodGet, "/api/v1/email/cron", nil)
 	if got, err := emailCronPermission(getCronReq); err != nil || got != "email_cron.view" {
