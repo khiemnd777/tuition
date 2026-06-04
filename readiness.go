@@ -165,6 +165,9 @@ func listAdminStudentReadinessIssues(ctx context.Context, db *sql.DB, filters ad
 	args := []any{}
 	addArg := adminReadinessArgFunc(&args)
 	conditions := []string{"s.status <> 'inactive'"}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "sc.tenant_id = "+addArg(filters.TenantID)+"::uuid")
+	}
 	if filters.SchoolID != "" {
 		conditions = append(conditions, "sy.school_id = "+addArg(filters.SchoolID)+"::uuid")
 	}
@@ -342,6 +345,9 @@ func listAdminClassReadinessIssues(ctx context.Context, db *sql.DB, filters admi
 	args := []any{}
 	addArg := adminReadinessArgFunc(&args)
 	conditions := []string{"c.status <> 'archived'"}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "sc.tenant_id = "+addArg(filters.TenantID)+"::uuid")
+	}
 	if filters.SchoolID != "" {
 		conditions = append(conditions, "sy.school_id = "+addArg(filters.SchoolID)+"::uuid")
 	}
@@ -474,6 +480,9 @@ func listAdminFeeScheduleReadinessIssues(ctx context.Context, db *sql.DB, filter
 	args := []any{}
 	addArg := adminReadinessArgFunc(&args)
 	conditions := []string{"fs.status = 'active'"}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "sc.tenant_id = "+addArg(filters.TenantID)+"::uuid")
+	}
 	if filters.SchoolID != "" {
 		conditions = append(conditions, "sy.school_id = "+addArg(filters.SchoolID)+"::uuid")
 	}
@@ -610,6 +619,9 @@ func listAdminAdjustmentReadinessIssues(ctx context.Context, db *sql.DB, filters
 	args := []any{}
 	addArg := adminReadinessArgFunc(&args)
 	conditions := []string{"sfa.status = 'active'", "btrim(sfa.reason) = ''"}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "sc.tenant_id = "+addArg(filters.TenantID)+"::uuid")
+	}
 	if filters.SchoolID != "" {
 		conditions = append(conditions, "sy.school_id = "+addArg(filters.SchoolID)+"::uuid")
 	}
@@ -713,6 +725,9 @@ func listAdminNotificationReadinessIssues(ctx context.Context, db *sql.DB, filte
 	args := []any{}
 	addArg := adminReadinessArgFunc(&args)
 	conditions := []string{"nl.status = 'error'"}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "sc.tenant_id = "+addArg(filters.TenantID)+"::uuid")
+	}
 	if filters.SchoolID != "" {
 		conditions = append(conditions, "sy.school_id = "+addArg(filters.SchoolID)+"::uuid")
 	}
@@ -745,6 +760,7 @@ FROM notification_logs nl
 JOIN notification_campaigns nc ON nc.id = nl.campaign_id
 JOIN invoices i ON i.id = nl.invoice_id
 JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 WHERE ` + strings.Join(conditions, " AND ") + `
 GROUP BY nc.id, nc.code, nc.period_code
 ORDER BY MAX(nl.sent_at) DESC
@@ -785,7 +801,7 @@ LIMIT 30`
 	return issues, rows.Err()
 }
 
-func listAdminOperationReadinessIssues(ctx context.Context, db *sql.DB, _ adminFilters) ([]adminReadinessIssue, error) {
+func listAdminOperationReadinessIssues(ctx context.Context, db *sql.DB, filters adminFilters) ([]adminReadinessIssue, error) {
 	var count int
 	err := db.QueryRowContext(ctx, `
 SELECT COUNT(*)::integer
@@ -793,7 +809,8 @@ FROM operation_logs
 WHERE source = 'background_job'
 	AND operation LIKE 'email.cron.%'
 	AND level = 'error'
-	AND occurred_at >= now() - interval '7 days'`).Scan(&count)
+	AND tenant_id = $1::uuid
+	AND occurred_at >= now() - interval '7 days'`, filters.TenantID).Scan(&count)
 	if err != nil {
 		return nil, err
 	}

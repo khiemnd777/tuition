@@ -433,6 +433,108 @@ func TestLoadEmbeddedMigrationsIncludesPaidConfirmationNotifications(t *testing.
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesTenantFoundation(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tenant migration
+	for _, item := range migrations {
+		if item.Version == "0014" {
+			tenant = item
+			break
+		}
+	}
+	if tenant.Name != "tenant_foundation" {
+		t.Fatalf("expected tenant migration 0014, got %+v", tenant)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS tenants",
+		"CREATE TABLE IF NOT EXISTS tenant_memberships",
+		"ALTER TABLE schools ADD COLUMN IF NOT EXISTS tenant_id",
+		"schools_tenant_code_key",
+		"tenant_memberships_tenant_id_fkey",
+		"tenant_memberships_user_id_fkey",
+		"ABC_SUN",
+	} {
+		if !strings.Contains(tenant.SQL, want) {
+			t.Fatalf("expected tenant foundation migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesTenantAwareAuthRBAC(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tenantAuth migration
+	for _, item := range migrations {
+		if item.Version == "0015" {
+			tenantAuth = item
+			break
+		}
+	}
+	if tenantAuth.Name != "tenant_aware_auth_rbac" {
+		t.Fatalf("expected tenant-aware auth/RBAC migration 0015, got %+v", tenantAuth)
+	}
+
+	for _, want := range []string{
+		"ALTER TABLE app_auth_sessions ADD COLUMN IF NOT EXISTS tenant_id",
+		"CREATE TABLE IF NOT EXISTS tenant_user_roles",
+		"app_auth_sessions_tenant_id_fkey",
+		"tenant_user_roles_tenant_id_fkey",
+		"tenant_user_roles_user_id_fkey",
+		"tenant_user_roles_role_id_fkey",
+		"app_user_roles",
+		"ABC_SUN",
+	} {
+		if !strings.Contains(tenantAuth.SQL, want) {
+			t.Fatalf("expected tenant-aware auth/RBAC migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesTenantDataIsolation(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tenantData migration
+	for _, item := range migrations {
+		if item.Version == "0016" {
+			tenantData = item
+			break
+		}
+	}
+	if tenantData.Name != "tenant_data_isolation" {
+		t.Fatalf("expected tenant data isolation migration 0016, got %+v", tenantData)
+	}
+
+	for _, want := range []string{
+		"ALTER TABLE students ADD COLUMN IF NOT EXISTS tenant_id",
+		"ALTER TABLE parents ADD COLUMN IF NOT EXISTS tenant_id",
+		"ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS tenant_id",
+		"ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id",
+		"ALTER TABLE operation_logs ADD COLUMN IF NOT EXISTS tenant_id",
+		"ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_prevent_update",
+		"ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_prevent_update",
+		"students_tenant_code_key",
+		"parents_tenant_email_key",
+		"notification_campaigns_tenant_code_key",
+		"operation_logs_tenant_id_fkey",
+		"ABC_SUN",
+	} {
+		if !strings.Contains(tenantData.SQL, want) {
+			t.Fatalf("expected tenant data isolation migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

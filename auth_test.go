@@ -42,23 +42,48 @@ func TestValidateRefreshTokenRecordRejectsInvalidStates(t *testing.T) {
 		ExpiresAt:        now.Add(time.Hour),
 		SessionExpiresAt: now.Add(24 * time.Hour),
 		UserStatus:       "active",
+		TenantID:         "tenant-id",
+		TenantStatus:     "active",
+		MembershipStatus: "active",
 	}
 	if err := validateRefreshTokenRecord(valid, now); err != nil {
 		t.Fatalf("expected valid refresh token record, got %v", err)
 	}
 
 	cases := map[string]authTokenRecord{
-		"missing":         {},
-		"used":            {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", UsedAt: sql.NullTime{Time: now, Valid: true}},
-		"revoked":         {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", RevokedAt: sql.NullTime{Time: now, Valid: true}},
-		"expired":         {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: now.Add(-time.Second), SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active"},
-		"session expired": {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: now.Add(-time.Second), UserStatus: "active"},
-		"inactive user":   {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "suspended"},
+		"missing":              {},
+		"used":                 {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", TenantID: valid.TenantID, TenantStatus: valid.TenantStatus, MembershipStatus: valid.MembershipStatus, UsedAt: sql.NullTime{Time: now, Valid: true}},
+		"revoked":              {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", TenantID: valid.TenantID, TenantStatus: valid.TenantStatus, MembershipStatus: valid.MembershipStatus, RevokedAt: sql.NullTime{Time: now, Valid: true}},
+		"expired":              {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: now.Add(-time.Second), SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", TenantID: valid.TenantID, TenantStatus: valid.TenantStatus, MembershipStatus: valid.MembershipStatus},
+		"session expired":      {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: now.Add(-time.Second), UserStatus: "active", TenantID: valid.TenantID, TenantStatus: valid.TenantStatus, MembershipStatus: valid.MembershipStatus},
+		"inactive user":        {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "suspended", TenantID: valid.TenantID, TenantStatus: valid.TenantStatus, MembershipStatus: valid.MembershipStatus},
+		"missing tenant":       {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", TenantStatus: valid.TenantStatus, MembershipStatus: valid.MembershipStatus},
+		"suspended tenant":     {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", TenantID: valid.TenantID, TenantStatus: "suspended", MembershipStatus: valid.MembershipStatus},
+		"suspended membership": {ID: valid.ID, SessionID: valid.SessionID, UserID: valid.UserID, ExpiresAt: valid.ExpiresAt, SessionExpiresAt: valid.SessionExpiresAt, UserStatus: "active", TenantID: valid.TenantID, TenantStatus: valid.TenantStatus, MembershipStatus: "suspended"},
 	}
 	for name, record := range cases {
 		if err := validateRefreshTokenRecord(record, now); err == nil {
 			t.Fatalf("expected %s refresh token to be rejected", name)
 		}
+	}
+}
+
+func TestAuthenticatedUserHasActiveTenantAllowsActiveOrTrialTenants(t *testing.T) {
+	active := authenticatedUser{ActiveTenant: authTenantSummary{ID: "tenant-1", Status: "active", MembershipStatus: "active"}}
+	if !authenticatedUserHasActiveTenant(active) {
+		t.Fatal("expected active tenant membership to be accepted")
+	}
+	trial := authenticatedUser{ActiveTenant: authTenantSummary{ID: "tenant-1", Status: "trial", MembershipStatus: "active"}}
+	if !authenticatedUserHasActiveTenant(trial) {
+		t.Fatal("expected trial tenant membership to be accepted")
+	}
+	suspended := authenticatedUser{ActiveTenant: authTenantSummary{ID: "tenant-1", Status: "suspended", MembershipStatus: "active"}}
+	if authenticatedUserHasActiveTenant(suspended) {
+		t.Fatal("expected suspended tenant to be rejected")
+	}
+	removed := authenticatedUser{ActiveTenant: authTenantSummary{ID: "tenant-1", Status: "active", MembershipStatus: "removed"}}
+	if authenticatedUserHasActiveTenant(removed) {
+		t.Fatal("expected removed membership to be rejected")
 	}
 }
 

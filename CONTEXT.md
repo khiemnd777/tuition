@@ -38,6 +38,15 @@ The externally reachable app URL embedded in email QR links. If missing, request
 **Student code**:
 The durable production identifier for a student. Student names are display data only and are not unique.
 
+**Tenant**:
+The subscription account that owns one or more schools. Existing production data is backfilled to the default `ABC_SUN` tenant, and tenant-owned student, parent, campaign, audit, and operation records are scoped to the active tenant.
+
+**Tenant membership**:
+The link between an app user and a tenant. Existing app users are active default-tenant members; runtime RBAC reads tenant-scoped roles.
+
+**Active tenant**:
+The tenant selected for one authenticated browser session. API reads and writes for school-owned production data use this tenant as their isolation boundary.
+
 **School**:
 The top-level school or campus in the production tree. Existing data is backfilled to the default `ABC_SUN` school.
 
@@ -126,7 +135,7 @@ An administrative user stored in `app_users`. This is separate from students and
 A bcrypt password hash stored on `app_users.password_hash`. The plaintext password is only accepted during login, bootstrap, or explicit user password update.
 
 **App role**:
-A named set of app permissions assigned to app users through `app_user_roles`. Default production roles are `admin` (Quản trị viên), `staff` (Nhân sự), and `accountant` (Kế toán).
+A named set of app permissions assigned to app users inside a tenant through `tenant_user_roles`. Default production roles are `admin` (Quản trị viên), `staff` (Nhân sự), and `accountant` (Kế toán). Legacy `app_user_roles` data is kept for migration compatibility.
 
 **App permission**:
 A code seeded in `app_permissions` and attached to roles. Protected production API routes declare required permission codes on the server and reject authenticated users who do not have the required code. Canonical permission codes use `{module}.{action}`, such as `user.view`, `student.update`, `invoice.create`, or `payment.reconcile`.
@@ -135,7 +144,7 @@ A code seeded in `app_permissions` and attached to roles. Protected production A
 The API authorization layer that maps each protected `/api/v1` route to an app permission. Static UI hiding is only a convenience; backend route-level RBAC is authoritative.
 
 **Auth session**:
-A browser admin login session stored in `app_auth_sessions`. Sessions can expire or be revoked by logout or invalid refresh-token reuse.
+A browser admin login session stored in `app_auth_sessions`. Sessions carry one active tenant and can expire or be revoked by logout or invalid refresh-token reuse.
 
 **Access token**:
 A short-lived opaque browser token stored in an HttpOnly cookie. The app stores only its SHA-256 hash in `app_auth_access_tokens`.
@@ -152,6 +161,9 @@ A longer-lived opaque browser token stored in an HttpOnly cookie scoped to auth 
 - Manual email sends and cron sends share the same rolling quota.
 - A student can have many parent contacts.
 - A parent contact can be linked to many students.
+- A tenant can own many schools.
+- An app user can have tenant memberships.
+- A tenant membership can have tenant-scoped app roles.
 - A school has many school years/cohorts.
 - A class belongs to one school year/cohort and can have many students.
 - A bảng phí theo kỳ has many fee schedule items.
@@ -171,6 +183,7 @@ A longer-lived opaque browser token stored in an HttpOnly cookie scoped to auth 
 - An operation log can reference a provider event, notification recipient, or background job result.
 - An app user can have many app roles.
 - An app role can have many app permissions.
+- An auth session belongs to one active tenant.
 - A protected API route requires one app permission unless it is explicitly public or authenticated-only.
 - An app user can have many auth sessions.
 - An auth session can have many short-lived access tokens and rotated refresh tokens.
@@ -184,3 +197,5 @@ A longer-lived opaque browser token stored in an HttpOnly cookie scoped to auth 
 - "Log" can mean audit log, operation log, notification log, provider event, or local cron state. Use the precise term above.
 - "User" can mean an app user, student, parent contact, or operator. Use the precise term above.
 - "Session" can mean browser auth session, cron state, or a provider interaction. Use the precise term above.
+- "School" is the operational school/campus; "tenant" is the subscription account that owns schools.
+- Payment provider credentials and public webhook routing are still global subscription follow-ups; tenant-scoped authenticated payment views only expose invoice-backed transactions for the active tenant.

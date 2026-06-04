@@ -143,6 +143,7 @@ type paymentReconciliationResponse struct {
 }
 
 type paymentTransactionListFilters struct {
+	TenantID string
 	Provider string
 	Status   string
 	Limit    int
@@ -267,6 +268,10 @@ func handlePaymentProviders(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input paymentIntentRequest
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -295,7 +300,7 @@ func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	invoice, err := loadInvoiceDocument(r.Context(), db, input.InvoiceID)
+	invoice, err := loadInvoiceDocument(r.Context(), db, input.InvoiceID, tenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -310,6 +315,10 @@ func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePaymentTransactions(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -319,6 +328,7 @@ func handlePaymentTransactions(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{
+		TenantID: tenantID,
 		Provider: headerKey(query.Get("provider")),
 		Status:   headerKey(query.Get("status")),
 		Limit:    parsePositiveInt(query.Get("limit"), 200),
@@ -331,6 +341,10 @@ func handlePaymentTransactions(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -343,7 +357,7 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load payment providers", http.StatusInternalServerError)
 		return
 	}
-	options, err := listMasterDataOptions(r.Context(), db)
+	options, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load master data options", http.StatusInternalServerError)
 		return
@@ -351,6 +365,7 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	invoices, err := listInvoiceSummaries(r.Context(), db, invoiceListFilters{
+		TenantID:     tenantID,
 		SchoolID:     strings.TrimSpace(query.Get("schoolId")),
 		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
 		ClassID:      strings.TrimSpace(query.Get("classId")),
@@ -364,6 +379,7 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{
+		TenantID: tenantID,
 		Provider: headerKey(query.Get("provider")),
 		Status:   headerKey(query.Get("transactionStatus")),
 		Limit:    300,
@@ -373,7 +389,7 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	intents, err := listLatestPaymentIntentsByInvoice(r.Context(), db)
+	intents, err := listLatestPaymentIntentsByInvoice(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load payment intents", http.StatusInternalServerError)
 		return
@@ -507,6 +523,10 @@ func paymentWebhookOperationLog(r *http.Request, providerCode string, eventID st
 }
 
 func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input manualCashReceiptRequest
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -553,7 +573,7 @@ func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
 	auditCtx := auditContextFromRequest(r)
 	auditCtx.ActorUserID = firstNonEmpty(input.CollectorUserID, auditCtx.ActorUserID)
 	auditCtx.ActorName = firstNonEmpty(input.CollectorName, auditCtx.ActorName)
-	response, err := recordManualCashReceipt(r.Context(), db, input, auditCtx)
+	response, err := recordManualCashReceipt(r.Context(), db, input, tenantID, auditCtx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -740,7 +760,7 @@ RETURNING id::text, created_at`,
 	return intent, nil
 }
 
-func listLatestPaymentIntentsByInvoice(ctx context.Context, db *sql.DB) (map[string]paymentIntentSummary, error) {
+func listLatestPaymentIntentsByInvoice(ctx context.Context, db *sql.DB, tenantID string) (map[string]paymentIntentSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT DISTINCT ON (pi.invoice_id)
 	pi.id::text, pi.invoice_id::text, i.invoice_code, pp.code, pi.intent_code, pi.status,
@@ -748,8 +768,11 @@ SELECT DISTINCT ON (pi.invoice_id)
 FROM payment_intents pi
 JOIN payment_providers pp ON pp.id = pi.provider_id
 JOIN invoices i ON i.id = pi.invoice_id
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 WHERE pi.status NOT IN ('cancelled', 'expired', 'failed')
-ORDER BY pi.invoice_id, pi.created_at DESC`)
+	AND sc.tenant_id = $1::uuid
+ORDER BY pi.invoice_id, pi.created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -791,6 +814,16 @@ func listPaymentTransactions(ctx context.Context, db *sql.DB, filters paymentTra
 	}
 	if filters.Status != "" {
 		conditions = append(conditions, "pt.status = "+addArg(filters.Status))
+	}
+	if filters.TenantID != "" {
+		conditions = append(conditions, `EXISTS (
+			SELECT 1
+			FROM invoices tenant_invoice
+			JOIN school_years tenant_sy ON tenant_sy.id = tenant_invoice.school_year_id
+			JOIN schools tenant_school ON tenant_school.id = tenant_sy.school_id
+			WHERE tenant_invoice.id = pt.invoice_id
+				AND tenant_school.tenant_id = `+addArg(filters.TenantID)+`::uuid
+		)`)
 	}
 	limit := filters.Limit
 	if limit <= 0 || limit > 1000 {
@@ -1426,12 +1459,12 @@ WHERE id = $1::uuid`,
 	return refresh, nil
 }
 
-func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest, auditCtx requestAuditContext) (manualCashReceiptResponse, error) {
+func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest, tenantID string, auditCtx requestAuditContext) (manualCashReceiptResponse, error) {
 	provider, err := loadPaymentProviderByCode(ctx, db, paymentProviderManualVietQR)
 	if err != nil {
 		return manualCashReceiptResponse{}, err
 	}
-	invoice, err := loadInvoiceDocument(ctx, db, input.InvoiceID)
+	invoice, err := loadInvoiceDocument(ctx, db, input.InvoiceID, tenantID)
 	if err != nil {
 		return manualCashReceiptResponse{}, err
 	}
@@ -1543,7 +1576,7 @@ VALUES ($1::uuid, $2::uuid, 'cash', 'matched', 100, $3, $4, $5::jsonb)`,
 		sendAutomaticPaidConfirmationBestEffort(ctx, db, statusRefresh.InvoiceID, "manual_cash_receipt")
 	}
 
-	invoices, err := listInvoiceSummaries(ctx, db, invoiceListFilters{})
+	invoices, err := listInvoiceSummaries(ctx, db, invoiceListFilters{TenantID: tenantID})
 	if err != nil {
 		return manualCashReceiptResponse{}, err
 	}

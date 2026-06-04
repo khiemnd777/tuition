@@ -132,6 +132,10 @@ type schoolTreeClassInput struct {
 }
 
 func handleSchoolTree(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -144,7 +148,7 @@ func handleSchoolTree(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	tree, err := loadSchoolTree(r.Context(), db, scope)
+	tree, err := loadSchoolTree(r.Context(), db, tenantID, scope)
 	if err != nil {
 		http.Error(w, "cannot load school tree", http.StatusInternalServerError)
 		return
@@ -171,6 +175,10 @@ func schoolTreeReadinessScopeFromRequest(r *http.Request) (schoolTreeReadinessSc
 }
 
 func handleSchoolTreeSchoolSave(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input schoolTreeSchoolInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -190,7 +198,7 @@ func handleSchoolTreeSchoolSave(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	saved, err := saveSchoolTreeSchool(r.Context(), db, input, auditContextFromRequest(r))
+	saved, err := saveSchoolTreeSchool(r.Context(), db, tenantID, input, auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, "cannot save school", http.StatusInternalServerError)
 		return
@@ -199,6 +207,10 @@ func handleSchoolTreeSchoolSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSchoolTreeSchoolYearSave(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input schoolTreeSchoolYearInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -218,7 +230,7 @@ func handleSchoolTreeSchoolYearSave(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	saved, err := saveSchoolTreeSchoolYear(r.Context(), db, input, auditContextFromRequest(r))
+	saved, err := saveSchoolTreeSchoolYear(r.Context(), db, tenantID, input, auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, "cannot save school year", http.StatusInternalServerError)
 		return
@@ -227,6 +239,10 @@ func handleSchoolTreeSchoolYearSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSchoolTreeClassSave(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input schoolTreeClassInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -246,7 +262,7 @@ func handleSchoolTreeClassSave(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	saved, err := saveSchoolTreeClass(r.Context(), db, input, auditContextFromRequest(r))
+	saved, err := saveSchoolTreeClass(r.Context(), db, tenantID, input, auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, "cannot save class", http.StatusInternalServerError)
 		return
@@ -254,27 +270,28 @@ func handleSchoolTreeClassSave(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"class": saved})
 }
 
-func loadSchoolTree(ctx context.Context, db *sql.DB, scope schoolTreeReadinessScope) ([]schoolTreeSchool, error) {
-	schools, err := listSchoolTreeSchools(ctx, db)
+func loadSchoolTree(ctx context.Context, db *sql.DB, tenantID string, scope schoolTreeReadinessScope) ([]schoolTreeSchool, error) {
+	schools, err := listSchoolTreeSchools(ctx, db, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	years, err := listSchoolTreeSchoolYears(ctx, db)
+	years, err := listSchoolTreeSchoolYears(ctx, db, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	classes, err := listSchoolTreeClasses(ctx, db, scope)
+	classes, err := listSchoolTreeClasses(ctx, db, tenantID, scope)
 	if err != nil {
 		return nil, err
 	}
 	return buildSchoolTree(schools, years, classes), nil
 }
 
-func listSchoolTreeSchools(ctx context.Context, db *sql.DB) ([]schoolTreeSchool, error) {
+func listSchoolTreeSchools(ctx context.Context, db *sql.DB, tenantID string) ([]schoolTreeSchool, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT id::text, code, name, status
 FROM schools
-ORDER BY code`)
+WHERE tenant_id = $1::uuid
+ORDER BY code`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +309,7 @@ ORDER BY code`)
 	return items, rows.Err()
 }
 
-func listSchoolTreeSchoolYears(ctx context.Context, db *sql.DB) ([]schoolTreeSchoolYear, error) {
+func listSchoolTreeSchoolYears(ctx context.Context, db *sql.DB, tenantID string) ([]schoolTreeSchoolYear, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT
 	sy.id::text,
@@ -333,7 +350,8 @@ LEFT JOIN (
 	WHERE fs.status <> 'archived' AND sfa.status = 'active'
 	GROUP BY fs.school_year_id
 ) adjustment_counts ON adjustment_counts.school_year_id = sy.id
-ORDER BY sc.code, sy.code DESC`)
+WHERE sc.tenant_id = $1::uuid
+ORDER BY sc.code, sy.code DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +380,7 @@ ORDER BY sc.code, sy.code DESC`)
 	return items, rows.Err()
 }
 
-func listSchoolTreeClasses(ctx context.Context, db *sql.DB, scope schoolTreeReadinessScope) ([]schoolTreeClass, error) {
+func listSchoolTreeClasses(ctx context.Context, db *sql.DB, tenantID string, scope schoolTreeReadinessScope) ([]schoolTreeClass, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT
 	c.id::text,
@@ -476,7 +494,8 @@ LEFT JOIN LATERAL (
 	ORDER BY (fs.status = 'active') DESC, fs.created_at DESC
 	LIMIT 1
 ) latest_schedule ON true
-ORDER BY sc.code, sy.code DESC, c.grade, c.name`, scope.PeriodCode, scope.HasMonth, scope.Month)
+WHERE sc.tenant_id = $4::uuid
+ORDER BY sc.code, sy.code DESC, c.grade, c.name`, scope.PeriodCode, scope.HasMonth, scope.Month, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -628,14 +647,14 @@ func schoolTreeIssueCount(studentCount int, missingBillingRecipientCount int, cu
 	return issueCount
 }
 
-func saveSchoolTreeSchool(ctx context.Context, db *sql.DB, input schoolTreeSchoolInput, auditCtx requestAuditContext) (masterDataSchoolOption, error) {
+func saveSchoolTreeSchool(ctx context.Context, db *sql.DB, tenantID string, input schoolTreeSchoolInput, auditCtx requestAuditContext) (masterDataSchoolOption, error) {
 	var saved masterDataSchoolOption
 	if input.ID == "" {
 		err := db.QueryRowContext(ctx, `
-INSERT INTO schools (code, name, status, created_by_user_id, updated_by_user_id)
-VALUES ($1, $2, $3, nullif($4, '')::uuid, nullif($4, '')::uuid)
+INSERT INTO schools (tenant_id, code, name, status, created_by_user_id, updated_by_user_id)
+VALUES ($5::uuid, $1, $2, $3, nullif($4, '')::uuid, nullif($4, '')::uuid)
 RETURNING id::text, code, name, status`,
-			input.Code, input.Name, input.Status, auditCtx.ActorUserID).Scan(&saved.ID, &saved.Code, &saved.Name, &saved.Status)
+			input.Code, input.Name, input.Status, auditCtx.ActorUserID, tenantID).Scan(&saved.ID, &saved.Code, &saved.Name, &saved.Status)
 		return saved, err
 	}
 	err := db.QueryRowContext(ctx, `
@@ -645,19 +664,23 @@ SET code = $2,
 	status = $4,
 	updated_by_user_id = nullif($5, '')::uuid
 WHERE id = $1::uuid
+	AND tenant_id = $6::uuid
 RETURNING id::text, code, name, status`,
-		input.ID, input.Code, input.Name, input.Status, auditCtx.ActorUserID).Scan(&saved.ID, &saved.Code, &saved.Name, &saved.Status)
+		input.ID, input.Code, input.Name, input.Status, auditCtx.ActorUserID, tenantID).Scan(&saved.ID, &saved.Code, &saved.Name, &saved.Status)
 	return saved, err
 }
 
-func saveSchoolTreeSchoolYear(ctx context.Context, db *sql.DB, input schoolTreeSchoolYearInput, auditCtx requestAuditContext) (masterDataSchoolYearOption, error) {
+func saveSchoolTreeSchoolYear(ctx context.Context, db *sql.DB, tenantID string, input schoolTreeSchoolYearInput, auditCtx requestAuditContext) (masterDataSchoolYearOption, error) {
 	var saved masterDataSchoolYearOption
 	if input.ID == "" {
 		err := db.QueryRowContext(ctx, `
 INSERT INTO school_years (school_id, code, name, starts_on, ends_on, status, created_by_user_id, updated_by_user_id)
-VALUES ($1::uuid, $2, $3, nullif($4, '')::date, nullif($5, '')::date, $6, nullif($7, '')::uuid, nullif($7, '')::uuid)
+SELECT $1::uuid, $2, $3, nullif($4, '')::date, nullif($5, '')::date, $6, nullif($7, '')::uuid, nullif($7, '')::uuid
+FROM schools
+WHERE id = $1::uuid
+	AND tenant_id = $8::uuid
 RETURNING id::text, school_id::text, (SELECT code FROM schools WHERE id = school_id), code, name, status`,
-			input.SchoolID, input.Code, input.Name, input.StartsOn, input.EndsOn, input.Status, auditCtx.ActorUserID).Scan(
+			input.SchoolID, input.Code, input.Name, input.StartsOn, input.EndsOn, input.Status, auditCtx.ActorUserID, tenantID).Scan(
 			&saved.ID, &saved.SchoolID, &saved.SchoolCode, &saved.Code, &saved.Name, &saved.Status,
 		)
 		return saved, err
@@ -672,19 +695,36 @@ SET school_id = $2::uuid,
 	status = $7,
 	updated_by_user_id = nullif($8, '')::uuid
 WHERE id = $1::uuid
+	AND EXISTS (
+		SELECT 1
+		FROM school_years existing
+		JOIN schools existing_school ON existing_school.id = existing.school_id
+		WHERE existing.id = $1::uuid
+			AND existing_school.tenant_id = $9::uuid
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM schools target_school
+		WHERE target_school.id = $2::uuid
+			AND target_school.tenant_id = $9::uuid
+	)
 RETURNING id::text, school_id::text, (SELECT code FROM schools WHERE id = school_id), code, name, status`,
-		input.ID, input.SchoolID, input.Code, input.Name, input.StartsOn, input.EndsOn, input.Status, auditCtx.ActorUserID).Scan(
+		input.ID, input.SchoolID, input.Code, input.Name, input.StartsOn, input.EndsOn, input.Status, auditCtx.ActorUserID, tenantID).Scan(
 		&saved.ID, &saved.SchoolID, &saved.SchoolCode, &saved.Code, &saved.Name, &saved.Status,
 	)
 	return saved, err
 }
 
-func saveSchoolTreeClass(ctx context.Context, db *sql.DB, input schoolTreeClassInput, auditCtx requestAuditContext) (masterDataClassOption, error) {
+func saveSchoolTreeClass(ctx context.Context, db *sql.DB, tenantID string, input schoolTreeClassInput, auditCtx requestAuditContext) (masterDataClassOption, error) {
 	var saved masterDataClassOption
 	if input.ID == "" {
 		err := db.QueryRowContext(ctx, `
 INSERT INTO classes (school_year_id, grade, name, status, created_by_user_id, updated_by_user_id)
-VALUES ($1::uuid, $2, $3, $4, nullif($5, '')::uuid, nullif($5, '')::uuid)
+SELECT $1::uuid, $2, $3, $4, nullif($5, '')::uuid, nullif($5, '')::uuid
+FROM school_years sy
+JOIN schools sc ON sc.id = sy.school_id
+WHERE sy.id = $1::uuid
+	AND sc.tenant_id = $6::uuid
 RETURNING id::text,
 	(SELECT school_id::text FROM school_years WHERE id = school_year_id),
 	(SELECT sc.code FROM school_years sy JOIN schools sc ON sc.id = sy.school_id WHERE sy.id = school_year_id),
@@ -693,7 +733,7 @@ RETURNING id::text,
 	grade,
 	name,
 	status`,
-			input.SchoolYearID, input.Grade, input.Name, input.Status, auditCtx.ActorUserID).Scan(
+			input.SchoolYearID, input.Grade, input.Name, input.Status, auditCtx.ActorUserID, tenantID).Scan(
 			&saved.ID,
 			&saved.SchoolID,
 			&saved.SchoolCode,
@@ -713,6 +753,21 @@ SET school_year_id = $2::uuid,
 	status = $5,
 	updated_by_user_id = nullif($6, '')::uuid
 WHERE id = $1::uuid
+	AND EXISTS (
+		SELECT 1
+		FROM classes existing
+		JOIN school_years existing_year ON existing_year.id = existing.school_year_id
+		JOIN schools existing_school ON existing_school.id = existing_year.school_id
+		WHERE existing.id = $1::uuid
+			AND existing_school.tenant_id = $7::uuid
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM school_years target_year
+		JOIN schools target_school ON target_school.id = target_year.school_id
+		WHERE target_year.id = $2::uuid
+			AND target_school.tenant_id = $7::uuid
+	)
 RETURNING id::text,
 	(SELECT school_id::text FROM school_years WHERE id = school_year_id),
 	(SELECT sc.code FROM school_years sy JOIN schools sc ON sc.id = sy.school_id WHERE sy.id = school_year_id),
@@ -721,7 +776,7 @@ RETURNING id::text,
 	grade,
 	name,
 	status`,
-		input.ID, input.SchoolYearID, input.Grade, input.Name, input.Status, auditCtx.ActorUserID).Scan(
+		input.ID, input.SchoolYearID, input.Grade, input.Name, input.Status, auditCtx.ActorUserID, tenantID).Scan(
 		&saved.ID,
 		&saved.SchoolID,
 		&saved.SchoolCode,

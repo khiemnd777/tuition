@@ -1,18 +1,18 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-05-31
+Last updated: 2026-06-04
 
 ## Current Status
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Future work should start from a new scoped roadmap item or production hardening request.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, and backend data isolation complete.
 
-Current phase: `advanced_production_complete`
+Current phase: `subscription_phase_3_complete`
 
-Current initiative: Advanced 15 - Onboarding And Operator Guardrails is complete.
+Current initiative: Subscription Phase 3 - Data Isolation is complete.
 
-Next recommended initiative: review, commit, and push the completed Advanced 14/15 changes, or define the next roadmap initiative.
+Next recommended initiative: Subscription Phase 4 - Tenant Onboarding And Switching.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -33,6 +33,31 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Keep provider adapters flexible.
   - Consider payOS or SePay as practical production providers.
   - Avoid percentage-fee hosted gateways as the primary low-cost tuition channel.
+- Subscription Phase 1: Tenant Foundation is complete:
+  - Added tenant foundation migration `0014_tenant_foundation`.
+  - Created `tenants` and `tenant_memberships`.
+  - Seeded the default `ABC_SUN` tenant.
+  - Backfilled all existing schools to the default tenant.
+  - Backfilled existing app users as active default-tenant members.
+  - Changed school code uniqueness from global `code` to `(tenant_id, code)`.
+  - Updated school creation paths to write schools under the default tenant until tenant-aware auth/UI is introduced.
+- Subscription Phase 2: Tenant-Aware Auth And RBAC is complete:
+  - Added migration `0015_tenant_aware_auth_rbac`.
+  - Added `tenant_id` to `app_auth_sessions` and backfilled existing sessions to default tenant.
+  - Created `tenant_user_roles` and backfilled role assignments from `app_user_roles`.
+  - Added active tenant data to auth session responses.
+  - Made route-level RBAC require an active tenant context.
+  - Loaded roles and permissions from tenant-scoped assignments.
+  - Updated admin user/role management to read and write role assignments inside the active tenant.
+- Subscription Phase 3: Data Isolation is complete:
+  - Added migration `0016_tenant_data_isolation`.
+  - Added `tenant_id` to `students`, `parents`, `notification_campaigns`, `audit_logs`, and `operation_logs`.
+  - Backfilled tenant-owned records to the default `ABC_SUN` tenant or their owning school tenant.
+  - Changed student code, parent email, and notification campaign code uniqueness to tenant scope.
+  - Added active-tenant fail-fast checks to tenant-scoped API handlers.
+  - Scoped master data, school tree, fee schedule, invoice, notification, payment dashboard, admin report/export, audit, operation, and readiness queries by active tenant.
+  - Added tenant guards on write paths for school/year/class/student/parent/fee schedule/invoice/notification flows.
+  - Kept public payment webhooks and provider credentials as a follow-up because provider tenant routing needs separate configuration ownership.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

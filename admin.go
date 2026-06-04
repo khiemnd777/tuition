@@ -12,6 +12,7 @@ import (
 )
 
 type adminFilters struct {
+	TenantID     string
 	SchoolID     string
 	SchoolYearID string
 	ClassID      string
@@ -150,6 +151,10 @@ type adminUserRoleInput struct {
 }
 
 func handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -157,18 +162,19 @@ func handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	options, err := listMasterDataOptions(r.Context(), db)
+	options, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load admin options", http.StatusInternalServerError)
 		return
 	}
 	filters := parseAdminFilters(r)
+	filters.TenantID = tenantID
 	invoices, err := listAdminInvoiceRows(r.Context(), db, filters, 5000)
 	if err != nil {
 		http.Error(w, "cannot load dashboard invoices", http.StatusInternalServerError)
 		return
 	}
-	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{Limit: 1000})
+	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{TenantID: tenantID, Limit: 1000})
 	if err != nil {
 		http.Error(w, "cannot load dashboard transactions", http.StatusInternalServerError)
 		return
@@ -190,6 +196,10 @@ func handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminReports(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -197,7 +207,7 @@ func handleAdminReports(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	options, err := listMasterDataOptions(r.Context(), db)
+	options, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load admin options", http.StatusInternalServerError)
 		return
@@ -208,12 +218,13 @@ func handleAdminReports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filters := parseAdminFilters(r)
+	filters.TenantID = tenantID
 	invoices, err := listAdminInvoiceRows(r.Context(), db, filters, 1000)
 	if err != nil {
 		http.Error(w, "cannot load report invoices", http.StatusInternalServerError)
 		return
 	}
-	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{Provider: filters.Provider, Limit: 1000})
+	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{TenantID: tenantID, Provider: filters.Provider, Limit: 1000})
 	if err != nil {
 		http.Error(w, "cannot load report transactions", http.StatusInternalServerError)
 		return
@@ -233,6 +244,11 @@ func handleAdminReports(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
+	tenantID := activeTenantIDFromRequest(r)
+	if tenantID == "" {
+		http.Error(w, "active tenant required", http.StatusForbidden)
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -240,7 +256,7 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	users, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db)
+	users, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load users and roles", http.StatusInternalServerError)
 		return
@@ -253,6 +269,11 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminRoles(w http.ResponseWriter, r *http.Request) {
+	tenantID := activeTenantIDFromRequest(r)
+	if tenantID == "" {
+		http.Error(w, "active tenant required", http.StatusForbidden)
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -260,7 +281,7 @@ func handleAdminRoles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	_, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db)
+	_, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load roles", http.StatusInternalServerError)
 		return
@@ -286,6 +307,11 @@ func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
 	if !requireAdminAPIPermission(w, r, permission) {
 		return
 	}
+	tenantID := activeTenantIDFromRequest(r)
+	if tenantID == "" {
+		http.Error(w, "active tenant required", http.StatusForbidden)
+		return
+	}
 
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
@@ -294,7 +320,7 @@ func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	user, err := saveAdminUser(r.Context(), db, input)
+	user, err := saveAdminUser(r.Context(), db, input, tenantID)
 	if err != nil {
 		http.Error(w, "cannot save user", http.StatusInternalServerError)
 		return
@@ -304,6 +330,11 @@ func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
 
 func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
 	if !requireAdminAPIPermission(w, r, "user.assign_role") {
+		return
+	}
+	tenantID := activeTenantIDFromRequest(r)
+	if tenantID == "" {
+		http.Error(w, "active tenant required", http.StatusForbidden)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
@@ -326,11 +357,11 @@ func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	if err := assignAdminUserRoles(r.Context(), db, input); err != nil {
+	if err := assignAdminUserRoles(r.Context(), db, input, tenantID); err != nil {
 		http.Error(w, "cannot assign user roles", http.StatusInternalServerError)
 		return
 	}
-	users, _, _, err := loadAdminUsersAndRoles(r.Context(), db)
+	users, _, _, err := loadAdminUsersAndRoles(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot reload users", http.StatusInternalServerError)
 		return
@@ -346,6 +377,10 @@ func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
 
 func requireAdminAPIPermission(w http.ResponseWriter, r *http.Request, permission string) bool {
 	if user, ok := authenticatedUserFromRequest(r); ok {
+		if !authenticatedUserHasActiveTenant(user) {
+			http.Error(w, "active tenant required", http.StatusForbidden)
+			return false
+		}
 		if authenticatedUserHasPermission(user, permission) {
 			return true
 		}
@@ -387,6 +422,15 @@ func listAdminInvoiceRows(ctx context.Context, db *sql.DB, filters adminFilters,
 	addArg := func(value any) string {
 		args = append(args, value)
 		return fmt.Sprintf("$%d", len(args))
+	}
+	if filters.TenantID != "" {
+		conditions = append(conditions, `EXISTS (
+			SELECT 1
+			FROM school_years tenant_sy
+			JOIN schools tenant_school ON tenant_school.id = tenant_sy.school_id
+			WHERE tenant_sy.id = i.school_year_id
+				AND tenant_school.tenant_id = `+addArg(filters.TenantID)+`::uuid
+		)`)
 	}
 	if filters.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(filters.SchoolYearID)+"::uuid")
@@ -723,7 +767,7 @@ func outstandingAmount(total int, paid int) int {
 	return total - paid
 }
 
-func loadAdminUsersAndRoles(ctx context.Context, db *sql.DB) ([]adminUserSummary, []adminRoleSummary, []adminPermissionSummary, error) {
+func loadAdminUsersAndRoles(ctx context.Context, db *sql.DB, tenantID string) ([]adminUserSummary, []adminRoleSummary, []adminPermissionSummary, error) {
 	permissions, err := listAdminPermissions(ctx, db)
 	if err != nil {
 		return nil, nil, nil, err
@@ -732,7 +776,7 @@ func loadAdminUsersAndRoles(ctx context.Context, db *sql.DB) ([]adminUserSummary
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	users, err := listAdminUsers(ctx, db)
+	users, err := listAdminUsers(ctx, db, tenantID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -828,7 +872,7 @@ END, p.code`)
 	return roles, nil
 }
 
-func listAdminUsers(ctx context.Context, db *sql.DB) ([]adminUserSummary, error) {
+func listAdminUsers(ctx context.Context, db *sql.DB, tenantID string) ([]adminUserSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT u.id::text,
 	COALESCE(u.email, ''),
@@ -844,10 +888,13 @@ SELECT u.id::text,
 	COALESCE(r.name, ''),
 	COALESCE(r.description, ''),
 	COALESCE(r.is_system, false)
-FROM app_users u
-LEFT JOIN app_user_roles ur ON ur.user_id = u.id
+FROM tenant_memberships membership
+JOIN app_users u ON u.id = membership.user_id
+LEFT JOIN tenant_user_roles ur ON ur.user_id = u.id AND ur.tenant_id = membership.tenant_id
 LEFT JOIN app_roles r ON r.id = ur.role_id
-ORDER BY lower(u.email), r.code`)
+WHERE membership.tenant_id = $1::uuid
+	AND membership.status <> 'removed'
+ORDER BY lower(u.email), r.code`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -974,7 +1021,7 @@ func validateAdminPhone(phone string) error {
 	return nil
 }
 
-func saveAdminUser(ctx context.Context, db *sql.DB, input adminUserSaveInput) (adminUserSummary, error) {
+func saveAdminUser(ctx context.Context, db *sql.DB, input adminUserSaveInput, tenantID string) (adminUserSummary, error) {
 	passwordHash := ""
 	if input.Password != "" {
 		var err error
@@ -993,7 +1040,7 @@ WHERE ($1 <> '' AND lower(COALESCE(email, '')) = lower($1))
 LIMIT 1`, input.Email, input.Phone).Scan(&existingID)
 		if err == nil && existingID != "" {
 			input.ID = existingID
-			return saveAdminUser(ctx, db, input)
+			return saveAdminUser(ctx, db, input, tenantID)
 		}
 		if err != nil && err != sql.ErrNoRows {
 			return adminUserSummary{}, err
@@ -1009,8 +1056,14 @@ RETURNING id::text, COALESCE(email, ''), phone, display_name, status, password_h
 			input.Status,
 			passwordHash,
 		).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayName, &user.Status, &user.HasPassword, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			return adminUserSummary{}, err
+		}
+		if err := ensureTenantMembership(ctx, db, tenantID, user.ID, false); err != nil {
+			return adminUserSummary{}, err
+		}
 		user.Roles = []adminRoleSummary{}
-		return user, err
+		return user, nil
 	}
 	var user adminUserSummary
 	err := db.QueryRowContext(ctx, `
@@ -1030,27 +1083,37 @@ RETURNING id::text, COALESCE(email, ''), phone, display_name, status, password_h
 		input.Status,
 		passwordHash,
 	).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayName, &user.Status, &user.HasPassword, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return adminUserSummary{}, err
+	}
+	if err := ensureTenantMembership(ctx, db, tenantID, user.ID, false); err != nil {
+		return adminUserSummary{}, err
+	}
 	user.Roles = []adminRoleSummary{}
-	return user, err
+	return user, nil
 }
 
-func assignAdminUserRoles(ctx context.Context, db *sql.DB, input adminUserRoleInput) error {
+func assignAdminUserRoles(ctx context.Context, db *sql.DB, input adminUserRoleInput, tenantID string) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM app_user_roles WHERE user_id = $1::uuid`, input.UserID); err != nil {
+	if err := ensureTenantMembership(ctx, tx, tenantID, input.UserID, false); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tenant_user_roles WHERE tenant_id = $1::uuid AND user_id = $2::uuid`, tenantID, input.UserID); err != nil {
 		return err
 	}
 	for _, roleCode := range input.RoleCodes {
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO app_user_roles (user_id, role_id)
-SELECT $1::uuid, id
+INSERT INTO tenant_user_roles (tenant_id, user_id, role_id)
+SELECT $1::uuid, $2::uuid, id
 FROM app_roles
-WHERE code = $2
-ON CONFLICT (user_id, role_id) DO NOTHING`,
+WHERE code = $3
+ON CONFLICT (tenant_id, user_id, role_id) DO NOTHING`,
+			tenantID,
 			input.UserID,
 			roleCode,
 		); err != nil {

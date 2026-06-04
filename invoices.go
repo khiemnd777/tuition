@@ -34,6 +34,7 @@ type invoiceOptionsResponse struct {
 }
 
 type invoiceGenerateInput struct {
+	TenantID      string `json:"-"`
 	FeeScheduleID string `json:"feeScheduleId"`
 	BankBIN       string `json:"bankBin"`
 	BankAccount   string `json:"bankAccount"`
@@ -43,6 +44,7 @@ type invoiceGenerateInput struct {
 }
 
 type invoiceListFilters struct {
+	TenantID      string
 	FeeScheduleID string
 	StudentID     string
 	StudentCode   string
@@ -214,6 +216,10 @@ type invoiceStatusHistoryEntry struct {
 }
 
 func handleInvoiceOptions(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -221,12 +227,12 @@ func handleInvoiceOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{})
+	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{TenantID: tenantID})
 	if err != nil {
 		http.Error(w, "cannot load fee schedules", http.StatusInternalServerError)
 		return
 	}
-	options, err := listMasterDataOptions(r.Context(), db)
+	options, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load master data options", http.StatusInternalServerError)
 		return
@@ -239,6 +245,10 @@ func handleInvoiceOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleInvoiceList(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -248,6 +258,7 @@ func handleInvoiceList(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	invoices, err := listInvoiceSummaries(r.Context(), db, invoiceListFilters{
+		TenantID:      tenantID,
 		FeeScheduleID: strings.TrimSpace(query.Get("feeScheduleId")),
 		StudentID:     strings.TrimSpace(query.Get("studentId")),
 		StudentCode:   normalizeStudentCode(query.Get("studentCode")),
@@ -265,6 +276,10 @@ func handleInvoiceList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleInvoicePreview(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	input, issues, ok := decodeInvoiceGenerateInput(w, r, false)
 	if !ok {
 		return
@@ -274,6 +289,7 @@ func handleInvoicePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	input.TenantID = tenantID
 	preview, err := loadInvoicePreview(r.Context(), input)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -283,6 +299,10 @@ func handleInvoicePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleInvoiceGenerate(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	input, issues, ok := decodeInvoiceGenerateInput(w, r, true)
 	if !ok {
 		return
@@ -291,6 +311,7 @@ func handleInvoiceGenerate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, invoicePreview{Issues: issues})
 		return
 	}
+	input.TenantID = tenantID
 
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
@@ -315,6 +336,7 @@ func handleInvoiceGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	invoices, err := listInvoiceSummaries(r.Context(), db, invoiceListFilters{
+		TenantID:      tenantID,
 		FeeScheduleID: input.FeeScheduleID,
 		SchoolYearID:  saved.Schedule.SchoolYearID,
 		PeriodCode:    saved.Schedule.PeriodCode,
@@ -386,6 +408,7 @@ func decodeInvoiceGenerateInput(w http.ResponseWriter, r *http.Request, requireB
 }
 
 func normalizeInvoiceGenerateInput(input invoiceGenerateInput) invoiceGenerateInput {
+	input.TenantID = strings.TrimSpace(input.TenantID)
 	input.FeeScheduleID = strings.TrimSpace(input.FeeScheduleID)
 	input.BankBIN = onlyDigits(input.BankBIN)
 	input.BankAccount = cleanAccount(input.BankAccount)
@@ -438,10 +461,11 @@ func loadInvoicePreview(ctx context.Context, input invoiceGenerateInput) (invoic
 }
 
 func buildInvoicePreviewFromDB(ctx context.Context, db *sql.DB, input invoiceGenerateInput) (invoicePreview, error) {
-	schedule, meta, err := loadFeeScheduleForInvoice(ctx, db, input.FeeScheduleID)
+	schedule, meta, err := loadFeeScheduleForInvoice(ctx, db, input.FeeScheduleID, input.TenantID)
 	if err != nil {
 		return invoicePreview{}, err
 	}
+	schedule.TenantID = input.TenantID
 	students, err := loadFeeScheduleStudents(ctx, db, schedule)
 	if err != nil {
 		return invoicePreview{}, errors.New("cannot load students for invoice generation")
@@ -450,7 +474,7 @@ func buildInvoicePreviewFromDB(ctx context.Context, db *sql.DB, input invoiceGen
 		return invoicePreview{}, fmt.Errorf("too many students, max is %d", maxInvoiceGenerationRows)
 	}
 	feePreview, feeIssues := buildFeeSchedulePreview(schedule, students)
-	existing, err := loadExistingInvoiceRefs(ctx, db, input.FeeScheduleID)
+	existing, err := loadExistingInvoiceRefs(ctx, db, input.FeeScheduleID, input.TenantID)
 	if err != nil {
 		return invoicePreview{}, err
 	}
@@ -824,7 +848,7 @@ VALUES ($1::uuid, $2, $3, $4)`,
 	return err
 }
 
-func loadFeeScheduleForInvoice(ctx context.Context, db *sql.DB, scheduleID string) (feeScheduleInput, invoiceScheduleMeta, error) {
+func loadFeeScheduleForInvoice(ctx context.Context, db *sql.DB, scheduleID string, tenantID string) (feeScheduleInput, invoiceScheduleMeta, error) {
 	var input feeScheduleInput
 	var meta invoiceScheduleMeta
 	var classID sql.NullString
@@ -844,9 +868,11 @@ SELECT fs.id::text,
 	fs.status
 FROM fee_schedules fs
 JOIN school_years sy ON sy.id = fs.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 LEFT JOIN classes c ON c.id = fs.class_id
 WHERE fs.id = $1::uuid
-	AND fs.status <> 'archived'`, scheduleID).Scan(
+	AND sc.tenant_id = $2::uuid
+	AND fs.status <> 'archived'`, scheduleID, tenantID).Scan(
 		&meta.ID,
 		&meta.SchoolYearID,
 		&meta.SchoolYearCode,
@@ -876,6 +902,7 @@ WHERE fs.id = $1::uuid
 	}
 
 	input = feeScheduleInput{
+		TenantID:     tenantID,
 		ID:           meta.ID,
 		SchoolYearID: meta.SchoolYearID,
 		ClassID:      meta.ClassID,
@@ -953,12 +980,15 @@ ORDER BY s.student_code, sfa.created_at, sfa.id`, scheduleID)
 	return normalizeFeeScheduleInput(input), meta, nil
 }
 
-func loadExistingInvoiceRefs(ctx context.Context, db *sql.DB, feeScheduleID string) (map[string]invoiceExistingRef, error) {
+func loadExistingInvoiceRefs(ctx context.Context, db *sql.DB, feeScheduleID string, tenantID string) (map[string]invoiceExistingRef, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT student_id::text, id::text, invoice_code, status, paid_amount
-FROM invoices
-WHERE fee_schedule_id = $1::uuid
-	AND status <> 'void'`, feeScheduleID)
+FROM invoices i
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
+WHERE i.fee_schedule_id = $1::uuid
+	AND sc.tenant_id = $2::uuid
+	AND i.status <> 'void'`, feeScheduleID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -982,6 +1012,14 @@ func listInvoiceSummaries(ctx context.Context, db *sql.DB, filters invoiceListFi
 	addArg := func(value any) string {
 		args = append(args, value)
 		return fmt.Sprintf("$%d", len(args))
+	}
+	if filters.TenantID != "" {
+		conditions = append(conditions, `EXISTS (
+			SELECT 1 FROM school_years tenant_sy
+			JOIN schools tenant_school ON tenant_school.id = tenant_sy.school_id
+			WHERE tenant_sy.id = i.school_year_id
+				AND tenant_school.tenant_id = `+addArg(filters.TenantID)+`::uuid
+		)`)
 	}
 	if filters.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(filters.SchoolYearID)+"::uuid")
@@ -1159,6 +1197,10 @@ func invoiceSummaryIssueState(invoice invoiceSummary) string {
 }
 
 func loadInvoiceFromRequest(ctx context.Context, r *http.Request) (invoiceDocument, error) {
+	tenantID := activeTenantIDFromRequest(r)
+	if tenantID == "" {
+		return invoiceDocument{}, errors.New("active tenant required")
+	}
 	invoiceID := strings.TrimSpace(r.URL.Query().Get("id"))
 	if invoiceID == "" {
 		return invoiceDocument{}, errors.New("invoice id is required")
@@ -1168,40 +1210,43 @@ func loadInvoiceFromRequest(ctx context.Context, r *http.Request) (invoiceDocume
 		return invoiceDocument{}, err
 	}
 	defer db.Close()
-	return loadInvoiceDocument(ctx, db, invoiceID)
+	return loadInvoiceDocument(ctx, db, invoiceID, tenantID)
 }
 
-func loadInvoiceDocument(ctx context.Context, db *sql.DB, invoiceID string) (invoiceDocument, error) {
+func loadInvoiceDocument(ctx context.Context, db *sql.DB, invoiceID string, tenantID string) (invoiceDocument, error) {
 	var doc invoiceDocument
 	var month sql.NullInt64
 	var dueDate sql.NullTime
 	err := db.QueryRowContext(ctx, `
-SELECT id::text,
-	invoice_code,
-	student_id::text,
-	student_code,
-	student_name,
-	class_id::text,
-	class_name,
-	grade,
-	school_year_id::text,
-	school_year_code,
-	fee_schedule_id::text,
-	period_code,
-	month,
-	issued_at,
-	due_date,
-	status,
-	base_amount,
-	adjustment_amount,
-	total_amount,
-	paid_amount,
-	collection_bank_bin,
-	collection_bank_account,
-	qr_bill_number,
-	qr_note
-FROM invoices
-WHERE id = $1::uuid`, invoiceID).Scan(
+SELECT i.id::text,
+	i.invoice_code,
+	i.student_id::text,
+	i.student_code,
+	i.student_name,
+	i.class_id::text,
+	i.class_name,
+	i.grade,
+	i.school_year_id::text,
+	i.school_year_code,
+	i.fee_schedule_id::text,
+	i.period_code,
+	i.month,
+	i.issued_at,
+	i.due_date,
+	i.status,
+	i.base_amount,
+	i.adjustment_amount,
+	i.total_amount,
+	i.paid_amount,
+	i.collection_bank_bin,
+	i.collection_bank_account,
+	i.qr_bill_number,
+	i.qr_note
+FROM invoices i
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
+WHERE i.id = $1::uuid
+	AND sc.tenant_id = $2::uuid`, invoiceID, tenantID).Scan(
 		&doc.ID,
 		&doc.InvoiceCode,
 		&doc.StudentID,

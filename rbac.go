@@ -124,13 +124,17 @@ func requireResolvedPermission(resolve routePermissionResolver, next http.Handle
 
 func requirePermissionForAuthenticated(permission string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if permission == permissionAuthenticated {
-			next(w, r)
-			return
-		}
 		user, ok := authenticatedUserFromRequest(r)
 		if !ok {
 			http.Error(w, "not authenticated", http.StatusUnauthorized)
+			return
+		}
+		if !authenticatedUserHasActiveTenant(user) {
+			http.Error(w, "active tenant required", http.StatusForbidden)
+			return
+		}
+		if permission == permissionAuthenticated {
+			next(w, r)
 			return
 		}
 		if !authenticatedUserHasPermission(user, permission) {

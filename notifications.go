@@ -35,6 +35,7 @@ type notificationTemplate struct {
 }
 
 type notificationCampaignInput struct {
+	TenantID      string   `json:"-"`
 	ID            string   `json:"id,omitempty"`
 	CampaignID    string   `json:"campaignId,omitempty"`
 	Name          string   `json:"name"`
@@ -199,6 +200,10 @@ type paidConfirmationSendOptions struct {
 }
 
 func handleNotificationOptions(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -211,12 +216,12 @@ func handleNotificationOptions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load notification templates", http.StatusInternalServerError)
 		return
 	}
-	campaigns, err := listNotificationCampaigns(r.Context(), db)
+	campaigns, err := listNotificationCampaigns(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load notification campaigns", http.StatusInternalServerError)
 		return
 	}
-	options, err := listMasterDataOptions(r.Context(), db)
+	options, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load master data options", http.StatusInternalServerError)
 		return
@@ -246,6 +251,10 @@ func handleNotificationTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNotificationCampaigns(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -253,7 +262,7 @@ func handleNotificationCampaigns(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	campaigns, err := listNotificationCampaigns(r.Context(), db)
+	campaigns, err := listNotificationCampaigns(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load notification campaigns", http.StatusInternalServerError)
 		return
@@ -262,10 +271,15 @@ func handleNotificationCampaigns(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNotificationCampaignPreview(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	input, ok := decodeNotificationCampaignInput(w, r)
 	if !ok {
 		return
 	}
+	input.TenantID = tenantID
 	preview, err := buildNotificationPreview(r.Context(), input)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -275,6 +289,10 @@ func handleNotificationCampaignPreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNotificationCampaignEmailPreview(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	req, ok := decodeNotificationEmailPreviewInput(w, r)
 	if !ok {
 		return
@@ -287,8 +305,9 @@ func handleNotificationCampaignEmailPreview(w http.ResponseWriter, r *http.Reque
 	defer db.Close()
 
 	input := req.notificationCampaignInput
+	input.TenantID = tenantID
 	if input.CampaignID != "" {
-		stored, err := loadNotificationCampaignInput(r.Context(), db, input.CampaignID)
+		stored, err := loadNotificationCampaignInput(r.Context(), db, input.CampaignID, tenantID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -311,7 +330,7 @@ func handleNotificationCampaignEmailPreview(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "notification recipient not found", http.StatusBadRequest)
 		return
 	}
-	invoice, err := loadInvoiceDocument(r.Context(), db, recipient.InvoiceID)
+	invoice, err := loadInvoiceDocument(r.Context(), db, recipient.InvoiceID, tenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -344,10 +363,15 @@ func handleNotificationCampaignEmailPreview(w http.ResponseWriter, r *http.Reque
 }
 
 func handleNotificationCampaignSave(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	input, ok := decodeNotificationCampaignInput(w, r)
 	if !ok {
 		return
 	}
+	input.TenantID = tenantID
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -369,7 +393,7 @@ func handleNotificationCampaignSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot save notification campaign: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	campaigns, _ := listNotificationCampaigns(r.Context(), db)
+	campaigns, _ := listNotificationCampaigns(r.Context(), db, tenantID)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"campaign":   campaign,
 		"summary":    summarizeNotificationRecipients(preview.Recipients),
@@ -379,10 +403,15 @@ func handleNotificationCampaignSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	input, ok := decodeNotificationCampaignInput(w, r)
 	if !ok {
 		return
 	}
+	input.TenantID = tenantID
 	recipientIDs := input.RecipientIDs
 	if !input.DryRun && !input.ConfirmSend {
 		http.Error(w, "confirmSend is required for real notification sends", http.StatusBadRequest)
@@ -397,7 +426,7 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	if input.CampaignID != "" {
-		stored, err := loadNotificationCampaignInput(r.Context(), db, input.CampaignID)
+		stored, err := loadNotificationCampaignInput(r.Context(), db, input.CampaignID, tenantID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -426,7 +455,7 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 		}
 		input.CampaignID = campaign.ID
 	}
-	recipients, err := loadNotificationRecipients(r.Context(), db, input.CampaignID)
+	recipients, err := loadNotificationRecipients(r.Context(), db, input.CampaignID, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load notification recipients", http.StatusInternalServerError)
 		return
@@ -476,6 +505,10 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNotificationLogs(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -483,7 +516,7 @@ func handleNotificationLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	logs, err := listNotificationLogs(r.Context(), db, strings.TrimSpace(r.URL.Query().Get("campaignId")), parsePositiveInt(r.URL.Query().Get("limit"), 100))
+	logs, err := listNotificationLogs(r.Context(), db, strings.TrimSpace(r.URL.Query().Get("campaignId")), tenantID, parsePositiveInt(r.URL.Query().Get("limit"), 100))
 	if err != nil {
 		http.Error(w, "cannot load notification logs", http.StatusInternalServerError)
 		return
@@ -492,6 +525,10 @@ func handleNotificationLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNotificationPaidConfirmationSend(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input paidConfirmationSendInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -515,7 +552,7 @@ func handleNotificationPaidConfirmationSend(w http.ResponseWriter, r *http.Reque
 	}
 	defer db.Close()
 
-	results, err := sendPaidConfirmationForInvoice(r.Context(), db, input.InvoiceID, paidConfirmationSendOptions{
+	results, err := sendPaidConfirmationForInvoice(r.Context(), db, input.InvoiceID, tenantID, paidConfirmationSendOptions{
 		ForceResend: input.ForceResend,
 		Trigger:     "manual",
 		Operation:   "notification.paid_confirmation.manual",
@@ -587,6 +624,7 @@ func buildNotificationPreviewFromDB(ctx context.Context, db *sql.DB, input notif
 }
 
 func normalizeNotificationCampaignInput(input notificationCampaignInput) notificationCampaignInput {
+	input.TenantID = strings.TrimSpace(input.TenantID)
 	input.ID = strings.TrimSpace(input.ID)
 	input.CampaignID = strings.TrimSpace(firstNonEmpty(input.CampaignID, input.ID))
 	input.Name = strings.TrimSpace(input.Name)
@@ -624,7 +662,7 @@ func normalizeNotificationCampaignInput(input notificationCampaignInput) notific
 
 func notificationPreviewRecipientsForEmailPreview(ctx context.Context, db *sql.DB, input notificationCampaignInput, template notificationTemplate) ([]notificationRecipientCandidate, error) {
 	if input.CampaignID != "" {
-		return loadNotificationRecipients(ctx, db, input.CampaignID)
+		return loadNotificationRecipients(ctx, db, input.CampaignID, input.TenantID)
 	}
 	issues := validateNotificationCampaignInput(input)
 	if len(issues) > 0 {
@@ -790,7 +828,7 @@ LIMIT 1`, code).Scan(
 	return item, err
 }
 
-func listNotificationCampaigns(ctx context.Context, db *sql.DB) ([]notificationCampaignSummary, error) {
+func listNotificationCampaigns(ctx context.Context, db *sql.DB, tenantID string) ([]notificationCampaignSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT c.id::text,
 	c.code,
@@ -819,9 +857,10 @@ LEFT JOIN school_years sy ON sy.id = c.school_year_id
 LEFT JOIN classes cls ON cls.id = c.class_id
 LEFT JOIN notification_recipients r ON r.campaign_id = c.id
 WHERE c.status <> 'archived'
+	AND c.tenant_id = $1::uuid
 GROUP BY c.id, t.id, sy.id, cls.id
 ORDER BY c.created_at DESC, c.id DESC
-LIMIT 200`)
+LIMIT 200`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -864,11 +903,11 @@ LIMIT 200`)
 	return campaigns, rows.Err()
 }
 
-func loadNotificationCampaignInput(ctx context.Context, db *sql.DB, campaignID string) (notificationCampaignInput, error) {
+func loadNotificationCampaignInput(ctx context.Context, db *sql.DB, campaignID string, tenantID string) (notificationCampaignInput, error) {
 	var input notificationCampaignInput
 	var dueDate sql.NullTime
 	err := db.QueryRowContext(ctx, `
-SELECT r.id::text,
+SELECT id::text,
 	name,
 	campaign_type,
 	template_id::text,
@@ -880,7 +919,8 @@ SELECT r.id::text,
 	due_on_or_before
 FROM notification_campaigns
 WHERE id = $1::uuid
-	AND status <> 'archived'`, campaignID).Scan(
+	AND tenant_id = $2::uuid
+	AND status <> 'archived'`, campaignID, tenantID).Scan(
 		&input.CampaignID,
 		&input.Name,
 		&input.CampaignType,
@@ -901,11 +941,20 @@ WHERE id = $1::uuid
 	if dueDate.Valid {
 		input.DueOnOrBefore = dueDate.Time.Format("2006-01-02")
 	}
+	input.TenantID = tenantID
 	return normalizeNotificationCampaignInput(input), nil
 }
 
 func listNotificationRecipientCandidates(ctx context.Context, db *sql.DB, input notificationCampaignInput, template notificationTemplate) ([]notificationRecipientCandidate, error) {
+	args := []any{}
+	addArg := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	templateArg := addArg(template.ID)
+	tenantArg := addArg(input.TenantID)
 	conditions := []string{
+		"sc.tenant_id = " + tenantArg + "::uuid",
 		"i.status <> 'void'",
 		"sp.is_active",
 		"sp.receives_billing_email",
@@ -913,12 +962,6 @@ func listNotificationRecipientCandidates(ctx context.Context, db *sql.DB, input 
 		"p.status = 'active'",
 		"p.email <> ''",
 	}
-	args := []any{}
-	addArg := func(value any) string {
-		args = append(args, value)
-		return fmt.Sprintf("$%d", len(args))
-	}
-	templateArg := addArg(template.ID)
 	if input.SchoolYearID != "" {
 		conditions = append(conditions, "i.school_year_id = "+addArg(input.SchoolYearID)+"::uuid")
 	}
@@ -969,6 +1012,8 @@ SELECT i.id::text,
 	COALESCE(log_counts.last_status, ''),
 	COALESCE(log_counts.last_error, '')
 FROM invoices i
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 JOIN students s ON s.id = i.student_id
 JOIN student_parents sp ON sp.student_id = s.id
 JOIN parents p ON p.id = sp.parent_id
@@ -1058,11 +1103,12 @@ func saveNotificationCampaign(ctx context.Context, db *sql.DB, input notificatio
 	if campaignID == "" {
 		err = tx.QueryRowContext(ctx, `
 INSERT INTO notification_campaigns (
-	code, name, campaign_type, template_id, school_year_id, class_id,
+	tenant_id, code, name, campaign_type, template_id, school_year_id, class_id,
 	grade, period_code, invoice_status, due_on_or_before, status, target_filter
 )
-VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7, $8, $9, $10, 'draft', $11::jsonb)
+VALUES ($1::uuid, $2, $3, $4, $5::uuid, $6::uuid, $7::uuid, $8, $9, $10, $11, 'draft', $12::jsonb)
 RETURNING id::text`,
+			input.TenantID,
 			notificationCampaignCode(input, time.Now()),
 			input.Name,
 			input.CampaignType,
@@ -1079,7 +1125,7 @@ RETURNING id::text`,
 			return notificationCampaignSummary{}, err
 		}
 	} else {
-		_, err = tx.ExecContext(ctx, `
+		err = tx.QueryRowContext(ctx, `
 UPDATE notification_campaigns
 SET name = $2,
 	campaign_type = $3,
@@ -1091,7 +1137,9 @@ SET name = $2,
 	invoice_status = $9,
 	due_on_or_before = $10,
 	target_filter = $11::jsonb
-WHERE id = $1::uuid`,
+WHERE id = $1::uuid
+	AND tenant_id = $12::uuid
+RETURNING id::text`,
 			campaignID,
 			input.Name,
 			input.CampaignType,
@@ -1103,11 +1151,20 @@ WHERE id = $1::uuid`,
 			input.InvoiceStatus,
 			nullableDateString(input.DueOnOrBefore),
 			filterJSON,
-		)
+			input.TenantID,
+		).Scan(&campaignID)
 		if err != nil {
 			return notificationCampaignSummary{}, err
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM notification_recipients WHERE campaign_id = $1::uuid`, campaignID); err != nil {
+		if _, err := tx.ExecContext(ctx, `
+DELETE FROM notification_recipients
+WHERE campaign_id = $1::uuid
+	AND EXISTS (
+		SELECT 1
+		FROM notification_campaigns c
+		WHERE c.id = $1::uuid
+			AND c.tenant_id = $2::uuid
+	)`, campaignID, input.TenantID); err != nil {
 			return notificationCampaignSummary{}, err
 		}
 	}
@@ -1119,7 +1176,7 @@ WHERE id = $1::uuid`,
 	if err := tx.Commit(); err != nil {
 		return notificationCampaignSummary{}, err
 	}
-	campaign, err := loadNotificationCampaignSummary(ctx, db, campaignID)
+	campaign, err := loadNotificationCampaignSummary(ctx, db, campaignID, input.TenantID)
 	if err != nil {
 		return notificationCampaignSummary{}, err
 	}
@@ -1179,8 +1236,8 @@ SET parent_id = EXCLUDED.parent_id,
 	return err
 }
 
-func loadNotificationCampaignSummary(ctx context.Context, db *sql.DB, campaignID string) (notificationCampaignSummary, error) {
-	campaigns, err := listNotificationCampaigns(ctx, db)
+func loadNotificationCampaignSummary(ctx context.Context, db *sql.DB, campaignID string, tenantID string) (notificationCampaignSummary, error) {
+	campaigns, err := listNotificationCampaigns(ctx, db, tenantID)
 	if err != nil {
 		return notificationCampaignSummary{}, err
 	}
@@ -1192,7 +1249,7 @@ func loadNotificationCampaignSummary(ctx context.Context, db *sql.DB, campaignID
 	return notificationCampaignSummary{}, errors.New("notification campaign not found")
 }
 
-func loadNotificationRecipients(ctx context.Context, db *sql.DB, campaignID string) ([]notificationRecipientCandidate, error) {
+func loadNotificationRecipients(ctx context.Context, db *sql.DB, campaignID string, tenantID string) ([]notificationRecipientCandidate, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT r.id::text,
 	r.campaign_id::text,
@@ -1221,6 +1278,7 @@ SELECT r.id::text,
 	COALESCE(log_counts.last_status, ''),
 	COALESCE(log_counts.last_error, '')
 FROM notification_recipients r
+JOIN notification_campaigns c ON c.id = r.campaign_id
 JOIN invoices i ON i.id = r.invoice_id
 LEFT JOIN LATERAL (
 	SELECT
@@ -1234,7 +1292,8 @@ LEFT JOIN LATERAL (
 		AND lower(nl.recipient_email) = lower(r.recipient_email)
 ) log_counts ON true
 WHERE r.campaign_id = $1::uuid
-ORDER BY r.class_name, r.student_code, r.recipient_name`, campaignID)
+	AND c.tenant_id = $2::uuid
+ORDER BY r.class_name, r.student_code, r.recipient_name`, campaignID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -1291,7 +1350,7 @@ ORDER BY r.class_name, r.student_code, r.recipient_name`, campaignID)
 
 func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, template notificationTemplate, input notificationCampaignInput, recipients []notificationRecipientCandidate, baseURL string, sentLimit int) (notificationSendResponse, error) {
 	if !input.DryRun {
-		if _, err := db.ExecContext(ctx, `UPDATE notification_campaigns SET status = 'sending' WHERE id = $1::uuid`, input.CampaignID); err != nil {
+		if _, err := db.ExecContext(ctx, `UPDATE notification_campaigns SET status = 'sending' WHERE id = $1::uuid AND tenant_id = $2::uuid`, input.CampaignID, input.TenantID); err != nil {
 			return notificationSendResponse{}, err
 		}
 	}
@@ -1319,7 +1378,7 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 				continue
 			}
 		}
-		invoice, err := loadInvoiceDocument(ctx, db, recipient.InvoiceID)
+		invoice, err := loadInvoiceDocument(ctx, db, recipient.InvoiceID, input.TenantID)
 		if err != nil {
 			result := notificationSkippedResult(recipient, "invoice not found")
 			result.Status = "error"
@@ -1356,17 +1415,18 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 	} else if status == notificationStatusSent || status == notificationStatusPartial {
 		updateQuery += `, sent_at = now()`
 	}
-	updateQuery += ` WHERE id = $1::uuid`
+	updateQuery += ` WHERE id = $1::uuid AND tenant_id = $3::uuid`
+	args = append(args, input.TenantID)
 	if _, err := db.ExecContext(ctx, updateQuery, args...); err != nil {
 		return notificationSendResponse{}, err
 	}
 
-	campaign, err := loadNotificationCampaignSummary(ctx, db, input.CampaignID)
+	campaign, err := loadNotificationCampaignSummary(ctx, db, input.CampaignID, input.TenantID)
 	if err != nil {
 		return notificationSendResponse{}, err
 	}
-	logs, _ := listNotificationLogs(ctx, db, input.CampaignID, 50)
-	updatedRecipients, err := loadNotificationRecipients(ctx, db, input.CampaignID)
+	logs, _ := listNotificationLogs(ctx, db, input.CampaignID, input.TenantID, 50)
+	updatedRecipients, err := loadNotificationRecipients(ctx, db, input.CampaignID, input.TenantID)
 	if err != nil {
 		updatedRecipients = recipients
 	}
@@ -1463,7 +1523,23 @@ func sendAutomaticPaidConfirmationBestEffort(ctx context.Context, db *sql.DB, in
 	if strings.TrimSpace(invoiceID) == "" {
 		return
 	}
-	if _, err := sendPaidConfirmationForInvoice(ctx, db, invoiceID, paidConfirmationSendOptions{
+	tenantID, err := tenantIDForInvoice(ctx, db, invoiceID)
+	if err != nil {
+		_ = recordOperationLog(ctx, db, operationLogInput{
+			Source:     "email",
+			Level:      "error",
+			Operation:  "notification.paid_confirmation.auto",
+			Status:     "error",
+			Message:    err.Error(),
+			EntityType: "invoice",
+			EntityID:   invoiceID,
+			Metadata: map[string]any{
+				"trigger": trigger,
+			},
+		})
+		return
+	}
+	if _, err := sendPaidConfirmationForInvoice(ctx, db, invoiceID, tenantID, paidConfirmationSendOptions{
 		CampaignCode: notificationAutoPaidConfirmationCampaignCode,
 		CampaignName: "Tự động xác nhận đã thanh toán",
 		Trigger:      trigger,
@@ -1484,12 +1560,23 @@ func sendAutomaticPaidConfirmationBestEffort(ctx context.Context, db *sql.DB, in
 	}
 }
 
-func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID string, options paidConfirmationSendOptions) ([]emailSendResult, error) {
+func tenantIDForInvoice(ctx context.Context, db *sql.DB, invoiceID string) (string, error) {
+	var tenantID string
+	err := db.QueryRowContext(ctx, `
+SELECT sc.tenant_id::text
+FROM invoices i
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
+WHERE i.id = $1::uuid`, invoiceID).Scan(&tenantID)
+	return tenantID, err
+}
+
+func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID string, tenantID string, options paidConfirmationSendOptions) ([]emailSendResult, error) {
 	invoiceID = strings.TrimSpace(invoiceID)
 	if invoiceID == "" {
 		return nil, errors.New("invoiceId is required")
 	}
-	invoice, err := loadInvoiceDocument(ctx, db, invoiceID)
+	invoice, err := loadInvoiceDocument(ctx, db, invoiceID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -1501,11 +1588,11 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 	if err != nil {
 		return nil, err
 	}
-	campaignID, err := ensurePaidConfirmationCampaign(ctx, db, template, invoice, options)
+	campaignID, err := ensurePaidConfirmationCampaign(ctx, db, template, invoice, tenantID, options)
 	if err != nil {
 		return nil, err
 	}
-	recipients, err := listPaidConfirmationRecipients(ctx, db, invoiceID)
+	recipients, err := listPaidConfirmationRecipients(ctx, db, invoiceID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -1583,11 +1670,12 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 UPDATE notification_campaigns
 SET status = $2,
 	sent_at = CASE WHEN $2 IN ('sent', 'partial') THEN now() ELSE sent_at END
-WHERE id = $1::uuid`, campaignID, status)
+WHERE id = $1::uuid
+	AND tenant_id = $3::uuid`, campaignID, status, tenantID)
 	return results, nil
 }
 
-func ensurePaidConfirmationCampaign(ctx context.Context, db *sql.DB, template notificationTemplate, invoice invoiceDocument, options paidConfirmationSendOptions) (string, error) {
+func ensurePaidConfirmationCampaign(ctx context.Context, db *sql.DB, template notificationTemplate, invoice invoiceDocument, tenantID string, options paidConfirmationSendOptions) (string, error) {
 	code := strings.TrimSpace(options.CampaignCode)
 	name := strings.TrimSpace(options.CampaignName)
 	if code == "" {
@@ -1626,11 +1714,11 @@ func ensurePaidConfirmationCampaign(ctx context.Context, db *sql.DB, template no
 	var campaignID string
 	err = db.QueryRowContext(ctx, `
 INSERT INTO notification_campaigns (
-	code, name, campaign_type, template_id, school_year_id, class_id,
+	tenant_id, code, name, campaign_type, template_id, school_year_id, class_id,
 	grade, period_code, invoice_status, status, target_filter
 )
-VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7, $8, 'paid', 'draft', $9::jsonb)
-ON CONFLICT (code) DO UPDATE
+VALUES ($1::uuid, $2, $3, $4, $5::uuid, $6::uuid, $7::uuid, $8, $9, 'paid', 'draft', $10::jsonb)
+ON CONFLICT (tenant_id, code) DO UPDATE
 SET name = EXCLUDED.name,
 	campaign_type = EXCLUDED.campaign_type,
 	template_id = EXCLUDED.template_id,
@@ -1643,8 +1731,9 @@ SET name = EXCLUDED.name,
 	status = CASE
 		WHEN notification_campaigns.status = 'archived' THEN 'draft'
 		ELSE notification_campaigns.status
-	END
+END
 RETURNING id::text`,
+		tenantID,
 		code,
 		name,
 		notificationCampaignPaymentConfirmation,
@@ -1658,7 +1747,7 @@ RETURNING id::text`,
 	return campaignID, err
 }
 
-func listPaidConfirmationRecipients(ctx context.Context, db *sql.DB, invoiceID string) ([]notificationRecipientCandidate, error) {
+func listPaidConfirmationRecipients(ctx context.Context, db *sql.DB, invoiceID string, tenantID string) ([]notificationRecipientCandidate, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT i.id::text,
 	COALESCE(p.id::text, ''),
@@ -1683,6 +1772,8 @@ SELECT i.id::text,
 	COALESCE(log_counts.last_status, ''),
 	COALESCE(log_counts.last_error, '')
 FROM invoices i
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 JOIN students s ON s.id = i.student_id
 JOIN student_parents sp ON sp.student_id = s.id
 JOIN parents p ON p.id = sp.parent_id
@@ -1698,6 +1789,7 @@ LEFT JOIN LATERAL (
 		AND lower(nl.recipient_email) = lower(p.email)
 ) log_counts ON true
 WHERE i.id = $1::uuid
+	AND sc.tenant_id = $2::uuid
 	AND i.status = 'paid'
 	AND sp.is_active
 	AND sp.receives_billing_email
@@ -1705,7 +1797,7 @@ WHERE i.id = $1::uuid
 	AND p.status = 'active'
 	AND p.email <> ''
 ORDER BY sp.is_primary DESC, p.full_name
-LIMIT 20`, invoiceID)
+LIMIT 20`, invoiceID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -1881,18 +1973,24 @@ WHERE id = $1::uuid`, recipientID, status, lastError)
 	return err
 }
 
-func listNotificationLogs(ctx context.Context, db *sql.DB, campaignID string, limit int) ([]notificationLogSummary, error) {
+func listNotificationLogs(ctx context.Context, db *sql.DB, campaignID string, tenantID string, limit int) ([]notificationLogSummary, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	conditions := []string{"1 = 1"}
+	conditions := []string{}
 	args := []any{}
 	addArg := func(value any) string {
 		args = append(args, value)
 		return fmt.Sprintf("$%d", len(args))
 	}
+	if tenantID != "" {
+		conditions = append(conditions, "c.tenant_id = "+addArg(tenantID)+"::uuid")
+	}
 	if campaignID != "" {
 		conditions = append(conditions, "nl.campaign_id = "+addArg(campaignID)+"::uuid")
+	}
+	if len(conditions) == 0 {
+		conditions = append(conditions, "1 = 1")
 	}
 	query := `
 SELECT nl.id::text,

@@ -44,12 +44,23 @@ type authLoginRequest struct {
 	Password   string `json:"password"`
 }
 
+type authTenantSummary struct {
+	ID               string `json:"id"`
+	Code             string `json:"code"`
+	Name             string `json:"name"`
+	Status           string `json:"status"`
+	MembershipStatus string `json:"membershipStatus"`
+	IsOwner          bool   `json:"isOwner"`
+}
+
 type authenticatedUser struct {
 	ID            string                   `json:"id"`
 	Email         string                   `json:"email"`
 	Phone         string                   `json:"phone"`
 	DisplayName   string                   `json:"displayName"`
 	Status        string                   `json:"status"`
+	Tenants       []authTenantSummary      `json:"tenants"`
+	ActiveTenant  authTenantSummary        `json:"activeTenant"`
 	Roles         []adminRoleSummary       `json:"roles"`
 	Permissions   []adminPermissionSummary `json:"permissions"`
 	PermissionSet map[string]bool          `json:"-"`
@@ -88,6 +99,12 @@ type authTokenRecord struct {
 	UserPhone         string
 	UserDisplayName   string
 	UserStatus        string
+	TenantID          string
+	TenantCode        string
+	TenantName        string
+	TenantStatus      string
+	MembershipStatus  string
+	TenantIsOwner     bool
 	RefreshExpiresAt  time.Time
 	AccessExpiresAt   time.Time
 	RefreshTokenID    string
@@ -170,9 +187,13 @@ func handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid email/phone or password", http.StatusUnauthorized)
 		return
 	}
+	if !authenticatedUserHasActiveTenant(user) {
+		http.Error(w, "active tenant membership required", http.StatusForbidden)
+		return
+	}
 
 	now := time.Now().UTC()
-	tokens, err := issueAuthSession(r.Context(), db, user.ID, now, loadAuthConfig(), auditContextFromRequest(r))
+	tokens, err := issueAuthSession(r.Context(), db, user.ID, user.ActiveTenant.ID, now, loadAuthConfig(), auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, "cannot create session", http.StatusInternalServerError)
 		return
@@ -249,9 +270,13 @@ func handleAuthBootstrapCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load admin permissions", http.StatusInternalServerError)
 		return
 	}
+	if !authenticatedUserHasActiveTenant(user) {
+		http.Error(w, "active tenant membership required", http.StatusForbidden)
+		return
+	}
 
 	now := time.Now().UTC()
-	tokens, err := issueAuthSession(r.Context(), db, user.ID, now, loadAuthConfig(), auditContextFromRequest(r))
+	tokens, err := issueAuthSession(r.Context(), db, user.ID, user.ActiveTenant.ID, now, loadAuthConfig(), auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, "cannot create session", http.StatusInternalServerError)
 		return
@@ -357,6 +382,36 @@ func authenticatedUserFromRequest(r *http.Request) (authenticatedUser, bool) {
 	return user, ok
 }
 
+func activeTenantIDFromRequest(r *http.Request) string {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(user.ActiveTenant.ID)
+}
+
+func authenticatedUserHasActiveTenant(user authenticatedUser) bool {
+	if strings.TrimSpace(user.ActiveTenant.ID) == "" {
+		return false
+	}
+	if user.ActiveTenant.Status != "" && !tenantStatusAllowsAuth(user.ActiveTenant.Status) {
+		return false
+	}
+	if user.ActiveTenant.MembershipStatus != "" && user.ActiveTenant.MembershipStatus != "active" {
+		return false
+	}
+	return true
+}
+
+func tenantStatusAllowsAuth(status string) bool {
+	switch status {
+	case "active", "trial":
+		return true
+	default:
+		return false
+	}
+}
+
 func normalizeAuthEmail(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
@@ -437,6 +492,15 @@ func validateRefreshTokenRecord(record authTokenRecord, now time.Time) error {
 	}
 	if record.UserStatus != "active" {
 		return errors.New("user is not active")
+	}
+	if record.TenantID == "" {
+		return errors.New("active tenant not found")
+	}
+	if !tenantStatusAllowsAuth(record.TenantStatus) {
+		return errors.New("tenant is not active")
+	}
+	if record.MembershipStatus != "active" {
+		return errors.New("tenant membership is not active")
 	}
 	return nil
 }
@@ -561,6 +625,13 @@ ON CONFLICT (user_id, role_id) DO NOTHING`, userID)
 	if !hasRole {
 		return fmt.Errorf("admin role is not available; run migrations first")
 	}
+	tenantID, err := ensureDefaultTenantMembership(ctx, tx, userID, true)
+	if err != nil {
+		return err
+	}
+	if err := ensureTenantUserRole(ctx, tx, tenantID, userID, "admin", userID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -608,6 +679,13 @@ ON CONFLICT (user_id, role_id) DO NOTHING`, userID); err != nil {
 	if !hasRole {
 		return "", fmt.Errorf("admin role is not available; run migrations first")
 	}
+	tenantID, err := ensureDefaultTenantMembership(ctx, tx, userID, true)
+	if err != nil {
+		return "", err
+	}
+	if err := ensureTenantUserRole(ctx, tx, tenantID, userID, "admin", userID); err != nil {
+		return "", err
+	}
 	return userID, tx.Commit()
 }
 
@@ -622,6 +700,52 @@ SELECT EXISTS (
 		AND role.code = $2
 )`, userID, roleCode).Scan(&hasRole)
 	return hasRole, err
+}
+
+func ensureDefaultTenantMembership(ctx context.Context, exec masterDataExecutor, userID string, isOwner bool) (string, error) {
+	var tenantID string
+	err := exec.QueryRowContext(ctx, `
+WITH default_tenant AS (
+	SELECT id
+	FROM tenants
+	WHERE code = $2
+	LIMIT 1
+), upserted AS (
+	INSERT INTO tenant_memberships (tenant_id, user_id, status, is_owner)
+	SELECT id, $1::uuid, 'active', $3
+	FROM default_tenant
+	ON CONFLICT (tenant_id, user_id) DO UPDATE
+	SET status = 'active',
+		is_owner = tenant_memberships.is_owner OR EXCLUDED.is_owner,
+		updated_at = now()
+	RETURNING tenant_id::text
+)
+SELECT tenant_id FROM upserted
+UNION ALL
+SELECT id::text FROM default_tenant
+LIMIT 1`, userID, defaultTenantCode, isOwner).Scan(&tenantID)
+	return tenantID, err
+}
+
+func ensureTenantMembership(ctx context.Context, exec masterDataExecutor, tenantID string, userID string, isOwner bool) error {
+	_, err := exec.ExecContext(ctx, `
+INSERT INTO tenant_memberships (tenant_id, user_id, status, is_owner)
+VALUES ($1::uuid, $2::uuid, 'active', $3)
+ON CONFLICT (tenant_id, user_id) DO UPDATE
+SET status = 'active',
+	is_owner = tenant_memberships.is_owner OR EXCLUDED.is_owner,
+	updated_at = now()`, tenantID, userID, isOwner)
+	return err
+}
+
+func ensureTenantUserRole(ctx context.Context, exec masterDataExecutor, tenantID string, userID string, roleCode string, assignedByUserID string) error {
+	_, err := exec.ExecContext(ctx, `
+INSERT INTO tenant_user_roles (tenant_id, user_id, role_id, assigned_by_user_id)
+SELECT $1::uuid, $2::uuid, role.id, nullif($4, '')::uuid
+FROM app_roles role
+WHERE role.code = $3
+ON CONFLICT (tenant_id, user_id, role_id) DO NOTHING`, tenantID, userID, roleCode, assignedByUserID)
+	return err
 }
 
 func countAppUsers(ctx context.Context, db *sql.DB) (int, error) {
@@ -657,6 +781,19 @@ LIMIT 1`, email, phone).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayNa
 }
 
 func enrichAuthenticatedUser(ctx context.Context, db *sql.DB, user *authenticatedUser) error {
+	tenants, activeTenant, err := loadAuthenticatedUserTenants(ctx, db, user.ID, user.ActiveTenant.ID)
+	if err != nil {
+		return err
+	}
+	user.Tenants = tenants
+	user.ActiveTenant = activeTenant
+	user.Roles = []adminRoleSummary{}
+	user.Permissions = []adminPermissionSummary{}
+	user.PermissionSet = map[string]bool{}
+	if user.ActiveTenant.ID == "" {
+		return nil
+	}
+
 	rows, err := db.QueryContext(ctx, `
 SELECT r.id::text,
 	r.code,
@@ -666,12 +803,13 @@ SELECT r.id::text,
 	COALESCE(p.id::text, ''),
 	COALESCE(p.code, ''),
 	COALESCE(p.description, '')
-FROM app_user_roles ur
+FROM tenant_user_roles ur
 JOIN app_roles r ON r.id = ur.role_id
 LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
 LEFT JOIN app_permissions p ON p.id = rp.permission_id
 WHERE ur.user_id = $1::uuid
-ORDER BY r.code, p.code`, user.ID)
+	AND ur.tenant_id = $2::uuid
+ORDER BY r.code, p.code`, user.ID, user.ActiveTenant.ID)
 	if err != nil {
 		return err
 	}
@@ -729,13 +867,58 @@ ORDER BY r.code, p.code`, user.ID)
 	return nil
 }
 
+func loadAuthenticatedUserTenants(ctx context.Context, db *sql.DB, userID string, preferredTenantID string) ([]authTenantSummary, authTenantSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT tenant.id::text,
+	tenant.code,
+	tenant.name,
+	tenant.status,
+	membership.status,
+	membership.is_owner
+FROM tenant_memberships membership
+JOIN tenants tenant ON tenant.id = membership.tenant_id
+WHERE membership.user_id = $1::uuid
+	AND membership.status = 'active'
+	AND tenant.status IN ('active', 'trial')
+ORDER BY CASE WHEN tenant.id::text = $2 THEN 0 WHEN tenant.code = $3 THEN 1 ELSE 2 END,
+	tenant.code`, userID, strings.TrimSpace(preferredTenantID), defaultTenantCode)
+	if err != nil {
+		return nil, authTenantSummary{}, err
+	}
+	defer rows.Close()
+
+	tenants := []authTenantSummary{}
+	activeTenant := authTenantSummary{}
+	for rows.Next() {
+		var item authTenantSummary
+		if err := rows.Scan(&item.ID, &item.Code, &item.Name, &item.Status, &item.MembershipStatus, &item.IsOwner); err != nil {
+			return nil, authTenantSummary{}, err
+		}
+		if activeTenant.ID == "" {
+			activeTenant = item
+		}
+		if preferredTenantID != "" && item.ID == preferredTenantID {
+			activeTenant = item
+		}
+		tenants = append(tenants, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, authTenantSummary{}, err
+	}
+	return tenants, activeTenant, nil
+}
+
 func sortAdminPermissions(permissions []adminPermissionSummary) {
 	sort.Slice(permissions, func(i, j int) bool {
 		return permissions[i].Code < permissions[j].Code
 	})
 }
 
-func issueAuthSession(ctx context.Context, db *sql.DB, userID string, now time.Time, cfg authConfig, auditCtx requestAuditContext) (authIssuedTokens, error) {
+func issueAuthSession(ctx context.Context, db *sql.DB, userID string, tenantID string, now time.Time, cfg authConfig, auditCtx requestAuditContext) (authIssuedTokens, error) {
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return authIssuedTokens{}, errors.New("active tenant is required")
+	}
 	tokens, err := issueRawTokens(now, cfg)
 	if err != nil {
 		return authIssuedTokens{}, err
@@ -744,18 +927,19 @@ func issueAuthSession(ctx context.Context, db *sql.DB, userID string, now time.T
 	var sessionID string
 	err = db.QueryRowContext(ctx, `
 WITH new_session AS (
-	INSERT INTO app_auth_sessions (user_id, expires_at, last_used_at, ip_address, user_agent)
-	VALUES ($1::uuid, $2, $3, nullif($4, '')::inet, $5)
+	INSERT INTO app_auth_sessions (user_id, tenant_id, expires_at, last_used_at, ip_address, user_agent)
+	VALUES ($1::uuid, $2::uuid, $3, $4, nullif($5, '')::inet, $6)
 	RETURNING id, user_id
 ), new_access AS (
 	INSERT INTO app_auth_access_tokens (session_id, user_id, token_hash, issued_at, expires_at)
-	SELECT id, user_id, $6, $3, $7 FROM new_session
+	SELECT id, user_id, $7, $4, $8 FROM new_session
 ), new_refresh AS (
 	INSERT INTO app_auth_refresh_tokens (session_id, user_id, token_hash, issued_at, expires_at)
-	SELECT id, user_id, $8, $3, $2 FROM new_session
+	SELECT id, user_id, $9, $4, $3 FROM new_session
 )
 SELECT id::text FROM new_session`,
 		userID,
+		tenantID,
 		tokens.RefreshExpiresAt,
 		now,
 		auditCtx.IPAddress,
@@ -789,11 +973,21 @@ SELECT at.id::text,
 	COALESCE(u.email, ''),
 	u.phone,
 	u.display_name,
-	u.status
+	u.status,
+	tenant.id::text,
+	tenant.code,
+	tenant.name,
+	tenant.status,
+	membership.status,
+	membership.is_owner
 FROM app_auth_access_tokens at
 JOIN app_auth_sessions s ON s.id = at.session_id
 JOIN app_auth_refresh_tokens rt ON rt.session_id = s.id AND rt.used_at IS NULL AND rt.revoked_at IS NULL
 JOIN app_users u ON u.id = at.user_id
+JOIN tenants tenant ON tenant.id = s.tenant_id AND tenant.status IN ('active', 'trial')
+JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
+	AND membership.user_id = u.id
+	AND membership.status = 'active'
 WHERE at.token_hash = $1
 	AND at.revoked_at IS NULL
 	AND at.expires_at > $2
@@ -811,6 +1005,12 @@ LIMIT 1`, accessTokenHash, now).Scan(
 		&session.User.Phone,
 		&session.User.DisplayName,
 		&session.User.Status,
+		&session.User.ActiveTenant.ID,
+		&session.User.ActiveTenant.Code,
+		&session.User.ActiveTenant.Name,
+		&session.User.ActiveTenant.Status,
+		&session.User.ActiveTenant.MembershipStatus,
+		&session.User.ActiveTenant.IsOwner,
 	)
 	if err != nil {
 		return authSessionResponse{}, err
@@ -898,6 +1098,14 @@ WHERE id = $1::uuid`, record.SessionID, now, auditCtx.IPAddress, auditCtx.UserAg
 			Phone:       record.UserPhone,
 			DisplayName: record.UserDisplayName,
 			Status:      record.UserStatus,
+			ActiveTenant: authTenantSummary{
+				ID:               record.TenantID,
+				Code:             record.TenantCode,
+				Name:             record.TenantName,
+				Status:           record.TenantStatus,
+				MembershipStatus: record.MembershipStatus,
+				IsOwner:          record.TenantIsOwner,
+			},
 		},
 		AccessExpiresAt:  tokens.AccessExpiresAt,
 		RefreshExpiresAt: tokens.RefreshExpiresAt,
@@ -925,10 +1133,19 @@ SELECT rt.id::text,
 	COALESCE(u.email, ''),
 	u.phone,
 	u.display_name,
-	u.status
+	u.status,
+	s.tenant_id::text,
+	tenant.code,
+	tenant.name,
+	tenant.status,
+	membership.status,
+	membership.is_owner
 FROM app_auth_refresh_tokens rt
 JOIN app_auth_sessions s ON s.id = rt.session_id
 JOIN app_users u ON u.id = rt.user_id
+JOIN tenants tenant ON tenant.id = s.tenant_id
+JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
+	AND membership.user_id = u.id
 WHERE rt.token_hash = $1
 FOR UPDATE OF rt`, refreshTokenHash).Scan(
 		&record.ID,
@@ -943,6 +1160,12 @@ FOR UPDATE OF rt`, refreshTokenHash).Scan(
 		&record.UserPhone,
 		&record.UserDisplayName,
 		&record.UserStatus,
+		&record.TenantID,
+		&record.TenantCode,
+		&record.TenantName,
+		&record.TenantStatus,
+		&record.MembershipStatus,
+		&record.TenantIsOwner,
 	)
 	return record, err
 }

@@ -23,6 +23,7 @@ const (
 )
 
 type requestAuditContext struct {
+	TenantID    string
 	ActorUserID string
 	ActorName   string
 	RequestID   string
@@ -62,6 +63,7 @@ type auditLogCommandSummary struct {
 }
 
 type auditLogFilters struct {
+	TenantID   string
 	Action     string
 	EntityType string
 	EntityID   string
@@ -69,6 +71,7 @@ type auditLogFilters struct {
 }
 
 type operationLogInput struct {
+	TenantID   string
 	RequestID  string
 	Source     string
 	Level      string
@@ -106,6 +109,7 @@ type operationLogCommandSummary struct {
 }
 
 type operationLogFilters struct {
+	TenantID   string
 	Source     string
 	Level      string
 	Operation  string
@@ -123,6 +127,7 @@ func auditContextFromRequest(r *http.Request) requestAuditContext {
 		actorName = firstNonEmpty(user.DisplayName, user.Email, actorName)
 	}
 	return requestAuditContext{
+		TenantID:    activeTenantIDFromRequest(r),
 		ActorUserID: actorUserID,
 		ActorName:   actorName,
 		RequestID:   strings.TrimSpace(r.Header.Get(requestIDHeader)),
@@ -171,8 +176,10 @@ func insertAuditLog(ctx context.Context, exec masterDataExecutor, input auditLog
 		return err
 	}
 	_, err = exec.ExecContext(ctx, `
-INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, request_id, ip_address, user_agent, metadata)
-VALUES (nullif($1, '')::uuid, $2, $3, nullif($4, '')::uuid, $5, nullif($6, '')::inet, $7, $8::jsonb)`,
+INSERT INTO audit_logs (tenant_id, actor_user_id, action, entity_type, entity_id, request_id, ip_address, user_agent, metadata)
+VALUES (COALESCE(nullif($1, '')::uuid, (SELECT id FROM tenants WHERE code = $2)), nullif($3, '')::uuid, $4, $5, nullif($6, '')::uuid, $7, nullif($8, '')::inet, $9, $10::jsonb)`,
+		strings.TrimSpace(input.Context.TenantID),
+		defaultTenantCode,
 		strings.TrimSpace(input.Context.ActorUserID),
 		action,
 		entityType,
@@ -207,8 +214,10 @@ func recordOperationLog(ctx context.Context, exec masterDataExecutor, input oper
 		return err
 	}
 	_, err = exec.ExecContext(ctx, `
-INSERT INTO operation_logs (source, level, operation, status, message, entity_type, entity_id, request_id, metadata)
-VALUES ($1, $2, $3, $4, $5, $6, nullif($7, '')::uuid, $8, $9::jsonb)`,
+INSERT INTO operation_logs (tenant_id, source, level, operation, status, message, entity_type, entity_id, request_id, metadata)
+VALUES (COALESCE(nullif($1, '')::uuid, (SELECT id FROM tenants WHERE code = $2)), $3, $4, $5, $6, $7, $8, nullif($9, '')::uuid, $10, $11::jsonb)`,
+		strings.TrimSpace(input.TenantID),
+		defaultTenantCode,
 		source,
 		level,
 		operation,
@@ -247,6 +256,10 @@ func cloneMetadata(metadata map[string]any) map[string]any {
 }
 
 func handleAdminAuditLogs(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -255,6 +268,7 @@ func handleAdminAuditLogs(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	logs, err := listAuditLogs(r.Context(), db, auditLogFilters{
+		TenantID:   tenantID,
 		Action:     strings.TrimSpace(r.URL.Query().Get("action")),
 		EntityType: strings.TrimSpace(r.URL.Query().Get("entityType")),
 		EntityID:   strings.TrimSpace(r.URL.Query().Get("entityId")),
@@ -268,6 +282,10 @@ func handleAdminAuditLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -276,6 +294,7 @@ func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	logs, err := listOperationLogs(r.Context(), db, operationLogFilters{
+		TenantID:   tenantID,
 		Source:     headerKey(r.URL.Query().Get("source")),
 		Level:      headerKey(r.URL.Query().Get("level")),
 		Operation:  strings.TrimSpace(r.URL.Query().Get("operation")),
@@ -300,6 +319,9 @@ func listAuditLogs(ctx context.Context, db *sql.DB, filters auditLogFilters) ([]
 	}
 	if filters.Action != "" {
 		conditions = append(conditions, "action = "+addArg(filters.Action))
+	}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "tenant_id = "+addArg(filters.TenantID)+"::uuid")
 	}
 	if filters.EntityType != "" {
 		conditions = append(conditions, "entity_type = "+addArg(filters.EntityType))
@@ -373,6 +395,9 @@ func listOperationLogs(ctx context.Context, db *sql.DB, filters operationLogFilt
 	}
 	if filters.Source != "" {
 		conditions = append(conditions, "source = "+addArg(filters.Source))
+	}
+	if filters.TenantID != "" {
+		conditions = append(conditions, "tenant_id = "+addArg(filters.TenantID)+"::uuid")
 	}
 	if filters.Level != "" {
 		conditions = append(conditions, "level = "+addArg(filters.Level))

@@ -14,6 +14,7 @@ func TestRequirePermissionRejectsHeaderSpoofing(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
 		ID:            "user-1",
 		Email:         "viewer@example.edu.vn",
+		ActiveTenant:  authTenantSummary{ID: "tenant-1", Status: "active", MembershipStatus: "active"},
 		PermissionSet: map[string]bool{"system.users.read": true},
 	}))
 	rec := httptest.NewRecorder()
@@ -33,6 +34,7 @@ func TestRequirePermissionAllowsAuthenticatedUserPermission(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
 		ID:            "user-1",
 		Email:         "billing@example.edu.vn",
+		ActiveTenant:  authTenantSummary{ID: "tenant-1", Status: "active", MembershipStatus: "active"},
 		PermissionSet: map[string]bool{"admin.reports.read": true},
 	}))
 	rec := httptest.NewRecorder()
@@ -44,6 +46,25 @@ func TestRequirePermissionAllowsAuthenticatedUserPermission(t *testing.T) {
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected request to pass, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequirePermissionRejectsMissingActiveTenant(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/reports", nil)
+	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
+		ID:            "user-1",
+		Email:         "billing@example.edu.vn",
+		PermissionSet: map[string]bool{"admin.reports.read": true},
+	}))
+	rec := httptest.NewRecorder()
+
+	handler := requirePermissionForAuthenticated("admin.reports.read", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected missing active tenant to be forbidden, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

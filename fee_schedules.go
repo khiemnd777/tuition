@@ -47,6 +47,7 @@ type feeScheduleOptionsResponse struct {
 }
 
 type feeScheduleListFilters struct {
+	TenantID     string
 	SchoolID     string
 	SchoolYearID string
 	ClassID      string
@@ -80,6 +81,7 @@ type feeScheduleSummary struct {
 }
 
 type feeScheduleInput struct {
+	TenantID     string                      `json:"-"`
 	ID           string                      `json:"id,omitempty"`
 	SchoolYearID string                      `json:"schoolYearId"`
 	ClassID      string                      `json:"classId,omitempty"`
@@ -196,6 +198,10 @@ type feeTypeMaps struct {
 }
 
 func handleFeeScheduleOptions(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -208,7 +214,7 @@ func handleFeeScheduleOptions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load fee types", http.StatusInternalServerError)
 		return
 	}
-	masterOptions, err := listMasterDataOptions(r.Context(), db)
+	masterOptions, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load master data options", http.StatusInternalServerError)
 		return
@@ -223,6 +229,10 @@ func handleFeeScheduleOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFeeScheduleList(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -233,6 +243,7 @@ func handleFeeScheduleList(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	month, _ := strconv.Atoi(strings.TrimSpace(query.Get("month")))
 	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{
+		TenantID:     tenantID,
 		SchoolID:     strings.TrimSpace(query.Get("schoolId")),
 		SchoolYearID: strings.TrimSpace(query.Get("schoolYearId")),
 		ClassID:      strings.TrimSpace(query.Get("classId")),
@@ -249,6 +260,10 @@ func handleFeeScheduleList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFeeSchedulePreview(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	var input feeScheduleInput
@@ -257,6 +272,7 @@ func handleFeeSchedulePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input = normalizeFeeScheduleInput(input)
+	input.TenantID = tenantID
 	if issues := validateFeeScheduleInput(input, true); len(issues) > 0 {
 		writeJSON(w, http.StatusOK, feeSchedulePreview{Issues: issues})
 		return
@@ -280,6 +296,10 @@ func handleFeeSchedulePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFeeScheduleSave(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	var input feeScheduleInput
@@ -288,6 +308,7 @@ func handleFeeScheduleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input = normalizeFeeScheduleInput(input)
+	input.TenantID = tenantID
 	if issues := validateFeeScheduleInput(input, true); len(issues) > 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"issues": issues})
 		return
@@ -318,6 +339,7 @@ func handleFeeScheduleSave(w http.ResponseWriter, r *http.Request) {
 	preview.Issues = issues
 
 	schedules, err := listFeeScheduleSummaries(r.Context(), db, feeScheduleListFilters{
+		TenantID:     tenantID,
 		SchoolYearID: input.SchoolYearID,
 		PeriodCode:   input.PeriodCode,
 		Month:        input.Month,
@@ -701,6 +723,7 @@ func feeAdjustmentStudentKey(adjustment studentFeeAdjustmentInput) string {
 }
 
 func normalizeFeeScheduleInput(input feeScheduleInput) feeScheduleInput {
+	input.TenantID = strings.TrimSpace(input.TenantID)
 	input.ID = strings.TrimSpace(input.ID)
 	input.SchoolYearID = strings.TrimSpace(input.SchoolYearID)
 	input.ClassID = strings.TrimSpace(input.ClassID)
@@ -796,6 +819,10 @@ ORDER BY default_display_order, code`)
 func listFeeScheduleSummaries(ctx context.Context, db *sql.DB, filters feeScheduleListFilters) ([]feeScheduleSummary, error) {
 	conditions := []string{"1 = 1"}
 	args := []any{}
+	if filters.TenantID != "" {
+		args = append(args, filters.TenantID)
+		conditions = append(conditions, fmt.Sprintf("sc.tenant_id = $%d::uuid", len(args)))
+	}
 	if filters.SchoolID != "" {
 		args = append(args, filters.SchoolID)
 		conditions = append(conditions, fmt.Sprintf("sy.school_id = $%d::uuid", len(args)))
@@ -951,6 +978,10 @@ LIMIT 500`
 func loadFeeScheduleStudents(ctx context.Context, exec masterDataExecutor, input feeScheduleInput) ([]feeScheduleStudent, error) {
 	conditions := []string{"sy.id = $1::uuid", "s.status = 'active'", "c.status = 'active'"}
 	args := []any{input.SchoolYearID}
+	if input.TenantID != "" {
+		args = append(args, input.TenantID)
+		conditions = append(conditions, fmt.Sprintf("sc.tenant_id = $%d::uuid", len(args)))
+	}
 	if input.ClassID != "" {
 		args = append(args, input.ClassID)
 		conditions = append(conditions, fmt.Sprintf("c.id = $%d::uuid", len(args)))
@@ -981,6 +1012,7 @@ SELECT s.id::text,
 FROM students s
 JOIN classes c ON c.id = s.class_id
 JOIN school_years sy ON sy.id = c.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 WHERE ` + strings.Join(conditions, " AND ") + `
 ORDER BY c.grade, c.name, s.student_code
 LIMIT 2000`
@@ -1032,6 +1064,9 @@ func saveFeeSchedule(ctx context.Context, db *sql.DB, input feeScheduleInput, au
 	}
 	if len(lines) == 0 {
 		return "", errors.New("at least one fee schedule item with a positive amount is required")
+	}
+	if err := validateFeeScheduleTenantScope(ctx, tx, input); err != nil {
+		return "", err
 	}
 
 	scopeType := feeScheduleScopeType(input)
@@ -1110,7 +1145,7 @@ VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, nullif($7, '')::uuid, nullif($7, '')
 	}
 
 	for _, adjustment := range input.Adjustments {
-		studentID, err := resolveFeeAdjustmentStudentID(ctx, tx, adjustment)
+		studentID, err := resolveFeeAdjustmentStudentID(ctx, tx, adjustment, input.TenantID)
 		if err != nil {
 			return "", err
 		}
@@ -1190,6 +1225,63 @@ RETURNING id::text`,
 	return scheduleID, nil
 }
 
+func validateFeeScheduleTenantScope(ctx context.Context, exec masterDataExecutor, input feeScheduleInput) error {
+	if strings.TrimSpace(input.TenantID) == "" {
+		return errors.New("active tenant is required")
+	}
+	if input.ID != "" {
+		var exists bool
+		if err := exec.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM fee_schedules fs
+	JOIN school_years sy ON sy.id = fs.school_year_id
+	JOIN schools sc ON sc.id = sy.school_id
+	WHERE fs.id = $1::uuid
+		AND sc.tenant_id = $2::uuid
+)`, input.ID, input.TenantID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return errors.New("fee schedule not found")
+		}
+	}
+	var schoolYearExists bool
+	if err := exec.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM school_years sy
+	JOIN schools sc ON sc.id = sy.school_id
+	WHERE sy.id = $1::uuid
+		AND sc.tenant_id = $2::uuid
+)`, input.SchoolYearID, input.TenantID).Scan(&schoolYearExists); err != nil {
+		return err
+	}
+	if !schoolYearExists {
+		return errors.New("schoolYearId does not exist")
+	}
+	if input.ClassID == "" {
+		return nil
+	}
+	var classExists bool
+	if err := exec.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM classes c
+	JOIN school_years sy ON sy.id = c.school_year_id
+	JOIN schools sc ON sc.id = sy.school_id
+	WHERE c.id = $1::uuid
+		AND c.school_year_id = $2::uuid
+		AND sc.tenant_id = $3::uuid
+)`, input.ClassID, input.SchoolYearID, input.TenantID).Scan(&classExists); err != nil {
+		return err
+	}
+	if !classExists {
+		return errors.New("classId does not exist in the selected school year")
+	}
+	return nil
+}
+
 func loadFeeTypeMaps(ctx context.Context, exec masterDataExecutor) (feeTypeMaps, error) {
 	feeTypes, err := listFeeTypes(ctx, exec)
 	if err != nil {
@@ -1251,8 +1343,26 @@ func resolveOptionalFeeType(id string, code string, feeTypes feeTypeMaps) (strin
 	return feeType.ID, feeType, nil
 }
 
-func resolveFeeAdjustmentStudentID(ctx context.Context, exec masterDataExecutor, adjustment studentFeeAdjustmentInput) (string, error) {
+func resolveFeeAdjustmentStudentID(ctx context.Context, exec masterDataExecutor, adjustment studentFeeAdjustmentInput, tenantID string) (string, error) {
 	if adjustment.StudentID != "" {
+		var exists bool
+		err := exec.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM students s
+	JOIN classes c ON c.id = s.class_id
+	JOIN school_years sy ON sy.id = c.school_year_id
+	JOIN schools sc ON sc.id = sy.school_id
+	WHERE s.id = $1::uuid
+		AND s.tenant_id = $2::uuid
+		AND sc.tenant_id = $2::uuid
+)`, adjustment.StudentID, tenantID).Scan(&exists)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return "", fmt.Errorf("studentId %s was not found", adjustment.StudentID)
+		}
 		return adjustment.StudentID, nil
 	}
 	if adjustment.StudentCode == "" {
@@ -1262,7 +1372,8 @@ func resolveFeeAdjustmentStudentID(ctx context.Context, exec masterDataExecutor,
 	err := exec.QueryRowContext(ctx, `
 SELECT id::text
 FROM students
-WHERE student_code = $1`, adjustment.StudentCode).Scan(&studentID)
+WHERE student_code = $1
+	AND tenant_id = $2::uuid`, adjustment.StudentCode, tenantID).Scan(&studentID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("student_code %s was not found", adjustment.StudentCode)
 	}

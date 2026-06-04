@@ -19,6 +19,10 @@ const (
 )
 
 func handleAdminReportsExport(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -27,6 +31,7 @@ func handleAdminReportsExport(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	filters := parseAdminFilters(r)
+	filters.TenantID = tenantID
 	dataset := headerKey(firstNonEmpty(r.URL.Query().Get("dataset"), r.URL.Query().Get("type"), adminReportDatasetInvoices))
 	filename, data, err := buildAdminReportCSV(r.Context(), db, filters, dataset)
 	if err != nil {
@@ -51,7 +56,7 @@ func buildAdminReportCSV(ctx context.Context, db *sql.DB, filters adminFilters, 
 	case adminReportDatasetInvoices:
 		records = adminInvoiceReportCSVRecords(invoices)
 	case adminReportDatasetTransactions:
-		transactions, err := listPaymentTransactions(ctx, db, paymentTransactionListFilters{Provider: filters.Provider, Limit: 5000})
+		transactions, err := listPaymentTransactions(ctx, db, paymentTransactionListFilters{TenantID: filters.TenantID, Provider: filters.Provider, Limit: 5000})
 		if err != nil {
 			return "", nil, fmt.Errorf("cannot load report transactions")
 		}
