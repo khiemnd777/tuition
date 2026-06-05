@@ -109,7 +109,7 @@ Migration SQL nằm trong `migrations/` và được embed vào binary. Migratio
 Quy ước production hiện tại:
 
 - Primary key dùng UUID do PostgreSQL sinh bằng `gen_random_uuid()`.
-- Tenant mặc định hiện là `ABC_SUN`; auth session tự chọn active tenant đầu tiên, route-level RBAC đọc role theo tenant, và các API school-owned production data lọc theo active tenant. Web Admin có tenant switcher và tenant onboarding cho admin; tenant-scoped payment provider/webhook routing sẽ nằm ở phase sau.
+- Tenant mặc định hiện là `ABC_SUN`; auth session tự chọn active tenant đầu tiên, route-level RBAC đọc role theo tenant, và các API school-owned production data lọc theo active tenant. Web Admin có tenant switcher và tenant onboarding cho admin; phase thanh toán đã triển khai tenant-scoped provider credentials và webhook ownership: provider list sẽ trả `webhookPath` theo tenant.
 - Bảng vận hành có `created_at`, `updated_at`, `created_by_user_id`, `updated_by_user_id` khi cần audit actor.
 - Phiếu thu tiền mặt và điều chỉnh phí cần lý do; app ghi thêm audit log bất biến cho các thay đổi này.
 - Web Admin dùng cookie HttpOnly cho access/refresh token. Access token mặc định sống 15 phút, refresh token mặc định sống 7 ngày và được rotate sau mỗi lần refresh.
@@ -314,7 +314,8 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/payments/intents`: tạo payment intent cho invoice qua `manual_vietqr`, `sepay`, hoặc `payos`.
 - `GET /api/v1/payments/transactions`: danh sách giao dịch ledger, hỗ trợ `provider`, `status`, `limit`.
 - `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, master-data filters, summary, invoices, transactions, intents và reconciliation matches theo invoice.
-- `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos`, lưu raw event, parse transaction và đối soát.
+- `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos` theo tenant mặc định `ABC_SUN` (legacy path, vẫn hỗ trợ), lưu raw event, parse transaction và đối soát.
+- `POST /api/v1/payments/webhooks/{tenantCode}/{provider}`: nhận webhook tenant-scoped theo tenant code, lưu raw event, parse transaction và đối soát.
 - `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice; yêu cầu lý do audit qua `reason`.
 - `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
 - `GET /api/v1/notifications/templates`: danh sách notification template/version.

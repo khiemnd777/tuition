@@ -1,6 +1,6 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 
 ## Current Status
 
@@ -8,11 +8,11 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, and tenant onboarding/switching complete.
 
-Current phase: `subscription_phase_4_complete`
+Current phase: `subscription_phase_5_complete`
 
-Current initiative: Subscription Phase 4 - Tenant Onboarding And Switching is complete.
+Current initiative: Subscription Phase 5 - Tenant-Scoped Payment Provider And Webhook Ownership is complete.
 
-Next recommended initiative: Subscription Phase 5 - Tenant-Scoped Payment Provider And Webhook Ownership.
+Next recommended initiative: Subscription Phase 6 - Tenant Subscription Hardening (webhook key isolation, credential governance, and cross-tenant operations monitoring).
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -66,7 +66,12 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added Web Admin tenant switcher in the top bar.
   - Added tenant onboarding panel in `Người dùng & quyền` with create/edit tenant dialog and initial school creation.
   - Made frontend session recovery tenant-scoped and reset tenant-owned caches after switching.
-  - Kept tenant-scoped payment provider credentials and public webhook routing as the next subscription phase.
+  - Tenant-scoped payment provider credentials and public webhook routing were moved to Phase 5.
+- Subscription Phase 5: Tenant-Scoped Payment Provider And Webhook Ownership is complete:
+  - Added migration `0018_tenant_scoped_payment_providers_and_webhooks`.
+  - Added `tenant_id` to `payment_providers`, seeded defaults for all tenants, and added tenant-level unique constraints and indexing.
+  - Updated payment provider loading, provider list, webhook parsing, webhook event flow, and reconciliation queries to load/store by active tenant.
+  - Updated payment reconciliation query paths so tenant isolation applies to transaction/list/match flows.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

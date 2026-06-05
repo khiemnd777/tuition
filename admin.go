@@ -212,7 +212,7 @@ func handleAdminReports(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load admin options", http.StatusInternalServerError)
 		return
 	}
-	providers, err := listPaymentProviders(r.Context(), db)
+	providers, err := listPaymentProviders(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load report providers", http.StatusInternalServerError)
 		return

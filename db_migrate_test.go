@@ -568,6 +568,36 @@ func TestLoadEmbeddedMigrationsIncludesTenantOnboardingAndSwitching(t *testing.T
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesTenantScopedPaymentProvidersAndWebhooks(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var migrationItem migration
+	for _, item := range migrations {
+		if item.Version == "0018" {
+			migrationItem = item
+			break
+		}
+	}
+	if migrationItem.Name != "tenant_scoped_payment_providers_and_webhooks" {
+		t.Fatalf("expected tenant-scoped payment providers migration 0018, got %+v", migrationItem)
+	}
+
+	for _, want := range []string{
+		"payment_providers ADD COLUMN IF NOT EXISTS tenant_id",
+		"CREATE UNIQUE INDEX IF NOT EXISTS payment_providers_tenant_code_key",
+		"CREATE INDEX IF NOT EXISTS payment_providers_tenant_id_idx",
+		"payment_providers_tenant_id_fkey",
+		"INSERT INTO payment_providers (tenant_id, code, display_name, provider_type, status, config)",
+	} {
+		if !strings.Contains(migrationItem.SQL, want) {
+			t.Fatalf("expected tenant-scoped payment providers migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

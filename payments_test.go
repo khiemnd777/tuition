@@ -186,3 +186,40 @@ func TestPayOSSignatureUsesAlphabeticalPaymentRequestFields(t *testing.T) {
 		t.Fatalf("unexpected payOS signature %q, want %q", signature, want)
 	}
 }
+
+func TestResolvePaymentWebhookTenant(t *testing.T) {
+	cases := []struct {
+		name         string
+		path         string
+		wantTenant   string
+		wantProvider string
+		wantErr      bool
+	}{
+		{name: "legacy provider path", path: "/api/v1/payments/webhooks/sepay", wantTenant: "", wantProvider: "sepay"},
+		{name: "tenant-scoped provider path", path: "/api/v1/payments/webhooks/abc_sun/sepay", wantTenant: "ABC_SUN", wantProvider: "sepay"},
+		{name: "tenant path supports mixed case", path: "/api/v1/payments/webhooks/AbC_SuN/payos", wantTenant: "ABC_SUN", wantProvider: "payos"},
+		{name: "missing provider should fail", path: "/api/v1/payments/webhooks/", wantErr: true},
+		{name: "invalid extra segment should fail", path: "/api/v1/payments/webhooks/abc_sun/sepay/extra", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tenantCode, providerCode, err := resolvePaymentWebhookTenant(tc.path)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for path %q", tc.path)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error for path %q: %v", tc.path, err)
+			}
+			if tenantCode != tc.wantTenant {
+				t.Fatalf("expected tenantCode=%q, got=%q", tc.wantTenant, tenantCode)
+			}
+			if providerCode != tc.wantProvider {
+				t.Fatalf("expected provider=%q, got=%q", tc.wantProvider, providerCode)
+			}
+		})
+	}
+}

@@ -48,6 +48,7 @@ type paymentProvider struct {
 	ProviderType string `json:"providerType"`
 	Status       string `json:"status"`
 	Configured   bool   `json:"configured"`
+	tenantID     string
 	WebhookPath  string `json:"webhookPath,omitempty"`
 }
 
@@ -252,6 +253,10 @@ type payOSCreatePaymentResult struct {
 }
 
 func handlePaymentProviders(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -259,7 +264,7 @@ func handlePaymentProviders(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	providers, err := listPaymentProviders(r.Context(), db)
+	providers, err := listPaymentProviders(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load payment providers", http.StatusInternalServerError)
 		return
@@ -295,7 +300,7 @@ func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	provider, err := loadPaymentProviderByCode(r.Context(), db, input.Provider)
+	provider, err := loadPaymentProviderByCode(r.Context(), db, tenantID, input.Provider)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -352,7 +357,7 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	providers, err := listPaymentProviders(r.Context(), db)
+	providers, err := listPaymentProviders(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load payment providers", http.StatusInternalServerError)
 		return
@@ -414,10 +419,21 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
-	providerCode := strings.TrimPrefix(r.URL.Path, "/api/v1/payments/webhooks/")
-	providerCode = headerKey(strings.Trim(providerCode, "/"))
-	if providerCode == "" || strings.Contains(providerCode, "/") {
-		http.Error(w, "payment provider is required", http.StatusBadRequest)
+	tenantCode, providerCode, err := resolvePaymentWebhookTenant(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	tenantID, err := resolvePaymentWebhookTenantID(r.Context(), db, tenantCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -428,14 +444,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := openMasterDataDatabase(r.Context())
-	if err != nil {
-		writeMasterDataDBError(w, err)
-		return
-	}
-	defer db.Close()
-
-	provider, err := loadPaymentProviderByCode(r.Context(), db, providerCode)
+	provider, err := loadPaymentProviderByCode(r.Context(), db, tenantID, providerCode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -460,7 +469,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	normalized, err := normalizeProviderWebhook(provider.Code, rawPayload)
 	if err != nil {
 		_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", "", nil, err.Error())
-		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "normalize_failed", err))
+		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, tenantID, provider.Code, event.ID, "normalize_failed", err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -470,16 +479,16 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	if provider.Code == paymentProviderPayOS {
 		if err := verifyPayOSWebhookSignature(rawPayload); err != nil {
 			_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", normalized.ProviderTransactionID, normalized.RawPayload, err.Error())
-			_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "invalid_signature", err))
+			_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, tenantID, provider.Code, event.ID, "invalid_signature", err))
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	}
 
-	inserted, match, statusRefresh, err := recordAndReconcilePaymentTransaction(r.Context(), db, provider, normalized)
+	inserted, match, statusRefresh, err := recordAndReconcilePaymentTransaction(r.Context(), db, provider, normalized, tenantID)
 	if err != nil {
 		_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", normalized.ProviderTransactionID, normalized.RawPayload, err.Error())
-		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, provider.Code, event.ID, "reconcile_failed", err))
+		_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, tenantID, provider.Code, event.ID, "reconcile_failed", err))
 		http.Error(w, "cannot reconcile payment transaction", http.StatusInternalServerError)
 		return
 	}
@@ -502,12 +511,60 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func paymentWebhookOperationLog(r *http.Request, providerCode string, eventID string, status string, err error) operationLogInput {
+func resolvePaymentWebhookTenant(rawPath string) (string, string, error) {
+	path := strings.TrimPrefix(rawPath, "/api/v1/payments/webhooks/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return "", "", fmt.Errorf("payment provider is required")
+	}
+	parts := strings.Split(path, "/")
+	switch len(parts) {
+	case 1:
+		providerCode := headerKey(parts[0])
+		if providerCode == "" {
+			return "", "", fmt.Errorf("payment provider is required")
+		}
+		return "", providerCode, nil
+	case 2:
+		tenantCode := strings.TrimSpace(strings.ToUpper(parts[0]))
+		providerCode := headerKey(parts[1])
+		if tenantCode == "" {
+			return "", "", fmt.Errorf("tenant code is required")
+		}
+		if providerCode == "" {
+			return "", "", fmt.Errorf("payment provider is required")
+		}
+		return tenantCode, providerCode, nil
+	default:
+		return "", "", fmt.Errorf("payment webhook path is invalid")
+	}
+}
+
+func resolvePaymentWebhookTenantID(ctx context.Context, db *sql.DB, tenantCode string) (string, error) {
+	tenantCode = strings.TrimSpace(strings.ToUpper(tenantCode))
+	if tenantCode == "" {
+		tenantCode = defaultTenantCode
+	}
+
+	var tenantID string
+	err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM tenants
+WHERE code = $1
+LIMIT 1`, tenantCode).Scan(&tenantID)
+	if err != nil {
+		return "", fmt.Errorf("tenant %q is not available", tenantCode)
+	}
+	return tenantID, nil
+}
+
+func paymentWebhookOperationLog(r *http.Request, tenantID string, providerCode string, eventID string, status string, err error) operationLogInput {
 	message := ""
 	if err != nil {
 		message = err.Error()
 	}
 	return operationLogInput{
+		TenantID:   tenantID,
 		RequestID:  strings.TrimSpace(r.Header.Get(requestIDHeader)),
 		Source:     "webhook",
 		Level:      "error",
@@ -581,11 +638,17 @@ func handleManualCashReceipt(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
-func listPaymentProviders(ctx context.Context, db *sql.DB) ([]paymentProvider, error) {
+func listPaymentProviders(ctx context.Context, db *sql.DB, tenantID string) ([]paymentProvider, error) {
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant id is required")
+	}
 	rows, err := db.QueryContext(ctx, `
-SELECT id::text, code, display_name, provider_type, status
-FROM payment_providers
-ORDER BY CASE code WHEN 'manual_vietqr' THEN 1 WHEN 'sepay' THEN 2 WHEN 'payos' THEN 3 ELSE 9 END, code`)
+SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text, t.code
+FROM payment_providers pp
+JOIN tenants t ON t.id = pp.tenant_id
+WHERE pp.tenant_id = $1::uuid
+ORDER BY CASE pp.code WHEN 'manual_vietqr' THEN 1 WHEN 'sepay' THEN 2 WHEN 'payos' THEN 3 ELSE 9 END, pp.code`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -594,30 +657,41 @@ ORDER BY CASE code WHEN 'manual_vietqr' THEN 1 WHEN 'sepay' THEN 2 WHEN 'payos' 
 	providers := []paymentProvider{}
 	for rows.Next() {
 		var provider paymentProvider
-		if err := rows.Scan(&provider.ID, &provider.Code, &provider.DisplayName, &provider.ProviderType, &provider.Status); err != nil {
+		var tenantCode string
+		if err := rows.Scan(&provider.ID, &provider.Code, &provider.DisplayName, &provider.ProviderType, &provider.Status, &provider.tenantID, &tenantCode); err != nil {
 			return nil, err
 		}
 		provider.Configured = isPaymentProviderConfigured(provider.Code)
 		if provider.Code == paymentProviderSePay || provider.Code == paymentProviderPayOS {
-			provider.WebhookPath = "/api/v1/payments/webhooks/" + provider.Code
+			if tenantCode != "" {
+				provider.WebhookPath = "/api/v1/payments/webhooks/" + strings.ToLower(tenantCode) + "/" + provider.Code
+			} else {
+				provider.WebhookPath = "/api/v1/payments/webhooks/" + provider.Code
+			}
 		}
 		providers = append(providers, provider)
 	}
 	return providers, rows.Err()
 }
 
-func loadPaymentProviderByCode(ctx context.Context, db *sql.DB, code string) (paymentProvider, error) {
+func loadPaymentProviderByCode(ctx context.Context, db *sql.DB, tenantID string, code string) (paymentProvider, error) {
 	var provider paymentProvider
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return provider, fmt.Errorf("tenant id is required")
+	}
 	err := db.QueryRowContext(ctx, `
-SELECT id::text, code, display_name, provider_type, status
+SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text
 FROM payment_providers
-WHERE code = $1
-	AND status <> 'inactive'`, code).Scan(
+WHERE pp.code = $1
+	AND pp.status <> 'inactive'
+	AND pp.tenant_id = $2::uuid`, code, tenantID).Scan(
 		&provider.ID,
 		&provider.Code,
 		&provider.DisplayName,
 		&provider.ProviderType,
 		&provider.Status,
+		&provider.tenantID,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return provider, fmt.Errorf("payment provider %q is not available", code)
@@ -626,9 +700,6 @@ WHERE code = $1
 		return provider, err
 	}
 	provider.Configured = isPaymentProviderConfigured(provider.Code)
-	if provider.Code == paymentProviderSePay || provider.Code == paymentProviderPayOS {
-		provider.WebhookPath = "/api/v1/payments/webhooks/" + provider.Code
-	}
 	return provider, nil
 }
 
@@ -816,14 +887,7 @@ func listPaymentTransactions(ctx context.Context, db *sql.DB, filters paymentTra
 		conditions = append(conditions, "pt.status = "+addArg(filters.Status))
 	}
 	if filters.TenantID != "" {
-		conditions = append(conditions, `EXISTS (
-			SELECT 1
-			FROM invoices tenant_invoice
-			JOIN school_years tenant_sy ON tenant_sy.id = tenant_invoice.school_year_id
-			JOIN schools tenant_school ON tenant_school.id = tenant_sy.school_id
-			WHERE tenant_invoice.id = pt.invoice_id
-				AND tenant_school.tenant_id = `+addArg(filters.TenantID)+`::uuid
-		)`)
+		conditions = append(conditions, "pp.tenant_id = "+addArg(filters.TenantID)+`::uuid`)
 	}
 	limit := filters.Limit
 	if limit <= 0 || limit > 1000 {
@@ -1115,7 +1179,11 @@ func normalizePayOSWebhook(raw map[string]any) (normalizedPaymentTransaction, er
 	}, nil
 }
 
-func recordAndReconcilePaymentTransaction(ctx context.Context, db *sql.DB, provider paymentProvider, normalized normalizedPaymentTransaction) (insertedPaymentTransaction, *paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
+func recordAndReconcilePaymentTransaction(ctx context.Context, db *sql.DB, provider paymentProvider, normalized normalizedPaymentTransaction, tenantID string) (insertedPaymentTransaction, *paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, errors.New("tenant id is required")
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
@@ -1126,7 +1194,7 @@ func recordAndReconcilePaymentTransaction(ctx context.Context, db *sql.DB, provi
 	if err != nil {
 		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
 	}
-	match, statusRefresh, err := reconcilePaymentTransaction(ctx, tx, inserted.Summary)
+	match, statusRefresh, err := reconcilePaymentTransaction(ctx, tx, inserted.Summary, tenantID)
 	if err != nil {
 		return insertedPaymentTransaction{}, nil, invoicePaymentStatusRefresh{}, err
 	}
@@ -1236,11 +1304,11 @@ WHERE pt.id = $1::uuid`, transactionID).Scan(
 	return item, err
 }
 
-func reconcilePaymentTransaction(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary) (*paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
+func reconcilePaymentTransaction(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary, tenantID string) (*paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
 	if transaction.Status == paymentTransactionStatusMatched && transaction.InvoiceID != "" {
 		return nil, invoicePaymentStatusRefresh{}, nil
 	}
-	candidates, err := loadPaymentInvoiceCandidates(ctx, exec, transaction)
+	candidates, err := loadPaymentInvoiceCandidates(ctx, exec, transaction, tenantID)
 	if err != nil {
 		return nil, invoicePaymentStatusRefresh{}, err
 	}
@@ -1299,7 +1367,11 @@ ON CONFLICT (transaction_id, invoice_id) WHERE status <> 'reversed' DO NOTHING`,
 	return &match, statusRefresh, nil
 }
 
-func loadPaymentInvoiceCandidates(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary) ([]paymentInvoiceCandidate, error) {
+func loadPaymentInvoiceCandidates(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary, tenantID string) ([]paymentInvoiceCandidate, error) {
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return nil, errors.New("tenant id is required")
+	}
 	account := cleanAccount(transaction.AccountNumber)
 	rows, err := exec.QueryContext(ctx, `
 SELECT i.id::text,
@@ -1311,9 +1383,12 @@ SELECT i.id::text,
 	i.paid_amount,
 	COALESCE(string_agg(pi.provider_reference, ' '), '')
 FROM invoices i
+JOIN school_years sy ON sy.id = i.school_year_id
+JOIN schools sc ON sc.id = sy.school_id
 LEFT JOIN payment_intents pi ON pi.invoice_id = i.id
 	AND pi.status NOT IN ('cancelled', 'expired', 'failed')
 WHERE i.status <> 'void'
+	AND sc.tenant_id = $4::uuid
 	AND ($1 = '' OR i.collection_bank_account = $1 OR pi.provider_reference = $2 OR pi.provider_reference = $3)
 GROUP BY i.id
 ORDER BY i.issued_at DESC
@@ -1321,6 +1396,7 @@ LIMIT 1000`,
 		account,
 		transaction.ReferenceCode,
 		transaction.ProviderTransactionID,
+		tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -1460,7 +1536,7 @@ WHERE id = $1::uuid`,
 }
 
 func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest, tenantID string, auditCtx requestAuditContext) (manualCashReceiptResponse, error) {
-	provider, err := loadPaymentProviderByCode(ctx, db, paymentProviderManualVietQR)
+	provider, err := loadPaymentProviderByCode(ctx, db, tenantID, paymentProviderManualVietQR)
 	if err != nil {
 		return manualCashReceiptResponse{}, err
 	}
