@@ -50,6 +50,8 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/finance-console/renewals", Permission: "subscription.update", Handler: handleSubscriptionFinanceRenewals},
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/finance-console/dunning", Permission: "subscription.update", Handler: handleSubscriptionFinanceDunning},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/finance-console/export", Permission: "report.export", Handler: handleSubscriptionFinanceExport},
+		{Method: http.MethodGet, Path: "/api/v1/subscriptions/automation", Permission: "subscription.view", Handler: handleSubscriptionAutomationStatus},
+		{Method: http.MethodPost, Path: "/api/v1/subscriptions/automation/run", Permission: "subscription.update", Handler: handleSubscriptionAutomationRun},
 		{Method: http.MethodGet, Path: "/api/v1/banks", Permission: permissionAuthenticated, Handler: handleBanks},
 		{Method: http.MethodGet, Path: "/api/v1/example", Permission: "payment.create", Handler: handleExample},
 		{Method: http.MethodPost, Path: "/api/v1/import/fields", PermissionResolver: importFieldsPermission, Handler: handleImportFields},

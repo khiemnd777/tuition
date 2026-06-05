@@ -62,27 +62,51 @@ func TestSubscriptionBillingConfigFromProfileDefaults(t *testing.T) {
 	if got.IntervalMonths != 1 || got.DueDays != 10 || got.RenewalMode != "manual" {
 		t.Fatalf("unexpected config defaults %+v", got)
 	}
+	if got.RenewalLeadDays != 7 || got.DunningIntervalDays != 3 || got.SuspendAfterDays != 14 {
+		t.Fatalf("unexpected automation defaults %+v", got)
+	}
+	if !got.DunningEnabled || !got.SuspendEnabled {
+		t.Fatalf("expected automation booleans enabled by default, got %+v", got)
+	}
 }
 
 func TestValidateSubscriptionBillingConfig(t *testing.T) {
 	err := validateSubscriptionBillingConfig(subscriptionBillingConfigSaveInput{
-		TenantID:       "tenant-1",
-		Amount:         1000,
-		IntervalMonths: 1,
-		DueDays:        10,
-		RenewalMode:    "auto_generate",
+		TenantID:            "tenant-1",
+		Amount:              1000,
+		IntervalMonths:      1,
+		DueDays:             10,
+		RenewalMode:         "auto_generate",
+		RenewalLeadDays:     7,
+		DunningIntervalDays: 3,
+		SuspendAfterDays:    14,
 	})
 	if err != nil {
 		t.Fatalf("expected valid config, got %v", err)
 	}
 	if err := validateSubscriptionBillingConfig(subscriptionBillingConfigSaveInput{
-		TenantID:       "tenant-1",
-		Amount:         1000,
-		IntervalMonths: 0,
-		DueDays:        10,
-		RenewalMode:    "manual",
+		TenantID:            "tenant-1",
+		Amount:              1000,
+		IntervalMonths:      0,
+		DueDays:             10,
+		RenewalMode:         "manual",
+		RenewalLeadDays:     7,
+		DunningIntervalDays: 3,
+		SuspendAfterDays:    14,
 	}); err == nil {
 		t.Fatal("expected interval validation error")
+	}
+	if err := validateSubscriptionBillingConfig(subscriptionBillingConfigSaveInput{
+		TenantID:            "tenant-1",
+		Amount:              1000,
+		IntervalMonths:      1,
+		DueDays:             10,
+		RenewalMode:         "manual",
+		RenewalLeadDays:     31,
+		DunningIntervalDays: 3,
+		SuspendAfterDays:    14,
+	}); err == nil {
+		t.Fatal("expected renewal lead validation error")
 	}
 }
 

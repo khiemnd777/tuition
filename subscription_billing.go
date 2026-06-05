@@ -96,22 +96,34 @@ type subscriptionDunningResult struct {
 }
 
 type subscriptionBillingConfig struct {
-	Amount         int    `json:"amount"`
-	IntervalMonths int    `json:"intervalMonths"`
-	DueDays        int    `json:"dueDays"`
-	AutoRenew      bool   `json:"autoRenew"`
-	RenewalMode    string `json:"renewalMode"`
-	FinanceNote    string `json:"financeNote,omitempty"`
+	Amount              int    `json:"amount"`
+	IntervalMonths      int    `json:"intervalMonths"`
+	DueDays             int    `json:"dueDays"`
+	AutoRenew           bool   `json:"autoRenew"`
+	RenewalMode         string `json:"renewalMode"`
+	FinanceNote         string `json:"financeNote,omitempty"`
+	AutomationEnabled   bool   `json:"automationEnabled"`
+	RenewalLeadDays     int    `json:"renewalLeadDays"`
+	DunningEnabled      bool   `json:"dunningEnabled"`
+	DunningIntervalDays int    `json:"dunningIntervalDays"`
+	SuspendEnabled      bool   `json:"suspendEnabled"`
+	SuspendAfterDays    int    `json:"suspendAfterDays"`
 }
 
 type subscriptionBillingConfigSaveInput struct {
-	TenantID       string `json:"tenantId"`
-	Amount         int    `json:"amount"`
-	IntervalMonths int    `json:"intervalMonths"`
-	DueDays        int    `json:"dueDays"`
-	AutoRenew      bool   `json:"autoRenew"`
-	RenewalMode    string `json:"renewalMode"`
-	FinanceNote    string `json:"financeNote"`
+	TenantID            string `json:"tenantId"`
+	Amount              int    `json:"amount"`
+	IntervalMonths      int    `json:"intervalMonths"`
+	DueDays             int    `json:"dueDays"`
+	AutoRenew           bool   `json:"autoRenew"`
+	RenewalMode         string `json:"renewalMode"`
+	FinanceNote         string `json:"financeNote"`
+	AutomationEnabled   bool   `json:"automationEnabled"`
+	RenewalLeadDays     int    `json:"renewalLeadDays"`
+	DunningEnabled      bool   `json:"dunningEnabled"`
+	DunningIntervalDays int    `json:"dunningIntervalDays"`
+	SuspendEnabled      bool   `json:"suspendEnabled"`
+	SuspendAfterDays    int    `json:"suspendAfterDays"`
 }
 
 type subscriptionBillingExportFilters struct {
@@ -644,6 +656,15 @@ func validateSubscriptionBillingConfig(input subscriptionBillingConfigSaveInput)
 	if input.RenewalMode != "manual" && input.RenewalMode != "auto_generate" {
 		return fmt.Errorf("renewalMode must be manual or auto_generate")
 	}
+	if input.RenewalLeadDays < 0 || input.RenewalLeadDays > 30 {
+		return fmt.Errorf("renewalLeadDays must be between 0 and 30")
+	}
+	if input.DunningIntervalDays < 1 || input.DunningIntervalDays > 30 {
+		return fmt.Errorf("dunningIntervalDays must be between 1 and 30")
+	}
+	if input.SuspendAfterDays < 1 || input.SuspendAfterDays > 90 {
+		return fmt.Errorf("suspendAfterDays must be between 1 and 90")
+	}
 	return nil
 }
 
@@ -685,12 +706,18 @@ WHERE tenant.id = $1::uuid`, tenantID).Scan(
 
 func subscriptionBillingConfigFromProfile(profile tenantSubscriptionBillingProfile) subscriptionBillingConfig {
 	cfg := subscriptionBillingConfig{
-		Amount:         parseSubscriptionLimitValue(profile.BillingMetadata["amount"]),
-		IntervalMonths: parseSubscriptionLimitValue(profile.BillingMetadata["interval_months"]),
-		DueDays:        parseSubscriptionLimitValue(profile.BillingMetadata["due_days"]),
-		AutoRenew:      boolValueFromAny(profile.BillingMetadata["auto_renew"]),
-		RenewalMode:    strings.TrimSpace(fmt.Sprint(profile.BillingMetadata["renewal_mode"])),
-		FinanceNote:    strings.TrimSpace(fmt.Sprint(profile.BillingMetadata["finance_note"])),
+		Amount:              parseSubscriptionLimitValue(profile.BillingMetadata["amount"]),
+		IntervalMonths:      parseSubscriptionLimitValue(profile.BillingMetadata["interval_months"]),
+		DueDays:             parseSubscriptionLimitValue(profile.BillingMetadata["due_days"]),
+		AutoRenew:           boolValueFromAny(profile.BillingMetadata["auto_renew"]),
+		RenewalMode:         strings.TrimSpace(fmt.Sprint(profile.BillingMetadata["renewal_mode"])),
+		FinanceNote:         strings.TrimSpace(fmt.Sprint(profile.BillingMetadata["finance_note"])),
+		AutomationEnabled:   boolValueFromAny(profile.BillingMetadata["automation_enabled"]),
+		RenewalLeadDays:     parseSubscriptionLimitValue(profile.BillingMetadata["renewal_lead_days"]),
+		DunningEnabled:      boolValueWithDefault(profile.BillingMetadata["dunning_enabled"], true),
+		DunningIntervalDays: parseSubscriptionLimitValue(profile.BillingMetadata["dunning_interval_days"]),
+		SuspendEnabled:      boolValueWithDefault(profile.BillingMetadata["suspend_enabled"], true),
+		SuspendAfterDays:    parseSubscriptionLimitValue(profile.BillingMetadata["suspend_after_days"]),
 	}
 	if cfg.IntervalMonths <= 0 {
 		cfg.IntervalMonths = 1
@@ -700,6 +727,15 @@ func subscriptionBillingConfigFromProfile(profile tenantSubscriptionBillingProfi
 	}
 	if cfg.RenewalMode == "" || cfg.RenewalMode == "<nil>" {
 		cfg.RenewalMode = "manual"
+	}
+	if cfg.RenewalLeadDays <= 0 {
+		cfg.RenewalLeadDays = 7
+	}
+	if cfg.DunningIntervalDays <= 0 {
+		cfg.DunningIntervalDays = 3
+	}
+	if cfg.SuspendAfterDays <= 0 {
+		cfg.SuspendAfterDays = 14
 	}
 	return cfg
 }
@@ -735,6 +771,21 @@ func boolValueFromAny(value any) bool {
 		return typed != 0
 	default:
 		return false
+	}
+}
+
+func boolValueWithDefault(value any, defaultValue bool) bool {
+	switch typed := value.(type) {
+	case nil:
+		return defaultValue
+	case string:
+		trimmed := headerKey(typed)
+		if trimmed == "" || trimmed == "<nil>" {
+			return defaultValue
+		}
+		return trimmed == "true"
+	default:
+		return boolValueFromAny(value)
 	}
 }
 
@@ -786,12 +837,18 @@ func saveSubscriptionBillingConfig(ctx context.Context, db *sql.DB, input subscr
 	}
 	defer tx.Rollback()
 	metadataBytes, err := json.Marshal(map[string]any{
-		"amount":          input.Amount,
-		"interval_months": input.IntervalMonths,
-		"due_days":        input.DueDays,
-		"auto_renew":      input.AutoRenew,
-		"renewal_mode":    input.RenewalMode,
-		"finance_note":    input.FinanceNote,
+		"amount":                input.Amount,
+		"interval_months":       input.IntervalMonths,
+		"due_days":              input.DueDays,
+		"auto_renew":            input.AutoRenew,
+		"renewal_mode":          input.RenewalMode,
+		"finance_note":          input.FinanceNote,
+		"automation_enabled":    input.AutomationEnabled,
+		"renewal_lead_days":     input.RenewalLeadDays,
+		"dunning_enabled":       input.DunningEnabled,
+		"dunning_interval_days": input.DunningIntervalDays,
+		"suspend_enabled":       input.SuspendEnabled,
+		"suspend_after_days":    input.SuspendAfterDays,
 	})
 	if err != nil {
 		return err
@@ -811,12 +868,18 @@ WHERE tenant_id = $1::uuid`, input.TenantID, string(metadataBytes), user.ID); er
 		EntityType: "tenant_subscription",
 		EntityID:   input.TenantID,
 		Metadata: map[string]any{
-			"amount":         input.Amount,
-			"intervalMonths": input.IntervalMonths,
-			"dueDays":        input.DueDays,
-			"autoRenew":      input.AutoRenew,
-			"renewalMode":    input.RenewalMode,
-			"financeNote":    input.FinanceNote,
+			"amount":              input.Amount,
+			"intervalMonths":      input.IntervalMonths,
+			"dueDays":             input.DueDays,
+			"autoRenew":           input.AutoRenew,
+			"renewalMode":         input.RenewalMode,
+			"financeNote":         input.FinanceNote,
+			"automationEnabled":   input.AutomationEnabled,
+			"renewalLeadDays":     input.RenewalLeadDays,
+			"dunningEnabled":      input.DunningEnabled,
+			"dunningIntervalDays": input.DunningIntervalDays,
+			"suspendEnabled":      input.SuspendEnabled,
+			"suspendAfterDays":    input.SuspendAfterDays,
 		},
 	})
 	return tx.Commit()
@@ -1166,6 +1229,10 @@ func runSubscriptionDunning(ctx context.Context, db *sql.DB, user authenticatedU
 	if err != nil {
 		return nil, err
 	}
+	return runSubscriptionDunningForInvoices(ctx, db, user, input, invoices, auditCtx, baseURL)
+}
+
+func runSubscriptionDunningForInvoices(ctx context.Context, db *sql.DB, user authenticatedUser, input subscriptionDunningRunInput, invoices []subscriptionInvoiceSummary, auditCtx requestAuditContext, baseURL string) ([]subscriptionDunningResult, error) {
 	recipients, err := listSubscriptionDunningRecipients(ctx, db, input.TenantID)
 	if err != nil {
 		return nil, err

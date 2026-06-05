@@ -329,6 +329,15 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/subscriptions/finance-console/renewals`: preview hoặc generate renewal invoices batch theo `scope`; `all` chỉ mở cho operator có quyền cross-tenant.
 - `POST /api/v1/subscriptions/finance-console/dunning`: preview hoặc run dunning batch theo `scope`; `all` chỉ mở cho operator có quyền cross-tenant.
 - `GET /api/v1/subscriptions/finance-console/export?dataset=overview|overdue|renewals|dunning`: export CSV tổng hợp cấp hệ thống cho finance console.
+- `GET /api/v1/subscriptions/automation?scope=active|all`: trả về trạng thái scheduler nền và lần automation run gần nhất cho tenant active hoặc scope `all`.
+- `POST /api/v1/subscriptions/automation/run`: preview hoặc chạy automation cycle tổng hợp gồm renewal generation, dunning theo cooldown, và subscription suspension policy; `all` chỉ mở cho operator có quyền cross-tenant.
+
+Subscription automation scheduler Phase 12:
+
+- Billing config của tenant active có thêm `automationEnabled`, `renewalLeadDays`, `dunningEnabled`, `dunningIntervalDays`, `suspendEnabled`, và `suspendAfterDays`.
+- Background scheduler chỉ bật khi `ABC_SUBSCRIPTION_AUTOMATION_ENABLED=true`.
+- Có thể chỉnh chu kỳ scheduler bằng `ABC_SUBSCRIPTION_AUTOMATION_INTERVAL`, ví dụ `5m`, `15m`, hoặc `1h`.
+- Scheduler dùng cùng renewal/dunning flow của finance console, nhưng dunning có cooldown theo `dunningIntervalDays` để tránh gửi lặp mỗi tick.
 - `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
 - `GET /api/v1/notifications/templates`: danh sách notification template/version.
 - `GET /api/v1/notifications/campaigns`: danh sách campaign đã lưu.

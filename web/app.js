@@ -358,6 +358,12 @@ const subscriptionBillingConfigDueDaysEl = document.querySelector("#subscription
 const subscriptionBillingConfigAutoRenewEl = document.querySelector("#subscriptionBillingConfigAutoRenew");
 const subscriptionBillingConfigRenewalModeEl = document.querySelector("#subscriptionBillingConfigRenewalMode");
 const subscriptionBillingConfigFinanceNoteEl = document.querySelector("#subscriptionBillingConfigFinanceNote");
+const subscriptionBillingConfigAutomationEnabledEl = document.querySelector("#subscriptionBillingConfigAutomationEnabled");
+const subscriptionBillingConfigRenewalLeadDaysEl = document.querySelector("#subscriptionBillingConfigRenewalLeadDays");
+const subscriptionBillingConfigDunningEnabledEl = document.querySelector("#subscriptionBillingConfigDunningEnabled");
+const subscriptionBillingConfigDunningIntervalDaysEl = document.querySelector("#subscriptionBillingConfigDunningIntervalDays");
+const subscriptionBillingConfigSuspendEnabledEl = document.querySelector("#subscriptionBillingConfigSuspendEnabled");
+const subscriptionBillingConfigSuspendAfterDaysEl = document.querySelector("#subscriptionBillingConfigSuspendAfterDays");
 const saveSubscriptionBillingConfigBtn = document.querySelector("#saveSubscriptionBillingConfig");
 const subscriptionBillingExportStatusEl = document.querySelector("#subscriptionBillingExportStatus");
 const subscriptionBillingExportPeriodFromEl = document.querySelector("#subscriptionBillingExportPeriodFrom");
@@ -374,7 +380,10 @@ const runSubscriptionRenewalsBtn = document.querySelector("#runSubscriptionRenew
 const previewSubscriptionFinanceDunningBtn = document.querySelector("#previewSubscriptionFinanceDunning");
 const runSubscriptionFinanceDunningBtn = document.querySelector("#runSubscriptionFinanceDunning");
 const exportSubscriptionFinanceOverviewBtn = document.querySelector("#exportSubscriptionFinanceOverview");
+const previewSubscriptionAutomationBtn = document.querySelector("#previewSubscriptionAutomation");
+const runSubscriptionAutomationBtn = document.querySelector("#runSubscriptionAutomation");
 const subscriptionFinanceConsoleSummaryEl = document.querySelector("#subscriptionFinanceConsoleSummary");
+const subscriptionAutomationSummaryEl = document.querySelector("#subscriptionAutomationSummary");
 const subscriptionFinanceConsoleListEl = document.querySelector("#subscriptionFinanceConsoleList");
 const subscriptionFinanceScopeEl = document.querySelector("#subscriptionFinanceScope");
 const subscriptionFinanceQueryEl = document.querySelector("#subscriptionFinanceQuery");
@@ -452,6 +461,8 @@ let subscriptionBillingLoaded = false;
 let subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
 let subscriptionFinanceConsoleLoaded = false;
 let subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
+let subscriptionAutomationLoaded = false;
+let subscriptionAutomationData = { scope: "active", scheduler: {}, latestRun: { summary: {} } };
 let authSession = null;
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
@@ -1203,6 +1214,8 @@ function applyPermissionUI() {
   setElementAllowed(previewSubscriptionFinanceDunningBtn, hasPermission("subscription.update"));
   setElementAllowed(runSubscriptionFinanceDunningBtn, hasPermission("subscription.update"));
   setElementAllowed(exportSubscriptionFinanceOverviewBtn, hasPermission("report.export"));
+  setElementAllowed(previewSubscriptionAutomationBtn, hasPermission("subscription.update"));
+  setElementAllowed(runSubscriptionAutomationBtn, hasPermission("subscription.update"));
   setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
   setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
   setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
@@ -3891,6 +3904,7 @@ async function loadTenants(force = false) {
   renderTenantAdmin(tenantsData);
   await loadSubscriptionBilling(force);
   await loadSubscriptionFinanceConsole(force);
+  await loadSubscriptionAutomationStatus(force);
   setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
 }
 
@@ -4012,6 +4026,12 @@ function populateSubscriptionBillingConfig(config) {
   if (subscriptionBillingConfigAutoRenewEl) subscriptionBillingConfigAutoRenewEl.value = String(Boolean(config.autoRenew));
   if (subscriptionBillingConfigRenewalModeEl) subscriptionBillingConfigRenewalModeEl.value = optionValueOrEmpty(subscriptionBillingConfigRenewalModeEl, config.renewalMode || "manual") || "manual";
   if (subscriptionBillingConfigFinanceNoteEl) subscriptionBillingConfigFinanceNoteEl.value = config.financeNote || "";
+  if (subscriptionBillingConfigAutomationEnabledEl) subscriptionBillingConfigAutomationEnabledEl.value = String(Boolean(config.automationEnabled));
+  if (subscriptionBillingConfigRenewalLeadDaysEl) subscriptionBillingConfigRenewalLeadDaysEl.value = Number(config.renewalLeadDays || 7);
+  if (subscriptionBillingConfigDunningEnabledEl) subscriptionBillingConfigDunningEnabledEl.value = String(config.dunningEnabled !== false);
+  if (subscriptionBillingConfigDunningIntervalDaysEl) subscriptionBillingConfigDunningIntervalDaysEl.value = Number(config.dunningIntervalDays || 3);
+  if (subscriptionBillingConfigSuspendEnabledEl) subscriptionBillingConfigSuspendEnabledEl.value = String(config.suspendEnabled !== false);
+  if (subscriptionBillingConfigSuspendAfterDaysEl) subscriptionBillingConfigSuspendAfterDaysEl.value = Number(config.suspendAfterDays || 14);
 }
 
 function renderSubscriptionBilling(data) {
@@ -4227,6 +4247,12 @@ async function saveSubscriptionBillingConfig() {
       autoRenew: String(subscriptionBillingConfigAutoRenewEl?.value || "false") === "true",
       renewalMode: subscriptionBillingConfigRenewalModeEl?.value || "manual",
       financeNote: subscriptionBillingConfigFinanceNoteEl?.value || "",
+      automationEnabled: String(subscriptionBillingConfigAutomationEnabledEl?.value || "false") === "true",
+      renewalLeadDays: Number(subscriptionBillingConfigRenewalLeadDaysEl?.value || 7),
+      dunningEnabled: String(subscriptionBillingConfigDunningEnabledEl?.value || "true") === "true",
+      dunningIntervalDays: Number(subscriptionBillingConfigDunningIntervalDaysEl?.value || 3),
+      suspendEnabled: String(subscriptionBillingConfigSuspendEnabledEl?.value || "true") === "true",
+      suspendAfterDays: Number(subscriptionBillingConfigSuspendAfterDaysEl?.value || 14),
     }),
   });
   const text = await res.text();
@@ -4392,6 +4418,53 @@ function exportSubscriptionBillingCSV(dataset) {
   window.open(subscriptionBillingExportQuery(dataset), "_blank", "noopener");
 }
 
+function subscriptionAutomationStatusQuery() {
+  const params = new URLSearchParams();
+  const scopeValue = subscriptionFinanceScopeEl?.value || "active";
+  params.set("scope", scopeValue === "all" ? "all" : "active");
+  return params.toString();
+}
+
+async function loadSubscriptionAutomationStatus(force = false) {
+  if (!hasPermission("subscription.view")) {
+    subscriptionAutomationLoaded = false;
+    subscriptionAutomationData = { scope: "active", scheduler: {}, latestRun: { summary: {} } };
+    renderSubscriptionAutomationStatus(null);
+    return;
+  }
+  if (!force && subscriptionAutomationLoaded) {
+    renderSubscriptionAutomationStatus(subscriptionAutomationData);
+    return;
+  }
+  const res = await fetch(`/api/v1/subscriptions/automation?${subscriptionAutomationStatusQuery()}`);
+  const text = await res.text();
+  if (!res.ok) {
+    subscriptionAutomationLoaded = false;
+    subscriptionAutomationData = { scope: "active", scheduler: {}, latestRun: { summary: {} } };
+    renderSubscriptionAutomationStatus(null);
+    setAdminStatus(tenantStatusEl, text || "Không tải được subscription automation status", "error");
+    return;
+  }
+  subscriptionAutomationData = JSON.parse(text);
+  subscriptionAutomationLoaded = true;
+  renderSubscriptionAutomationStatus(subscriptionAutomationData);
+}
+
+function renderSubscriptionAutomationStatus(data) {
+  if (!subscriptionAutomationSummaryEl) return;
+  const scheduler = data?.scheduler || {};
+  const latest = data?.latestRun || {};
+  const summary = latest.summary || {};
+  subscriptionAutomationSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("schedule")}Scheduler</span><strong>${scheduler.enabled ? `enabled · ${escapeHtml(scheduler.interval || "-")}` : "disabled"}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Latest status</span><strong>${escapeHtml(latest.status || "-")}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("event")}Latest run</span><strong>${escapeHtml(latest.startedAt || "-")}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("autorenew")}Renewals</span><strong>${Number(summary.renewalGeneratedCount || summary.renewalPreviewCount || 0)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("drafts")}Dunning</span><strong>${Number(summary.dunningSentCount || summary.dunningRecipientCount || 0)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("block")}Suspends</span><strong>${Number(summary.suspendedTenantCount || summary.suspendPreviewCount || 0)}</strong></div>
+  `;
+}
+
 function subscriptionFinanceConsoleQuery() {
   const params = new URLSearchParams();
   const scopeValue = subscriptionFinanceScopeEl?.value || "active";
@@ -4485,6 +4558,31 @@ async function runSubscriptionFinanceBatch(kind, dryRun) {
   return true;
 }
 
+async function runSubscriptionAutomation(dryRun) {
+  setAdminStatus(tenantStatusEl, dryRun ? "Đang preview automation" : "Đang chạy automation", "busy");
+  const res = await fetch("/api/v1/subscriptions/automation/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope: subscriptionFinanceScopeEl?.value === "all" ? "all" : "active",
+      dryRun,
+      confirmRun: !dryRun,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không chạy được automation", "error");
+    return false;
+  }
+  subscriptionAutomationData = JSON.parse(text);
+  subscriptionAutomationLoaded = true;
+  renderSubscriptionAutomationStatus(subscriptionAutomationData);
+  await loadSubscriptionBilling(true);
+  await loadSubscriptionFinanceConsole(true);
+  setAdminStatus(tenantStatusEl, dryRun ? "Đã preview automation" : "Đã chạy automation", "ready");
+  return true;
+}
+
 function exportSubscriptionFinanceConsoleCSV(dataset) {
   if (!hasPermission("report.export")) return;
   window.open(`/api/v1/subscriptions/finance-console/export?dataset=${encodeURIComponent(dataset)}&${subscriptionFinanceConsoleQuery()}`, "_blank", "noopener");
@@ -4528,6 +4626,8 @@ function resetTenantScopedState() {
   subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
   subscriptionFinanceConsoleLoaded = false;
   subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
+  subscriptionAutomationLoaded = false;
+  subscriptionAutomationData = { scope: "active", scheduler: {}, latestRun: { summary: {} } };
   masterDataLoaded = false;
   masterDataOptions = { schools: [], schoolYears: [], classes: [] };
   masterStudentsRawData = [];
@@ -8755,7 +8855,12 @@ runSubscriptionRenewalsBtn?.addEventListener("click", () => runSubscriptionFinan
 previewSubscriptionFinanceDunningBtn?.addEventListener("click", () => runSubscriptionFinanceBatch("dunning", true));
 runSubscriptionFinanceDunningBtn?.addEventListener("click", () => runSubscriptionFinanceBatch("dunning", false));
 exportSubscriptionFinanceOverviewBtn?.addEventListener("click", () => exportSubscriptionFinanceConsoleCSV("overview"));
-subscriptionFinanceScopeEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+previewSubscriptionAutomationBtn?.addEventListener("click", () => runSubscriptionAutomation(true));
+runSubscriptionAutomationBtn?.addEventListener("click", () => runSubscriptionAutomation(false));
+subscriptionFinanceScopeEl?.addEventListener("change", async () => {
+  await loadSubscriptionFinanceConsole(true);
+  await loadSubscriptionAutomationStatus(true);
+});
 subscriptionFinanceSubscriptionStatusEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
 subscriptionFinanceInvoiceStatusEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
 subscriptionFinanceAutoRenewEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));

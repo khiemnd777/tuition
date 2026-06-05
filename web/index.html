@@ -1543,6 +1543,39 @@
               <span>Finance note</span>
               <input id="subscriptionBillingConfigFinanceNote" placeholder="Owner, contract, internal note" />
             </label>
+            <label>
+              <span>Automation enabled</span>
+              <select id="subscriptionBillingConfigAutomationEnabled">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+            <label>
+              <span>Renewal lead days</span>
+              <input id="subscriptionBillingConfigRenewalLeadDays" type="number" min="0" max="30" step="1" />
+            </label>
+            <label>
+              <span>Dunning enabled</span>
+              <select id="subscriptionBillingConfigDunningEnabled">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+            <label>
+              <span>Dunning interval days</span>
+              <input id="subscriptionBillingConfigDunningIntervalDays" type="number" min="1" max="30" step="1" />
+            </label>
+            <label>
+              <span>Suspend enabled</span>
+              <select id="subscriptionBillingConfigSuspendEnabled">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+            <label>
+              <span>Suspend after overdue days</span>
+              <input id="subscriptionBillingConfigSuspendAfterDays" type="number" min="1" max="90" step="1" />
+            </label>
             <div class="admin-user-actions">
               <button id="saveSubscriptionBillingConfig" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu billing config</span></button>
             </div>
@@ -1678,6 +1711,17 @@
             </div>
           </div>
           <div id="subscriptionFinanceConsoleSummary" class="tenant-summary"></div>
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Automation</p>
+              <h3 class="section-title"><span class="mui-icon" aria-hidden="true">schedule</span><span>Scheduler và policy run</span></h3>
+            </div>
+            <div class="panel-actions">
+              <button id="previewSubscriptionAutomation" type="button"><span class="mui-icon" aria-hidden="true">preview</span><span>Preview automation</span></button>
+              <button id="runSubscriptionAutomation" type="button"><span class="mui-icon" aria-hidden="true">schedule_send</span><span>Run automation</span></button>
+            </div>
+          </div>
+          <div id="subscriptionAutomationSummary" class="tenant-summary"></div>
           <div id="subscriptionFinanceConsoleFilters" class="tenant-form">
             <label>
               <span>Scope</span>

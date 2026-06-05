@@ -1,18 +1,18 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 ## Current Status
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, and cross-tenant finance operations complete.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, cross-tenant finance operations, and subscription background automation complete.
 
-Current phase: `subscription_phase_11_complete`
+Current phase: `subscription_phase_12_complete`
 
-Current initiative: Subscription Phase 11 - Cross-tenant finance console, scheduled renewals, and collection automation is complete.
+Current initiative: Subscription Phase 12 - Background scheduler for renewals/dunning and subscription suspension policy automation is complete.
 
-Next recommended initiative: Subscription Phase 12 - Background scheduler for renewals/dunning and subscription suspension policy automation.
+Next recommended initiative: No additional subscription phase is currently queued in `docs/initiatives/production-module-roadmap.md`; the subscription conversion roadmap is complete from Phase 1 through Phase 12.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -111,6 +111,13 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added batch preview/run APIs for renewal invoice generation and dunning execution across multiple tenants using the same billing and email flows already implemented for single-tenant operations.
   - Added cross-tenant finance CSV exports for overview, overdue tenants, renewal candidates, and dunning-target tenants.
   - Added Web Admin cross-tenant finance console panel with summary cards, filters, renewal batch actions, dunning batch actions, and export trigger.
+- Subscription Phase 12: Background scheduler for renewals/dunning and subscription suspension policy automation is complete:
+  - Added migration `0023_subscription_automation_scheduler` to persist automation run logs across active-tenant and cross-tenant scopes.
+  - Extended tenant subscription billing config with automation policy fields for enablement, renewal lead window, dunning cooldown, and overdue suspension threshold.
+  - Added subscription automation status and run APIs so finance operators can preview or execute a combined automation cycle without switching tenant workflows manually.
+  - Added background scheduler startup controlled by `ABC_SUBSCRIPTION_AUTOMATION_ENABLED` and `ABC_SUBSCRIPTION_AUTOMATION_INTERVAL`.
+  - Reused the existing renewal invoice and dunning send flows, while adding cooldown-aware candidate selection for automated dunning and automatic suspension after overdue grace periods.
+  - Added Web Admin automation panel in the subscription finance console to show scheduler state, latest run summary, and manual preview/run actions.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

@@ -131,6 +131,7 @@ func runServer() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go startEmailCronScheduler(ctx)
+	go startSubscriptionAutomationScheduler(ctx)
 
 	log.Printf("ABC SUN Finance Hub: %s", localServerURL(addr))
 	log.Fatal(server.ListenAndServe())
