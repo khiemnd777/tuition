@@ -255,6 +255,8 @@ const adminReportTransactionCountEl = document.querySelector("#adminReportTransa
 const adminReportTransactionRowsEl = document.querySelector("#adminReportTransactionRows");
 const operationsStatusEl = document.querySelector("#operationsStatus");
 const refreshOperationsBtn = document.querySelector("#refreshOperations");
+const operationTenantFilterWrapEl = document.querySelector("#operationTenantFilterWrap");
+const operationTenantFilterEl = document.querySelector("#operationTenantFilter");
 const operationSourceFilterEl = document.querySelector("#operationSourceFilter");
 const operationLevelFilterEl = document.querySelector("#operationLevelFilter");
 const operationNameFilterEl = document.querySelector("#operationNameFilter");
@@ -327,6 +329,7 @@ const openCronConfigDialogBtn = document.querySelector("#openCronConfigDialog");
 const refreshTenantsBtn = document.querySelector("#refreshTenants");
 const newTenantBtn = document.querySelector("#newTenant");
 const editActiveTenantBtn = document.querySelector("#editActiveTenant");
+const editActiveTenantSubscriptionBtn = document.querySelector("#editActiveTenantSubscription");
 const tenantStatusEl = document.querySelector("#tenantStatus");
 const tenantSummaryEl = document.querySelector("#tenantSummary");
 const tenantListEl = document.querySelector("#tenantList");
@@ -338,6 +341,12 @@ const tenantSaveStatusEl = document.querySelector("#tenantSaveStatus");
 const tenantInitialSchoolFieldsEl = document.querySelector("#tenantInitialSchoolFields");
 const tenantInitialSchoolCodeEl = document.querySelector("#tenantInitialSchoolCode");
 const tenantInitialSchoolNameEl = document.querySelector("#tenantInitialSchoolName");
+const tenantSubscriptionFormEl = document.querySelector("#tenantSubscriptionForm");
+const tenantSubscriptionTenantIdEl = document.querySelector("#tenantSubscriptionTenantId");
+const tenantSubscriptionPlanEl = document.querySelector("#tenantSubscriptionPlan");
+const tenantSubscriptionStatusEl = document.querySelector("#tenantSubscriptionStatus");
+const tenantSubscriptionTrialEndsAtEl = document.querySelector("#tenantSubscriptionTrialEndsAt");
+const tenantSubscriptionCurrentPeriodEndsAtEl = document.querySelector("#tenantSubscriptionCurrentPeriodEndsAt");
 
 let banks = [];
 let currentItems = [];
@@ -386,6 +395,8 @@ let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
 let tenantsLoaded = false;
 let tenantsData = { tenants: [] };
+let subscriptionPlansLoaded = false;
+let subscriptionPlansData = [];
 let authSession = null;
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
@@ -561,7 +572,9 @@ const permissionAliases = {
   "report.view": ["admin.reports.read"],
   "report.export": ["admin.reports.export"],
   "operation_log.view": ["operations.read"],
+  "operation_log.cross_tenant_view": ["operations.cross_tenant.read"],
   "audit_log.view": ["audit.read"],
+  "audit_log.cross_tenant_view": ["audit.cross_tenant.read"],
   "user.view": ["system.users.read"],
   "user.create": ["system.users.write"],
   "user.update": ["system.users.write"],
@@ -570,6 +583,8 @@ const permissionAliases = {
   "tenant.create": ["system.tenants.write"],
   "tenant.update": ["system.tenants.write"],
   "tenant.switch": ["system.tenants.switch"],
+  "subscription.view": ["billing.subscriptions.read"],
+  "subscription.update": ["billing.subscriptions.write"],
 };
 
 const sessionRecoveryStorageKey = "abcsun.sessionRecovery.v1";
@@ -1118,6 +1133,7 @@ function applyPermissionUI() {
   setElementAllowed(refreshTenantsBtn, hasPermission("tenant.view"));
   setElementAllowed(newTenantBtn, hasPermission("tenant.create"));
   setElementAllowed(editActiveTenantBtn, hasPermission("tenant.update"));
+  setElementAllowed(editActiveTenantSubscriptionBtn, hasPermission("subscription.view") || hasPermission("subscription.update"));
   setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
   setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
   setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
@@ -3474,6 +3490,8 @@ async function loadOperations(force = false) {
   setAdminStatus(operationsStatusEl, "Đang tải", "busy");
   const limit = Math.min(Math.max(Number(operationLimitEl.value || 100), 10), 500);
   const operationParams = new URLSearchParams();
+  const selectedTenant = operationTenantFilterEl?.value || "";
+  if (selectedTenant) operationParams.set("tenantId", selectedTenant);
   if (operationSourceFilterEl.value) operationParams.set("source", operationSourceFilterEl.value);
   if (operationLevelFilterEl.value) operationParams.set("level", operationLevelFilterEl.value);
   if (operationNameFilterEl.value.trim()) operationParams.set("operation", operationNameFilterEl.value.trim());
@@ -3481,6 +3499,7 @@ async function loadOperations(force = false) {
   if (operationEntityTypeFilterEl.value.trim()) operationParams.set("entityType", operationEntityTypeFilterEl.value.trim());
   operationParams.set("limit", String(limit));
   const auditParams = new URLSearchParams({ limit: String(limit) });
+  if (selectedTenant) auditParams.set("tenantId", selectedTenant);
   if (auditActionFilterEl.value.trim()) auditParams.set("action", auditActionFilterEl.value.trim());
   if (operationEntityTypeFilterEl.value.trim()) auditParams.set("entityType", operationEntityTypeFilterEl.value.trim());
   const [operationRes, auditRes] = await Promise.all([
@@ -3508,6 +3527,7 @@ async function loadOperations(force = false) {
 
 function renderOperations(data) {
   operationsData = data || { operationLogs: [], auditLogs: [], operationSummary: {}, auditSummary: {} };
+  renderOperationsTenantFilter();
   renderOperationsSummary(operationsData.operationSummary || {}, operationsData.auditSummary || {});
   renderOperationLogs(data?.operationLogs || []);
   renderAuditLogs(data?.auditLogs || []);
@@ -3520,6 +3540,24 @@ function renderOperations(data) {
     }
   }
   renderOperationLogDetail("", null);
+}
+
+function renderOperationsTenantFilter() {
+  if (!operationTenantFilterEl || !operationTenantFilterWrapEl) return;
+  const allowCrossTenant = hasPermission("operation_log.cross_tenant_view") || hasPermission("audit_log.cross_tenant_view");
+  operationTenantFilterWrapEl.hidden = !allowCrossTenant;
+  if (!allowCrossTenant) {
+    operationTenantFilterEl.innerHTML = `<option value="">Active tenant</option>`;
+    operationTenantFilterEl.value = "";
+    return;
+  }
+  const selected = operationTenantFilterEl.value || "";
+  const tenantOptions = tenantRowsForUI().map((tenant) => {
+    const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
+    return `<option value="${escapeAttr(tenant.id || "")}">${escapeHtml(label || tenant.id || "Tenant")}</option>`;
+  });
+  operationTenantFilterEl.innerHTML = [`<option value="">Active tenant</option>`, `<option value="all">Tất cả tenant</option>`, ...tenantOptions].join("");
+  operationTenantFilterEl.value = optionValueOrEmpty(operationTenantFilterEl, selected) || "";
 }
 
 function renderOperationsSummary(operationSummary = {}, auditSummary = {}) {
@@ -3543,7 +3581,7 @@ function renderOperationLogs(rows) {
     .map(
       (row) => `
         <tr data-operation-log-row="${escapeAttr(row.id || "")}">
-          <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml(row.operation || "")}</small></td>
+          <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml([row.tenantCode || "", row.operation || ""].filter(Boolean).join(" · "))}</small></td>
           <td><span class="tag">${escapeHtml(row.source || "")}</span><small>${escapeHtml(row.level || "")}</small></td>
           <td><span class="tag">${escapeHtml(row.status || "")}</span></td>
           <td>${escapeHtml(row.message || "")}</td>
@@ -3572,7 +3610,7 @@ function renderAuditLogs(rows) {
     .map(
       (row) => `
         <tr data-audit-log-row="${escapeAttr(row.id || "")}">
-          <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml(row.requestId || "")}</small></td>
+          <td><strong>${escapeHtml(formatDateTime(row.occurredAt))}</strong><small>${escapeHtml([row.tenantCode || "", row.requestId || ""].filter(Boolean).join(" · "))}</small></td>
           <td>${escapeHtml(row.actorName || row.actorUserId || "-")}<small>${escapeHtml(row.ipAddress || "")}</small></td>
           <td><span class="tag">${escapeHtml(row.action || "")}</span></td>
           <td>${escapeHtml(row.reason || metadataReason(row.metadata) || "")}</td>
@@ -3723,6 +3761,11 @@ function tenantRowsForUI() {
     membershipStatus: tenant.membershipStatus || "",
     isOwner: Boolean(tenant.isOwner),
     schoolCount: Number(tenant.schoolCount || 0),
+    subscriptionStatus: tenant.subscriptionStatus || "",
+    planCode: tenant.planCode || "",
+    planName: tenant.planName || "",
+    trialEndsAt: tenant.trialEndsAt || "",
+    currentPeriodEndsAt: tenant.currentPeriodEndsAt || "",
     isActive: tenant.isActive || tenant.id === activeTenantSummary().id,
   }));
 }
@@ -3796,6 +3839,10 @@ function renderTenantAdmin(data) {
         <span>${muiIcon("fact_check")}Status</span>
         <strong>${escapeHtml(activeTenant.status || "-")}</strong>
       </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("workspace_premium")}Subscription</span>
+        <strong>${escapeHtml([activeRow.subscriptionStatus || "-", activeRow.planCode || activeRow.planName || "-"].join(" · "))}</strong>
+      </div>
     `
     : "";
   tenantListEl.innerHTML = tenants
@@ -3805,7 +3852,7 @@ function renderTenantAdmin(data) {
         <button class="tenant-list-row${tenant.id === activeTenant.id ? " is-active" : ""}" type="button" data-switch-tenant="${escapeAttr(tenant.id || "")}">
           <span>${muiIcon(tenant.id === activeTenant.id ? "radio_button_checked" : "radio_button_unchecked")}</span>
           <strong>${escapeHtml(label || tenant.id || "-")}</strong>
-          <small>${escapeHtml(tenant.status || "-")} · ${escapeHtml(tenant.membershipStatus || "-")} · ${Number(tenant.schoolCount || 0)} school</small>
+          <small>${escapeHtml(tenant.status || "-")} · ${escapeHtml(tenant.membershipStatus || "-")} · ${escapeHtml(tenant.subscriptionStatus || "-")} · ${escapeHtml(tenant.planCode || tenant.planName || "-")} · ${Number(tenant.schoolCount || 0)} school</small>
         </button>
       `;
     })
@@ -3880,6 +3927,85 @@ async function saveTenant() {
   return true;
 }
 
+async function loadSubscriptionPlans(force = false) {
+  if (!hasPermission("subscription.view") && !hasPermission("subscription.update")) {
+    subscriptionPlansLoaded = false;
+    subscriptionPlansData = [];
+    return [];
+  }
+  if (!force && subscriptionPlansLoaded && subscriptionPlansData.length) {
+    return subscriptionPlansData;
+  }
+  const res = await fetch("/api/v1/subscriptions/plans");
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không tải được subscription plans", "error");
+    subscriptionPlansLoaded = false;
+    subscriptionPlansData = [];
+    return [];
+  }
+  subscriptionPlansData = JSON.parse(text).plans || [];
+  subscriptionPlansLoaded = true;
+  return subscriptionPlansData;
+}
+
+async function openTenantSubscriptionDialog() {
+  const activeTenant = tenantRowsForUI().find((tenant) => tenant.id === activeTenantSummary().id) || activeTenantSummary();
+  const plans = await loadSubscriptionPlans();
+  tenantSubscriptionTenantIdEl.value = activeTenant.id || "";
+  tenantSubscriptionPlanEl.innerHTML = plans
+    .map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`)
+    .join("");
+  tenantSubscriptionPlanEl.value = optionValueOrEmpty(tenantSubscriptionPlanEl, activeTenant.planCode || "") || plans[0]?.code || "";
+  tenantSubscriptionStatusEl.value = optionValueOrEmpty(tenantSubscriptionStatusEl, activeTenant.subscriptionStatus || "active") || "active";
+  tenantSubscriptionTrialEndsAtEl.value = activeTenant.trialEndsAt || "";
+  tenantSubscriptionCurrentPeriodEndsAtEl.value = activeTenant.currentPeriodEndsAt || "";
+  openAppDialog({
+    title: "Sửa subscription",
+    kicker: "Tenant subscription",
+    icon: "workspace_premium",
+    nodes: [tenantSubscriptionFormEl],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu subscription", icon: "save", variant: "primary", onClick: saveTenantSubscription, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function saveTenantSubscription() {
+  setAdminStatus(tenantStatusEl, "Đang lưu subscription", "busy");
+  const res = await fetch("/api/v1/tenants/subscription/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: tenantSubscriptionTenantIdEl.value,
+      planCode: tenantSubscriptionPlanEl.value,
+      status: tenantSubscriptionStatusEl.value,
+      trialEndsAt: tenantSubscriptionTrialEndsAtEl.value,
+      currentPeriodEndsAt: tenantSubscriptionCurrentPeriodEndsAtEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không lưu được subscription", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  tenantsData = { tenants: data.tenants || [] };
+  tenantsLoaded = true;
+  renderTenantSwitcher();
+  renderTenantAdmin(tenantsData);
+  const session = await loadCurrentAuthSession();
+  if (session) {
+    authSession = session;
+    updateAuthBadge(session);
+    applyPermissionUI();
+  }
+  setAdminStatus(tenantStatusEl, "Đã lưu subscription", "ready");
+  return true;
+}
+
 async function switchTenant(tenantId) {
   tenantId = String(tenantId || "").trim();
   if (!tenantId || tenantId === activeTenantSummary().id) {
@@ -3912,6 +4038,8 @@ function resetTenantScopedState() {
   appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
   tenantsLoaded = false;
   tenantsData = { tenants: [] };
+  subscriptionPlansLoaded = false;
+  subscriptionPlansData = [];
   masterDataLoaded = false;
   masterDataOptions = { schools: [], schoolYears: [], classes: [] };
   masterStudentsRawData = [];
@@ -8111,6 +8239,7 @@ adminReportsMonthEl.addEventListener("change", () => {
 adminReportsInvoiceStatusEl.addEventListener("change", () => loadAdminReports(true));
 adminReportsProviderEl.addEventListener("change", () => loadAdminReports(true));
 refreshOperationsBtn.addEventListener("click", () => loadOperations(true));
+operationTenantFilterEl?.addEventListener("change", () => loadOperations(true));
 operationSourceFilterEl.addEventListener("change", () => loadOperations(true));
 operationLevelFilterEl.addEventListener("change", () => loadOperations(true));
 operationNameFilterEl.addEventListener("change", () => loadOperations(true));
@@ -8123,6 +8252,7 @@ refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
 refreshTenantsBtn?.addEventListener("click", () => loadTenants(true));
 newTenantBtn?.addEventListener("click", () => openTenantDialog("create"));
 editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
+editActiveTenantSubscriptionBtn?.addEventListener("click", openTenantSubscriptionDialog);
 newAdminUserBtn.addEventListener("click", () => {
   clearAdminUserForm();
   openAdminUserDialog();

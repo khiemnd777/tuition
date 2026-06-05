@@ -13,14 +13,19 @@ import (
 )
 
 type tenantSummary struct {
-	ID               string `json:"id"`
-	Code             string `json:"code"`
-	Name             string `json:"name"`
-	Status           string `json:"status"`
-	MembershipStatus string `json:"membershipStatus,omitempty"`
-	IsOwner          bool   `json:"isOwner,omitempty"`
-	SchoolCount      int    `json:"schoolCount"`
-	IsActive         bool   `json:"isActive,omitempty"`
+	ID                  string `json:"id"`
+	Code                string `json:"code"`
+	Name                string `json:"name"`
+	Status              string `json:"status"`
+	MembershipStatus    string `json:"membershipStatus,omitempty"`
+	IsOwner             bool   `json:"isOwner,omitempty"`
+	SchoolCount         int    `json:"schoolCount"`
+	IsActive            bool   `json:"isActive,omitempty"`
+	SubscriptionStatus  string `json:"subscriptionStatus,omitempty"`
+	PlanCode            string `json:"planCode,omitempty"`
+	PlanName            string `json:"planName,omitempty"`
+	TrialEndsAt         string `json:"trialEndsAt,omitempty"`
+	CurrentPeriodEndsAt string `json:"currentPeriodEndsAt,omitempty"`
 }
 
 type tenantListResponse struct {
@@ -59,6 +64,9 @@ func handleTenants(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	tenants, err := listUserTenants(r.Context(), db, user.ID, tenantID)
+	if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+		tenants, err = listAllTenants(r.Context(), db, tenantID)
+	}
 	if err != nil {
 		http.Error(w, "cannot load tenants", http.StatusInternalServerError)
 		return
@@ -110,6 +118,9 @@ func handleTenantSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenants, err := listUserTenants(r.Context(), db, user.ID, firstNonEmpty(tenant.ID, activeTenantID))
+	if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+		tenants, err = listAllTenants(r.Context(), db, firstNonEmpty(tenant.ID, activeTenantID))
+	}
 	if err != nil {
 		http.Error(w, "cannot reload tenants", http.StatusInternalServerError)
 		return
@@ -280,13 +291,20 @@ SELECT tenant.id::text,
 	tenant.status,
 	membership.status,
 	membership.is_owner,
-	COUNT(school.id)::integer
+	COUNT(school.id)::integer,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
 FROM tenant_memberships membership
 JOIN tenants tenant ON tenant.id = membership.tenant_id
 LEFT JOIN schools school ON school.tenant_id = tenant.id
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
 WHERE membership.user_id = $1::uuid
 	AND membership.status <> 'removed'
-GROUP BY tenant.id, tenant.code, tenant.name, tenant.status, membership.status, membership.is_owner
+GROUP BY tenant.id, tenant.code, tenant.name, tenant.status, membership.status, membership.is_owner, ts.status, plan.code, plan.name, ts.trial_ends_at, ts.current_period_ends_at
 ORDER BY CASE WHEN tenant.id::text = $2 THEN 0 WHEN tenant.code = $3 THEN 1 ELSE 2 END,
 	tenant.code`, userID, strings.TrimSpace(activeTenantID), defaultTenantCode)
 	if err != nil {
@@ -297,6 +315,8 @@ ORDER BY CASE WHEN tenant.id::text = $2 THEN 0 WHEN tenant.code = $3 THEN 1 ELSE
 	tenants := []tenantSummary{}
 	for rows.Next() {
 		var tenant tenantSummary
+		var trialEndsAt sql.NullTime
+		var currentPeriodEndsAt sql.NullTime
 		if err := rows.Scan(
 			&tenant.ID,
 			&tenant.Code,
@@ -305,10 +325,72 @@ ORDER BY CASE WHEN tenant.id::text = $2 THEN 0 WHEN tenant.code = $3 THEN 1 ELSE
 			&tenant.MembershipStatus,
 			&tenant.IsOwner,
 			&tenant.SchoolCount,
+			&tenant.SubscriptionStatus,
+			&tenant.PlanCode,
+			&tenant.PlanName,
+			&trialEndsAt,
+			&currentPeriodEndsAt,
 		); err != nil {
 			return nil, err
 		}
 		tenant.IsActive = tenant.ID == strings.TrimSpace(activeTenantID)
+		tenant.TrialEndsAt = formatNullDate(trialEndsAt)
+		tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
+		tenants = append(tenants, tenant)
+	}
+	return tenants, rows.Err()
+}
+
+func listAllTenants(ctx context.Context, db *sql.DB, activeTenantID string) ([]tenantSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT tenant.id::text,
+	tenant.code,
+	tenant.name,
+	tenant.status,
+	'' AS membership_status,
+	false AS is_owner,
+	COUNT(school.id)::integer,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
+FROM tenants tenant
+LEFT JOIN schools school ON school.tenant_id = tenant.id
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
+GROUP BY tenant.id, tenant.code, tenant.name, tenant.status, ts.status, plan.code, plan.name, ts.trial_ends_at, ts.current_period_ends_at
+ORDER BY CASE WHEN tenant.id::text = $1 THEN 0 WHEN tenant.code = $2 THEN 1 ELSE 2 END,
+	tenant.code`, strings.TrimSpace(activeTenantID), defaultTenantCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tenants := []tenantSummary{}
+	for rows.Next() {
+		var tenant tenantSummary
+		var trialEndsAt sql.NullTime
+		var currentPeriodEndsAt sql.NullTime
+		if err := rows.Scan(
+			&tenant.ID,
+			&tenant.Code,
+			&tenant.Name,
+			&tenant.Status,
+			&tenant.MembershipStatus,
+			&tenant.IsOwner,
+			&tenant.SchoolCount,
+			&tenant.SubscriptionStatus,
+			&tenant.PlanCode,
+			&tenant.PlanName,
+			&trialEndsAt,
+			&currentPeriodEndsAt,
+		); err != nil {
+			return nil, err
+		}
+		tenant.IsActive = tenant.ID == strings.TrimSpace(activeTenantID)
+		tenant.TrialEndsAt = formatNullDate(trialEndsAt)
+		tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
 		tenants = append(tenants, tenant)
 	}
 	return tenants, rows.Err()
@@ -341,6 +423,9 @@ RETURNING id::text, code, name, status`, input.Code, input.Name, input.Status, u
 	if err := ensureTenantMembership(ctx, tx, tenant.ID, user.ID, true); err != nil {
 		return tenantSummary{}, err
 	}
+	if err := ensureTenantSubscription(ctx, tx, tenant.ID, tenant.Status, user.ID); err != nil {
+		return tenantSummary{}, err
+	}
 	if err := ensureTenantUserRole(ctx, tx, tenant.ID, user.ID, "admin", user.ID); err != nil {
 		return tenantSummary{}, err
 	}
@@ -368,6 +453,12 @@ ON CONFLICT (tenant_id, code) DO NOTHING`, tenant.ID, input.InitialSchoolCode, i
 	tenant.MembershipStatus = "active"
 	tenant.IsOwner = true
 	tenant.SchoolCount = 1
+	tenant.SubscriptionStatus = defaultSubscriptionStatusForTenantStatus(tenant.Status)
+	tenant.PlanCode = defaultSubscriptionPlanCodeForTenantStatus(tenant.Status)
+	tenant.PlanName = defaultSubscriptionPlanName(tenant.PlanCode)
+	if tenant.SubscriptionStatus == subscriptionStatusTrial {
+		tenant.TrialEndsAt = time.Now().UTC().Add(30 * 24 * time.Hour).Format("2006-01-02")
+	}
 	return tenant, nil
 }
 
@@ -441,15 +532,24 @@ func switchAuthTenantSession(ctx context.Context, db *sql.DB, userID string, ten
 
 func loadSwitchableTenantForUser(ctx context.Context, db *sql.DB, userID string, tenantID string) (authTenantSummary, error) {
 	var tenant authTenantSummary
+	var trialEndsAt sql.NullTime
+	var currentPeriodEndsAt sql.NullTime
 	err := db.QueryRowContext(ctx, `
 SELECT tenant.id::text,
 	tenant.code,
 	tenant.name,
 	tenant.status,
 	membership.status,
-	membership.is_owner
+	membership.is_owner,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
 FROM tenant_memberships membership
 JOIN tenants tenant ON tenant.id = membership.tenant_id
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
 WHERE membership.user_id = $1::uuid
 	AND tenant.id = $2::uuid
 	AND membership.status = 'active'
@@ -460,6 +560,13 @@ WHERE membership.user_id = $1::uuid
 		&tenant.Status,
 		&tenant.MembershipStatus,
 		&tenant.IsOwner,
+		&tenant.SubscriptionStatus,
+		&tenant.PlanCode,
+		&tenant.PlanName,
+		&trialEndsAt,
+		&currentPeriodEndsAt,
 	)
+	tenant.TrialEndsAt = formatNullDate(trialEndsAt)
+	tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
 	return tenant, err
 }

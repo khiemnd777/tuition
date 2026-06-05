@@ -101,6 +101,8 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	cases := map[string]string{
 		"POST /api/v1/auth/tenant/switch":                   "tenant.switch",
 		"GET /api/v1/tenants":                               "tenant.view",
+		"GET /api/v1/subscriptions/plans":                   "subscription.view",
+		"POST /api/v1/tenants/subscription/save":            "subscription.update",
 		"POST /api/v1/master-data/import/csv":               "student.create",
 		"POST /api/v1/master-data/students/save":            "student.update",
 		"GET /api/v1/school-tree":                           "school_tree.view",
@@ -187,5 +189,100 @@ func TestDynamicPermissionResolvers(t *testing.T) {
 	postCronReq := httptest.NewRequest(http.MethodPost, "/api/v1/email/cron", nil)
 	if got, err := emailCronPermission(postCronReq); err != nil || got != "email_cron.update" {
 		t.Fatalf("expected email cron update permission, got %q, %v", got, err)
+	}
+}
+
+func TestRequirePermissionAllowsCrossTenantOperationAlias(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/operation-logs?tenantId=all", nil)
+	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
+		ID:            "user-1",
+		Email:         "ops@example.edu.vn",
+		ActiveTenant:  authTenantSummary{ID: "tenant-1", Status: "active", MembershipStatus: "active"},
+		PermissionSet: map[string]bool{"operations.cross_tenant.read": true},
+	}))
+	rec := httptest.NewRecorder()
+
+	handler := requirePermissionForAuthenticated("operation_log.cross_tenant_view", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected cross-tenant alias permission to pass, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequirePermissionBlocksWriteWhenTenantSubscriptionIsSuspended(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/generate", nil)
+	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
+		ID:    "user-1",
+		Email: "billing@example.edu.vn",
+		ActiveTenant: authTenantSummary{
+			ID:                 "tenant-1",
+			Status:             "active",
+			MembershipStatus:   "active",
+			SubscriptionStatus: "suspended",
+		},
+		PermissionSet: map[string]bool{"invoice.create": true},
+	}))
+	rec := httptest.NewRecorder()
+
+	handler := requirePermissionForAuthenticated("invoice.create", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected suspended subscription write to be forbidden, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequirePermissionAllowsReadWhenTenantSubscriptionIsSuspended(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/invoices", nil)
+	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
+		ID:    "user-1",
+		Email: "billing@example.edu.vn",
+		ActiveTenant: authTenantSummary{
+			ID:                 "tenant-1",
+			Status:             "active",
+			MembershipStatus:   "active",
+			SubscriptionStatus: "suspended",
+		},
+		PermissionSet: map[string]bool{"invoice.view": true},
+	}))
+	rec := httptest.NewRecorder()
+
+	handler := requirePermissionForAuthenticated("invoice.view", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected suspended subscription read to pass, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequirePermissionAllowsSubscriptionUpdateWhenTenantSubscriptionIsSuspended(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tenants/subscription/save", nil)
+	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
+		ID:    "user-1",
+		Email: "owner@example.edu.vn",
+		ActiveTenant: authTenantSummary{
+			ID:                 "tenant-1",
+			Status:             "active",
+			MembershipStatus:   "active",
+			SubscriptionStatus: "suspended",
+		},
+		PermissionSet: map[string]bool{"subscription.update": true},
+	}))
+	rec := httptest.NewRecorder()
+
+	handler := requirePermissionForAuthenticated("subscription.update", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected subscription update to pass on suspended tenant, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

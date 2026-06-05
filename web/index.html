@@ -1304,6 +1304,13 @@
             </div>
           </div>
           <div class="admin-filter-grid">
+            <label id="operationTenantFilterWrap" hidden>
+              <span>Tenant</span>
+              <select id="operationTenantFilter">
+                <option value="">Active tenant</option>
+                <option value="all">Tất cả tenant</option>
+              </select>
+            </label>
             <label>
               <span>Nguồn</span>
               <select id="operationSourceFilter">
@@ -1431,6 +1438,7 @@
             <div class="panel-actions">
               <button id="refreshTenants" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
               <button id="editActiveTenant" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa tenant</span></button>
+              <button id="editActiveTenantSubscription" type="button"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Sửa subscription</span></button>
               <button id="newTenant" type="button"><span class="mui-icon" aria-hidden="true">add_business</span><span>Tenant mới</span></button>
               <span id="tenantStatus" class="status-pill">Chưa tải</span>
             </div>
@@ -1466,6 +1474,31 @@
                 <input id="tenantInitialSchoolName" placeholder="School B" />
               </label>
             </div>
+          </div>
+          <div id="tenantSubscriptionForm" class="tenant-form" hidden>
+            <input id="tenantSubscriptionTenantId" type="hidden" />
+            <label>
+              <span>Plan</span>
+              <select id="tenantSubscriptionPlan"></select>
+            </label>
+            <label>
+              <span>Subscription status</span>
+              <select id="tenantSubscriptionStatus">
+                <option value="trial">trial</option>
+                <option value="active">active</option>
+                <option value="past_due">past_due</option>
+                <option value="suspended">suspended</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </label>
+            <label>
+              <span>Trial ends at</span>
+              <input id="tenantSubscriptionTrialEndsAt" type="date" />
+            </label>
+            <label>
+              <span>Current period ends at</span>
+              <input id="tenantSubscriptionCurrentPeriodEndsAt" type="date" />
+            </label>
           </div>
         </section>
 

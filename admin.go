@@ -1159,6 +1159,8 @@ func isCanonicalAdminPermissionCode(code string) bool {
 		"tenant.create",
 		"tenant.update",
 		"tenant.switch",
+		"subscription.view",
+		"subscription.update",
 		"student.view",
 		"student.create",
 		"student.update",
@@ -1184,7 +1186,9 @@ func isCanonicalAdminPermissionCode(code string) bool {
 		"report.export",
 		"dashboard.view",
 		"operation_log.view",
-		"audit_log.view":
+		"operation_log.cross_tenant_view",
+		"audit_log.view",
+		"audit_log.cross_tenant_view":
 		return true
 	default:
 		return false

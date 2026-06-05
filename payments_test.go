@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 )
 
@@ -221,5 +222,64 @@ func TestResolvePaymentWebhookTenant(t *testing.T) {
 				t.Fatalf("expected provider=%q, got=%q", tc.wantProvider, providerCode)
 			}
 		})
+	}
+}
+
+func TestLoadPayOSConfigPrefersTenantProviderConfig(t *testing.T) {
+	t.Setenv("ABC_PAYOS_CLIENT_ID", "env-client")
+	t.Setenv("ABC_PAYOS_API_KEY", "env-api")
+	t.Setenv("ABC_PAYOS_CHECKSUM_KEY", "env-checksum")
+	t.Setenv("ABC_PAYOS_RETURN_URL", "https://env-return.example")
+	t.Setenv("ABC_PAYOS_CANCEL_URL", "https://env-cancel.example")
+	t.Setenv("ABC_PAYOS_API_BASE_URL", "https://env-api-base.example")
+
+	cfg := loadPayOSConfig(paymentProvider{
+		Code: paymentProviderPayOS,
+		config: map[string]any{
+			"clientId":    "tenant-client",
+			"apiKey":      "tenant-api",
+			"checksumKey": "tenant-checksum",
+			"returnUrl":   "https://tenant-return.example",
+			"cancelUrl":   "https://tenant-cancel.example",
+			"apiBaseUrl":  "https://tenant-api-base.example",
+		},
+	})
+
+	if cfg.ClientID != "tenant-client" || cfg.APIKey != "tenant-api" || cfg.ChecksumKey != "tenant-checksum" {
+		t.Fatalf("expected tenant payOS credentials, got %+v", cfg)
+	}
+	if cfg.ReturnURL != "https://tenant-return.example" || cfg.CancelURL != "https://tenant-cancel.example" || cfg.APIBaseURL != "https://tenant-api-base.example" {
+		t.Fatalf("expected tenant payOS URLs, got %+v", cfg)
+	}
+}
+
+func TestLoadPayOSConfigFallsBackToEnvForMissingTenantFields(t *testing.T) {
+	for key, value := range map[string]string{
+		"ABC_PAYOS_CLIENT_ID":    "env-client",
+		"ABC_PAYOS_API_KEY":      "env-api",
+		"ABC_PAYOS_CHECKSUM_KEY": "env-checksum",
+		"ABC_PAYOS_RETURN_URL":   "https://env-return.example",
+		"ABC_PAYOS_CANCEL_URL":   "https://env-cancel.example",
+	} {
+		if err := os.Setenv(key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, key := range []string{"ABC_PAYOS_CLIENT_ID", "ABC_PAYOS_API_KEY", "ABC_PAYOS_CHECKSUM_KEY", "ABC_PAYOS_RETURN_URL", "ABC_PAYOS_CANCEL_URL"} {
+			_ = os.Unsetenv(key)
+		}
+	})
+
+	cfg := loadPayOSConfig(paymentProvider{
+		Code:   paymentProviderPayOS,
+		config: map[string]any{"clientId": "tenant-client"},
+	})
+
+	if cfg.ClientID != "tenant-client" {
+		t.Fatalf("expected tenant client id, got %+v", cfg)
+	}
+	if cfg.APIKey != "env-api" || cfg.ChecksumKey != "env-checksum" || cfg.ReturnURL != "https://env-return.example" || cfg.CancelURL != "https://env-cancel.example" {
+		t.Fatalf("expected env fallback for missing fields, got %+v", cfg)
 	}
 }

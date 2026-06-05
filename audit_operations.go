@@ -43,6 +43,8 @@ type auditLogInput struct {
 type auditLogSummary struct {
 	ID          string         `json:"id"`
 	OccurredAt  time.Time      `json:"occurredAt"`
+	TenantCode  string         `json:"tenantCode,omitempty"`
+	TenantName  string         `json:"tenantName,omitempty"`
 	ActorUserID string         `json:"actorUserId,omitempty"`
 	ActorName   string         `json:"actorName,omitempty"`
 	Action      string         `json:"action"`
@@ -86,6 +88,8 @@ type operationLogInput struct {
 type operationLogSummary struct {
 	ID         string         `json:"id"`
 	OccurredAt time.Time      `json:"occurredAt"`
+	TenantCode string         `json:"tenantCode,omitempty"`
+	TenantName string         `json:"tenantName,omitempty"`
 	Source     string         `json:"source"`
 	Level      string         `json:"level"`
 	Operation  string         `json:"operation"`
@@ -256,7 +260,7 @@ func cloneMetadata(metadata map[string]any) map[string]any {
 }
 
 func handleAdminAuditLogs(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := requireActiveTenantID(w, r)
+	tenantID, ok := resolveOperationsTenantScope(w, r, "audit_log.cross_tenant_view")
 	if !ok {
 		return
 	}
@@ -282,7 +286,7 @@ func handleAdminAuditLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := requireActiveTenantID(w, r)
+	tenantID, ok := resolveOperationsTenantScope(w, r, "operation_log.cross_tenant_view")
 	if !ok {
 		return
 	}
@@ -308,6 +312,26 @@ func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "summary": buildOperationLogCommandSummary(logs)})
+}
+
+func resolveOperationsTenantScope(w http.ResponseWriter, r *http.Request, crossTenantPermission string) (string, bool) {
+	activeTenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return "", false
+	}
+	requestedTenantID := strings.TrimSpace(r.URL.Query().Get("tenantId"))
+	if requestedTenantID == "" || requestedTenantID == activeTenantID {
+		return activeTenantID, true
+	}
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok || !authenticatedUserHasPermission(user, crossTenantPermission) {
+		http.Error(w, "missing required API permission: "+crossTenantPermission, http.StatusForbidden)
+		return "", false
+	}
+	if requestedTenantID == "all" {
+		return "", true
+	}
+	return requestedTenantID, true
 }
 
 func listAuditLogs(ctx context.Context, db *sql.DB, filters auditLogFilters) ([]auditLogSummary, error) {
@@ -341,6 +365,8 @@ func listAuditLogs(ctx context.Context, db *sql.DB, filters auditLogFilters) ([]
 	rows, err := db.QueryContext(ctx, `
 SELECT id::text,
 	occurred_at,
+	COALESCE(tenant.code, ''),
+	COALESCE(tenant.name, ''),
 	COALESCE(actor_user_id::text, ''),
 	COALESCE(metadata->>'actorName', ''),
 	action,
@@ -352,6 +378,7 @@ SELECT id::text,
 	COALESCE(metadata->>'reason', ''),
 	metadata
 FROM audit_logs
+LEFT JOIN tenants tenant ON tenant.id = audit_logs.tenant_id
 WHERE `+strings.Join(conditions, " AND ")+`
 ORDER BY occurred_at DESC
 LIMIT `+limitArg, args...)
@@ -367,6 +394,8 @@ LIMIT `+limitArg, args...)
 		if err := rows.Scan(
 			&item.ID,
 			&item.OccurredAt,
+			&item.TenantCode,
+			&item.TenantName,
 			&item.ActorUserID,
 			&item.ActorName,
 			&item.Action,
@@ -426,6 +455,8 @@ func listOperationLogs(ctx context.Context, db *sql.DB, filters operationLogFilt
 	rows, err := db.QueryContext(ctx, `
 SELECT id::text,
 	occurred_at,
+	COALESCE(tenant.code, ''),
+	COALESCE(tenant.name, ''),
 	source,
 	level,
 	operation,
@@ -436,6 +467,7 @@ SELECT id::text,
 	request_id,
 	metadata
 FROM operation_logs
+LEFT JOIN tenants tenant ON tenant.id = operation_logs.tenant_id
 WHERE `+strings.Join(conditions, " AND ")+`
 ORDER BY occurred_at DESC
 LIMIT `+limitArg, args...)
@@ -451,6 +483,8 @@ LIMIT `+limitArg, args...)
 		if err := rows.Scan(
 			&item.ID,
 			&item.OccurredAt,
+			&item.TenantCode,
+			&item.TenantName,
 			&item.Source,
 			&item.Level,
 			&item.Operation,

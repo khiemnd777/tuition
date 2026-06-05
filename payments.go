@@ -49,6 +49,7 @@ type paymentProvider struct {
 	Status       string `json:"status"`
 	Configured   bool   `json:"configured"`
 	tenantID     string
+	config       map[string]any
 	WebhookPath  string `json:"webhookPath,omitempty"`
 }
 
@@ -477,7 +478,7 @@ func handlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	normalized.ProviderEventID = event.ID
 
 	if provider.Code == paymentProviderPayOS {
-		if err := verifyPayOSWebhookSignature(rawPayload); err != nil {
+		if err := verifyPayOSWebhookSignature(provider, rawPayload); err != nil {
 			_ = updateProviderEventStatus(r.Context(), db, event.ID, "invalid", normalized.ProviderTransactionID, normalized.RawPayload, err.Error())
 			_ = recordOperationLog(r.Context(), db, paymentWebhookOperationLog(r, tenantID, provider.Code, event.ID, "invalid_signature", err))
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -644,7 +645,7 @@ func listPaymentProviders(ctx context.Context, db *sql.DB, tenantID string) ([]p
 		return nil, fmt.Errorf("tenant id is required")
 	}
 	rows, err := db.QueryContext(ctx, `
-SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text, t.code
+SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text, t.code, pp.config
 FROM payment_providers pp
 JOIN tenants t ON t.id = pp.tenant_id
 WHERE pp.tenant_id = $1::uuid
@@ -658,10 +659,12 @@ ORDER BY CASE pp.code WHEN 'manual_vietqr' THEN 1 WHEN 'sepay' THEN 2 WHEN 'payo
 	for rows.Next() {
 		var provider paymentProvider
 		var tenantCode string
-		if err := rows.Scan(&provider.ID, &provider.Code, &provider.DisplayName, &provider.ProviderType, &provider.Status, &provider.tenantID, &tenantCode); err != nil {
+		var configBytes []byte
+		if err := rows.Scan(&provider.ID, &provider.Code, &provider.DisplayName, &provider.ProviderType, &provider.Status, &provider.tenantID, &tenantCode, &configBytes); err != nil {
 			return nil, err
 		}
-		provider.Configured = isPaymentProviderConfigured(provider.Code)
+		provider.config = decodeMetadata(configBytes)
+		provider.Configured = isPaymentProviderConfigured(provider)
 		if provider.Code == paymentProviderSePay || provider.Code == paymentProviderPayOS {
 			if tenantCode != "" {
 				provider.WebhookPath = "/api/v1/payments/webhooks/" + strings.ToLower(tenantCode) + "/" + provider.Code
@@ -680,8 +683,9 @@ func loadPaymentProviderByCode(ctx context.Context, db *sql.DB, tenantID string,
 	if tenantID == "" {
 		return provider, fmt.Errorf("tenant id is required")
 	}
+	var configBytes []byte
 	err := db.QueryRowContext(ctx, `
-SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text
+SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text, pp.config
 FROM payment_providers
 WHERE pp.code = $1
 	AND pp.status <> 'inactive'
@@ -692,6 +696,7 @@ WHERE pp.code = $1
 		&provider.ProviderType,
 		&provider.Status,
 		&provider.tenantID,
+		&configBytes,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return provider, fmt.Errorf("payment provider %q is not available", code)
@@ -699,7 +704,8 @@ WHERE pp.code = $1
 	if err != nil {
 		return provider, err
 	}
-	provider.Configured = isPaymentProviderConfigured(provider.Code)
+	provider.config = decodeMetadata(configBytes)
+	provider.Configured = isPaymentProviderConfigured(provider)
 	return provider, nil
 }
 
@@ -733,7 +739,7 @@ func createPaymentIntentForInvoice(ctx context.Context, db *sql.DB, provider pay
 		}
 		return paymentIntentResponse{Intent: saved, QR: &qr}, nil
 	case paymentProviderPayOS:
-		result, err := createPayOSPaymentLink(ctx, invoice)
+		result, err := createPayOSPaymentLink(ctx, provider, invoice)
 		if err != nil {
 			return paymentIntentResponse{}, err
 		}
@@ -1708,10 +1714,10 @@ func summarizePaymentReconciliation(invoices []invoiceSummary, transactions []pa
 	return summary
 }
 
-func createPayOSPaymentLink(ctx context.Context, invoice invoiceDocument) (payOSCreatePaymentResult, error) {
-	cfg := loadPayOSConfig()
+func createPayOSPaymentLink(ctx context.Context, provider paymentProvider, invoice invoiceDocument) (payOSCreatePaymentResult, error) {
+	cfg := loadPayOSConfig(provider)
 	if !cfg.configuredForCreate() {
-		return payOSCreatePaymentResult{}, fmt.Errorf("payOS is not configured; set ABC_PAYOS_CLIENT_ID, ABC_PAYOS_API_KEY, ABC_PAYOS_CHECKSUM_KEY, ABC_PAYOS_RETURN_URL, and ABC_PAYOS_CANCEL_URL")
+		return payOSCreatePaymentResult{}, fmt.Errorf("payOS is not configured for tenant provider %q", provider.Code)
 	}
 	orderCode := payOSOrderCode(invoice.InvoiceCode)
 	description := cleanANS(invoice.InvoiceCode, 9)
@@ -1781,8 +1787,8 @@ func createPayOSPaymentLink(ctx context.Context, invoice invoiceDocument) (payOS
 	}, nil
 }
 
-func verifyPayOSWebhookSignature(raw map[string]any) error {
-	cfg := loadPayOSConfig()
+func verifyPayOSWebhookSignature(provider paymentProvider, raw map[string]any) error {
+	cfg := loadPayOSConfig(provider)
 	if strings.TrimSpace(cfg.ChecksumKey) == "" {
 		return nil
 	}
@@ -1800,8 +1806,16 @@ func verifyPayOSWebhookSignature(raw map[string]any) error {
 	return nil
 }
 
-func loadPayOSConfig() payOSConfig {
-	return payOSConfig{
+func loadPayOSConfig(provider paymentProvider) payOSConfig {
+	config := payOSConfig{
+		ClientID:    firstNonEmpty(providerConfigString(provider.config, "clientId", "client_id", "xClientId"), providerNestedConfigString(provider.config, "credentials", "clientId", "client_id")),
+		APIKey:      firstNonEmpty(providerConfigString(provider.config, "apiKey", "api_key", "xApiKey"), providerNestedConfigString(provider.config, "credentials", "apiKey", "api_key")),
+		ChecksumKey: firstNonEmpty(providerConfigString(provider.config, "checksumKey", "checksum_key"), providerNestedConfigString(provider.config, "credentials", "checksumKey", "checksum_key"), providerNestedConfigString(provider.config, "webhook", "checksumKey", "checksum_key")),
+		ReturnURL:   firstNonEmpty(providerConfigString(provider.config, "returnUrl", "return_url"), providerNestedConfigString(provider.config, "checkout", "returnUrl", "return_url")),
+		CancelURL:   firstNonEmpty(providerConfigString(provider.config, "cancelUrl", "cancel_url"), providerNestedConfigString(provider.config, "checkout", "cancelUrl", "cancel_url")),
+		APIBaseURL:  firstNonEmpty(providerConfigString(provider.config, "apiBaseUrl", "api_base_url"), providerNestedConfigString(provider.config, "checkout", "apiBaseUrl", "api_base_url")),
+	}
+	envConfig := payOSConfig{
 		ClientID:    strings.TrimSpace(os.Getenv("ABC_PAYOS_CLIENT_ID")),
 		APIKey:      strings.TrimSpace(os.Getenv("ABC_PAYOS_API_KEY")),
 		ChecksumKey: strings.TrimSpace(os.Getenv("ABC_PAYOS_CHECKSUM_KEY")),
@@ -1809,23 +1823,62 @@ func loadPayOSConfig() payOSConfig {
 		CancelURL:   strings.TrimSpace(os.Getenv("ABC_PAYOS_CANCEL_URL")),
 		APIBaseURL:  firstNonEmpty(os.Getenv("ABC_PAYOS_API_BASE_URL"), "https://api-merchant.payos.vn"),
 	}
+	if config.ClientID == "" {
+		config.ClientID = envConfig.ClientID
+	}
+	if config.APIKey == "" {
+		config.APIKey = envConfig.APIKey
+	}
+	if config.ChecksumKey == "" {
+		config.ChecksumKey = envConfig.ChecksumKey
+	}
+	if config.ReturnURL == "" {
+		config.ReturnURL = envConfig.ReturnURL
+	}
+	if config.CancelURL == "" {
+		config.CancelURL = envConfig.CancelURL
+	}
+	if config.APIBaseURL == "" {
+		config.APIBaseURL = envConfig.APIBaseURL
+	}
+	if config.APIBaseURL == "" {
+		config.APIBaseURL = "https://api-merchant.payos.vn"
+	}
+	return config
 }
 
 func (cfg payOSConfig) configuredForCreate() bool {
 	return cfg.ClientID != "" && cfg.APIKey != "" && cfg.ChecksumKey != "" && cfg.ReturnURL != "" && cfg.CancelURL != ""
 }
 
-func isPaymentProviderConfigured(code string) bool {
-	switch code {
+func isPaymentProviderConfigured(provider paymentProvider) bool {
+	switch provider.Code {
 	case paymentProviderManualVietQR:
 		return true
 	case paymentProviderSePay:
 		return true
 	case paymentProviderPayOS:
-		return loadPayOSConfig().configuredForCreate()
+		return loadPayOSConfig(provider).configuredForCreate()
 	default:
 		return false
 	}
+}
+
+func providerConfigString(config map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(jsonStringValue(config[key])); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func providerNestedConfigString(config map[string]any, parent string, keys ...string) string {
+	nested, _ := config[parent].(map[string]any)
+	if nested == nil {
+		return ""
+	}
+	return providerConfigString(nested, keys...)
 }
 
 func payOSOrderCode(invoiceCode string) int64 {

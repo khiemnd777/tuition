@@ -6,13 +6,13 @@ Last updated: 2026-06-05
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, and tenant onboarding/switching complete.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, and tenant billing lifecycle enforcement complete.
 
-Current phase: `subscription_phase_5_complete`
+Current phase: `subscription_phase_7_complete`
 
-Current initiative: Subscription Phase 5 - Tenant-Scoped Payment Provider And Webhook Ownership is complete.
+Current initiative: Subscription Phase 7 - Tenant Billing, Plan Lifecycle, And Subscription Enforcement is complete.
 
-Next recommended initiative: Subscription Phase 6 - Tenant Subscription Hardening (webhook key isolation, credential governance, and cross-tenant operations monitoring).
+Next recommended initiative: Subscription Phase 8 - Tenant feature entitlements, usage metering, and billing operations workflow.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -72,6 +72,19 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added `tenant_id` to `payment_providers`, seeded defaults for all tenants, and added tenant-level unique constraints and indexing.
   - Updated payment provider loading, provider list, webhook parsing, webhook event flow, and reconciliation queries to load/store by active tenant.
   - Updated payment reconciliation query paths so tenant isolation applies to transaction/list/match flows.
+- Subscription Phase 6: Tenant Subscription Hardening is complete:
+  - Reused `payment_providers.config` as the tenant-owned credential source for `payOS`, with env fallback kept only for missing fields and default-tenant compatibility.
+  - Updated payment intent creation and webhook signature verification to resolve `payOS` secrets per tenant provider instead of from one global config only.
+  - Added cross-tenant operation/audit read permissions for admin operators through migration `0019_subscription_hardening_cross_tenant_operations`.
+  - Added tenant-scoped or cross-tenant filtering for operation and audit log APIs, including tenant identity in returned log rows.
+  - Added tenant filtering in the `Vận hành` screen for operators with cross-tenant monitoring permission.
+- Subscription Phase 7: Tenant Billing, Plan Lifecycle, And Subscription Enforcement is complete:
+  - Added migration `0020_tenant_subscription_billing`.
+  - Added `subscription_plans` and `tenant_subscriptions`, seeded `free_trial` and `standard`, and backfilled all existing tenants with a current subscription row.
+  - Added subscription permissions and APIs for viewing plans and updating the active tenant subscription.
+  - Extended auth session and tenant-admin responses with subscription status, plan, and lifecycle dates.
+  - Added tenant subscription editing in Web Admin under the existing tenant management area.
+  - Added centralized enforcement so write-heavy production workflows require the active tenant subscription to be `active` or `trial`, while read workflows and subscription repair remain available.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

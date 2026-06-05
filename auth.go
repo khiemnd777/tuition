@@ -45,12 +45,17 @@ type authLoginRequest struct {
 }
 
 type authTenantSummary struct {
-	ID               string `json:"id"`
-	Code             string `json:"code"`
-	Name             string `json:"name"`
-	Status           string `json:"status"`
-	MembershipStatus string `json:"membershipStatus"`
-	IsOwner          bool   `json:"isOwner"`
+	ID                  string `json:"id"`
+	Code                string `json:"code"`
+	Name                string `json:"name"`
+	Status              string `json:"status"`
+	MembershipStatus    string `json:"membershipStatus"`
+	IsOwner             bool   `json:"isOwner"`
+	SubscriptionStatus  string `json:"subscriptionStatus,omitempty"`
+	PlanCode            string `json:"planCode,omitempty"`
+	PlanName            string `json:"planName,omitempty"`
+	TrialEndsAt         string `json:"trialEndsAt,omitempty"`
+	CurrentPeriodEndsAt string `json:"currentPeriodEndsAt,omitempty"`
 }
 
 type authenticatedUser struct {
@@ -84,32 +89,37 @@ type authBootstrapStatusResponse struct {
 }
 
 type authTokenRecord struct {
-	ID                string
-	SessionID         string
-	UserID            string
-	ExpiresAt         time.Time
-	UsedAt            sql.NullTime
-	RevokedAt         sql.NullTime
-	SessionExpiresAt  time.Time
-	SessionRevokedAt  sql.NullTime
-	SessionUserID     string
-	SessionIPAddress  string
-	SessionUserAgent  string
-	UserEmail         string
-	UserPhone         string
-	UserDisplayName   string
-	UserStatus        string
-	TenantID          string
-	TenantCode        string
-	TenantName        string
-	TenantStatus      string
-	MembershipStatus  string
-	TenantIsOwner     bool
-	RefreshExpiresAt  time.Time
-	AccessExpiresAt   time.Time
-	RefreshTokenID    string
-	NewRefreshTokenID string
-	NewAccessTokenID  string
+	ID                  string
+	SessionID           string
+	UserID              string
+	ExpiresAt           time.Time
+	UsedAt              sql.NullTime
+	RevokedAt           sql.NullTime
+	SessionExpiresAt    time.Time
+	SessionRevokedAt    sql.NullTime
+	SessionUserID       string
+	SessionIPAddress    string
+	SessionUserAgent    string
+	UserEmail           string
+	UserPhone           string
+	UserDisplayName     string
+	UserStatus          string
+	TenantID            string
+	TenantCode          string
+	TenantName          string
+	TenantStatus        string
+	MembershipStatus    string
+	TenantIsOwner       bool
+	SubscriptionStatus  string
+	PlanCode            string
+	PlanName            string
+	TrialEndsAt         sql.NullTime
+	CurrentPeriodEndsAt sql.NullTime
+	RefreshExpiresAt    time.Time
+	AccessExpiresAt     time.Time
+	RefreshTokenID      string
+	NewRefreshTokenID   string
+	NewAccessTokenID    string
 }
 
 type authIssuedTokens struct {
@@ -874,9 +884,16 @@ SELECT tenant.id::text,
 	tenant.name,
 	tenant.status,
 	membership.status,
-	membership.is_owner
+	membership.is_owner,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
 FROM tenant_memberships membership
 JOIN tenants tenant ON tenant.id = membership.tenant_id
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
 WHERE membership.user_id = $1::uuid
 	AND membership.status = 'active'
 	AND tenant.status IN ('active', 'trial')
@@ -891,9 +908,13 @@ ORDER BY CASE WHEN tenant.id::text = $2 THEN 0 WHEN tenant.code = $3 THEN 1 ELSE
 	activeTenant := authTenantSummary{}
 	for rows.Next() {
 		var item authTenantSummary
-		if err := rows.Scan(&item.ID, &item.Code, &item.Name, &item.Status, &item.MembershipStatus, &item.IsOwner); err != nil {
+		var trialEndsAt sql.NullTime
+		var currentPeriodEndsAt sql.NullTime
+		if err := rows.Scan(&item.ID, &item.Code, &item.Name, &item.Status, &item.MembershipStatus, &item.IsOwner, &item.SubscriptionStatus, &item.PlanCode, &item.PlanName, &trialEndsAt, &currentPeriodEndsAt); err != nil {
 			return nil, authTenantSummary{}, err
 		}
+		item.TrialEndsAt = formatNullDate(trialEndsAt)
+		item.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
 		if activeTenant.ID == "" {
 			activeTenant = item
 		}
@@ -965,6 +986,8 @@ func loadAuthSessionByAccessToken(ctx context.Context, db *sql.DB, accessTokenHa
 	}
 	var session authSessionResponse
 	var accessTokenID string
+	var trialEndsAt sql.NullTime
+	var currentPeriodEndsAt sql.NullTime
 	err := db.QueryRowContext(ctx, `
 SELECT at.id::text,
 	at.expires_at,
@@ -979,7 +1002,12 @@ SELECT at.id::text,
 	tenant.name,
 	tenant.status,
 	membership.status,
-	membership.is_owner
+	membership.is_owner,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
 FROM app_auth_access_tokens at
 JOIN app_auth_sessions s ON s.id = at.session_id
 JOIN app_auth_refresh_tokens rt ON rt.session_id = s.id AND rt.used_at IS NULL AND rt.revoked_at IS NULL
@@ -988,6 +1016,8 @@ JOIN tenants tenant ON tenant.id = s.tenant_id AND tenant.status IN ('active', '
 JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
 	AND membership.user_id = u.id
 	AND membership.status = 'active'
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
 WHERE at.token_hash = $1
 	AND at.revoked_at IS NULL
 	AND at.expires_at > $2
@@ -1011,10 +1041,17 @@ LIMIT 1`, accessTokenHash, now).Scan(
 		&session.User.ActiveTenant.Status,
 		&session.User.ActiveTenant.MembershipStatus,
 		&session.User.ActiveTenant.IsOwner,
+		&session.User.ActiveTenant.SubscriptionStatus,
+		&session.User.ActiveTenant.PlanCode,
+		&session.User.ActiveTenant.PlanName,
+		&trialEndsAt,
+		&currentPeriodEndsAt,
 	)
 	if err != nil {
 		return authSessionResponse{}, err
 	}
+	session.User.ActiveTenant.TrialEndsAt = formatNullDate(trialEndsAt)
+	session.User.ActiveTenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
 	if err := enrichAuthenticatedUser(ctx, db, &session.User); err != nil {
 		return authSessionResponse{}, err
 	}
@@ -1099,12 +1136,17 @@ WHERE id = $1::uuid`, record.SessionID, now, auditCtx.IPAddress, auditCtx.UserAg
 			DisplayName: record.UserDisplayName,
 			Status:      record.UserStatus,
 			ActiveTenant: authTenantSummary{
-				ID:               record.TenantID,
-				Code:             record.TenantCode,
-				Name:             record.TenantName,
-				Status:           record.TenantStatus,
-				MembershipStatus: record.MembershipStatus,
-				IsOwner:          record.TenantIsOwner,
+				ID:                  record.TenantID,
+				Code:                record.TenantCode,
+				Name:                record.TenantName,
+				Status:              record.TenantStatus,
+				MembershipStatus:    record.MembershipStatus,
+				IsOwner:             record.TenantIsOwner,
+				SubscriptionStatus:  record.SubscriptionStatus,
+				PlanCode:            record.PlanCode,
+				PlanName:            record.PlanName,
+				TrialEndsAt:         formatNullDate(record.TrialEndsAt),
+				CurrentPeriodEndsAt: formatNullDate(record.CurrentPeriodEndsAt),
 			},
 		},
 		AccessExpiresAt:  tokens.AccessExpiresAt,
@@ -1139,13 +1181,20 @@ SELECT rt.id::text,
 	tenant.name,
 	tenant.status,
 	membership.status,
-	membership.is_owner
+	membership.is_owner,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
 FROM app_auth_refresh_tokens rt
 JOIN app_auth_sessions s ON s.id = rt.session_id
 JOIN app_users u ON u.id = rt.user_id
 JOIN tenants tenant ON tenant.id = s.tenant_id
 JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
 	AND membership.user_id = u.id
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
 WHERE rt.token_hash = $1
 FOR UPDATE OF rt`, refreshTokenHash).Scan(
 		&record.ID,
@@ -1166,6 +1215,11 @@ FOR UPDATE OF rt`, refreshTokenHash).Scan(
 		&record.TenantStatus,
 		&record.MembershipStatus,
 		&record.TenantIsOwner,
+		&record.SubscriptionStatus,
+		&record.PlanCode,
+		&record.PlanName,
+		&record.TrialEndsAt,
+		&record.CurrentPeriodEndsAt,
 	)
 	return record, err
 }

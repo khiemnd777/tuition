@@ -598,6 +598,68 @@ func TestLoadEmbeddedMigrationsIncludesTenantScopedPaymentProvidersAndWebhooks(t
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesSubscriptionHardeningCrossTenantOperations(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var migrationItem migration
+	for _, item := range migrations {
+		if item.Version == "0019" {
+			migrationItem = item
+			break
+		}
+	}
+	if migrationItem.Name != "subscription_hardening_cross_tenant_operations" {
+		t.Fatalf("expected subscription hardening migration 0019, got %+v", migrationItem)
+	}
+
+	for _, want := range []string{
+		"operation_log.cross_tenant_view",
+		"audit_log.cross_tenant_view",
+		"operations.cross_tenant.read",
+		"audit.cross_tenant.read",
+		"admin",
+	} {
+		if !strings.Contains(migrationItem.SQL, want) {
+			t.Fatalf("expected subscription hardening migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesTenantSubscriptionBilling(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var migrationItem migration
+	for _, item := range migrations {
+		if item.Version == "0020" {
+			migrationItem = item
+			break
+		}
+	}
+	if migrationItem.Name != "tenant_subscription_billing" {
+		t.Fatalf("expected tenant subscription billing migration 0020, got %+v", migrationItem)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS subscription_plans",
+		"CREATE TABLE IF NOT EXISTS tenant_subscriptions",
+		"free_trial",
+		"standard",
+		"subscription.view",
+		"subscription.update",
+		"tenant_subscriptions_tenant_id_key",
+	} {
+		if !strings.Contains(migrationItem.SQL, want) {
+			t.Fatalf("expected tenant subscription billing migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{
