@@ -44,6 +44,8 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/invoices/generate", Permission: "subscription.update", Handler: handleSubscriptionInvoiceGenerate},
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/invoices/mark-paid", Permission: "subscription.update", Handler: handleSubscriptionInvoiceMarkPaid},
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/dunning/run", Permission: "subscription.update", Handler: handleSubscriptionDunningRun},
+		{Method: http.MethodPost, Path: "/api/v1/subscriptions/billing/config", Permission: "subscription.update", Handler: handleSubscriptionBillingConfigSave},
+		{Method: http.MethodGet, Path: "/api/v1/subscriptions/billing/export", Permission: "report.export", Handler: handleSubscriptionBillingExport},
 		{Method: http.MethodGet, Path: "/api/v1/banks", Permission: permissionAuthenticated, Handler: handleBanks},
 		{Method: http.MethodGet, Path: "/api/v1/example", Permission: "payment.create", Handler: handleExample},
 		{Method: http.MethodPost, Path: "/api/v1/import/fields", PermissionResolver: importFieldsPermission, Handler: handleImportFields},

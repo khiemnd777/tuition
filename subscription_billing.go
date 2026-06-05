@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -58,6 +61,7 @@ type subscriptionBillingResponse struct {
 	Invoices        []subscriptionInvoiceSummary        `json:"invoices"`
 	Summary         subscriptionBillingSummary          `json:"summary"`
 	SuggestedPeriod subscriptionBillingPeriodSuggestion `json:"suggestedPeriod"`
+	Config          subscriptionBillingConfig           `json:"config"`
 	Tenant          tenantSummary                       `json:"tenant"`
 	Tenants         []tenantSummary                     `json:"tenants,omitempty"`
 	DunningResults  []subscriptionDunningResult         `json:"dunningResults,omitempty"`
@@ -89,6 +93,35 @@ type subscriptionDunningResult struct {
 	InvoiceCode    string            `json:"invoiceCode"`
 	RecipientCount int               `json:"recipientCount"`
 	Results        []emailSendResult `json:"results"`
+}
+
+type subscriptionBillingConfig struct {
+	Amount         int    `json:"amount"`
+	IntervalMonths int    `json:"intervalMonths"`
+	DueDays        int    `json:"dueDays"`
+	AutoRenew      bool   `json:"autoRenew"`
+	RenewalMode    string `json:"renewalMode"`
+	FinanceNote    string `json:"financeNote,omitempty"`
+}
+
+type subscriptionBillingConfigSaveInput struct {
+	TenantID       string `json:"tenantId"`
+	Amount         int    `json:"amount"`
+	IntervalMonths int    `json:"intervalMonths"`
+	DueDays        int    `json:"dueDays"`
+	AutoRenew      bool   `json:"autoRenew"`
+	RenewalMode    string `json:"renewalMode"`
+	FinanceNote    string `json:"financeNote"`
+}
+
+type subscriptionBillingExportFilters struct {
+	TenantID   string
+	Dataset    string
+	Status     string
+	PeriodFrom string
+	PeriodTo   string
+	DueFrom    string
+	DueTo      string
 }
 
 type tenantSubscriptionBillingProfile struct {
@@ -258,6 +291,68 @@ func handleSubscriptionDunningRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, payload)
 }
 
+func handleSubscriptionBillingConfigSave(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	activeTenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input subscriptionBillingConfigSaveInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input = normalizeSubscriptionBillingConfigSaveInput(input, activeTenantID)
+	if err := validateSubscriptionBillingConfig(input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+	if err := saveSubscriptionBillingConfig(r.Context(), db, input, user, auditContextFromRequest(r)); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	payload, err := loadSubscriptionBillingResponse(r.Context(), db, user, input.TenantID)
+	if err != nil {
+		http.Error(w, "cannot reload subscription billing", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func handleSubscriptionBillingExport(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+	filters := parseSubscriptionBillingExportFilters(r, tenantID)
+	filename, data, err := buildSubscriptionBillingCSV(r.Context(), db, filters)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
 func loadSubscriptionBillingResponse(ctx context.Context, db *sql.DB, user authenticatedUser, tenantID string) (subscriptionBillingResponse, error) {
 	if err := syncSubscriptionInvoicePastDueState(ctx, db, tenantID, time.Now()); err != nil {
 		return subscriptionBillingResponse{}, err
@@ -285,6 +380,7 @@ func loadSubscriptionBillingResponse(ctx context.Context, db *sql.DB, user authe
 		Invoices:        invoices,
 		Summary:         summarizeSubscriptionInvoices(invoices),
 		SuggestedPeriod: suggestSubscriptionBillingPeriod(profile, time.Now()),
+		Config:          subscriptionBillingConfigFromProfile(profile),
 		Tenant:          tenant,
 		Tenants:         tenants,
 	}, nil
@@ -312,6 +408,35 @@ func normalizeSubscriptionDunningRunInput(input subscriptionDunningRunInput, act
 		input.DryRun = true
 	}
 	return input
+}
+
+func normalizeSubscriptionBillingConfigSaveInput(input subscriptionBillingConfigSaveInput, activeTenantID string) subscriptionBillingConfigSaveInput {
+	input.TenantID = firstNonEmpty(strings.TrimSpace(input.TenantID), strings.TrimSpace(activeTenantID))
+	input.RenewalMode = headerKey(input.RenewalMode)
+	input.FinanceNote = strings.TrimSpace(input.FinanceNote)
+	return input
+}
+
+func validateSubscriptionBillingConfig(input subscriptionBillingConfigSaveInput) error {
+	if strings.TrimSpace(input.TenantID) == "" {
+		return fmt.Errorf("tenantId is required")
+	}
+	if input.Amount < 0 {
+		return fmt.Errorf("amount must be 0 or greater")
+	}
+	if input.IntervalMonths < 1 || input.IntervalMonths > 12 {
+		return fmt.Errorf("intervalMonths must be between 1 and 12")
+	}
+	if input.DueDays < 1 || input.DueDays > 28 {
+		return fmt.Errorf("dueDays must be between 1 and 28")
+	}
+	if input.RenewalMode == "" {
+		input.RenewalMode = "manual"
+	}
+	if input.RenewalMode != "manual" && input.RenewalMode != "auto_generate" {
+		return fmt.Errorf("renewalMode must be manual or auto_generate")
+	}
+	return nil
 }
 
 func loadTenantSubscriptionBillingProfile(ctx context.Context, exec masterDataExecutor, tenantID string) (tenantSubscriptionBillingProfile, error) {
@@ -350,15 +475,31 @@ WHERE tenant.id = $1::uuid`, tenantID).Scan(
 	return profile, nil
 }
 
+func subscriptionBillingConfigFromProfile(profile tenantSubscriptionBillingProfile) subscriptionBillingConfig {
+	cfg := subscriptionBillingConfig{
+		Amount:         parseSubscriptionLimitValue(profile.BillingMetadata["amount"]),
+		IntervalMonths: parseSubscriptionLimitValue(profile.BillingMetadata["interval_months"]),
+		DueDays:        parseSubscriptionLimitValue(profile.BillingMetadata["due_days"]),
+		AutoRenew:      boolValueFromAny(profile.BillingMetadata["auto_renew"]),
+		RenewalMode:    strings.TrimSpace(fmt.Sprint(profile.BillingMetadata["renewal_mode"])),
+		FinanceNote:    strings.TrimSpace(fmt.Sprint(profile.BillingMetadata["finance_note"])),
+	}
+	if cfg.IntervalMonths <= 0 {
+		cfg.IntervalMonths = 1
+	}
+	if cfg.DueDays <= 0 {
+		cfg.DueDays = 10
+	}
+	if cfg.RenewalMode == "" || cfg.RenewalMode == "<nil>" {
+		cfg.RenewalMode = "manual"
+	}
+	return cfg
+}
+
 func suggestSubscriptionBillingPeriod(profile tenantSubscriptionBillingProfile, now time.Time) subscriptionBillingPeriodSuggestion {
-	intervalMonths := parseSubscriptionLimitValue(profile.BillingMetadata["interval_months"])
-	if intervalMonths <= 0 {
-		intervalMonths = 1
-	}
-	dueDayOffset := parseSubscriptionLimitValue(profile.BillingMetadata["due_days"])
-	if dueDayOffset <= 0 {
-		dueDayOffset = 10
-	}
+	config := subscriptionBillingConfigFromProfile(profile)
+	intervalMonths := config.IntervalMonths
+	dueDayOffset := config.DueDays
 	start := time.Date(now.UTC().Year(), now.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
 	if profile.CurrentPeriodEndsAt.Valid {
 		next := profile.CurrentPeriodEndsAt.Time.UTC().AddDate(0, 0, 1)
@@ -370,8 +511,66 @@ func suggestSubscriptionBillingPeriod(profile tenantSubscriptionBillingProfile, 
 		PeriodStartsAt: start.Format("2006-01-02"),
 		PeriodEndsAt:   end.Format("2006-01-02"),
 		DueAt:          dueAt.Format("2006-01-02"),
-		Amount:         parseSubscriptionLimitValue(profile.BillingMetadata["amount"]),
+		Amount:         config.Amount,
 	}
+}
+
+func boolValueFromAny(value any) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		return headerKey(typed) == "true"
+	case float64:
+		return typed != 0
+	case int:
+		return typed != 0
+	default:
+		return false
+	}
+}
+
+func saveSubscriptionBillingConfig(ctx context.Context, db *sql.DB, input subscriptionBillingConfigSaveInput, user authenticatedUser, auditCtx requestAuditContext) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	metadataBytes, err := json.Marshal(map[string]any{
+		"amount":          input.Amount,
+		"interval_months": input.IntervalMonths,
+		"due_days":        input.DueDays,
+		"auto_renew":      input.AutoRenew,
+		"renewal_mode":    input.RenewalMode,
+		"finance_note":    input.FinanceNote,
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE tenant_subscriptions
+SET billing_metadata = billing_metadata || $2::jsonb,
+	updated_by_user_id = nullif($3, '')::uuid,
+	updated_at = now()
+WHERE tenant_id = $1::uuid`, input.TenantID, string(metadataBytes), user.ID); err != nil {
+		return err
+	}
+	auditCtx.TenantID = input.TenantID
+	_ = insertAuditLog(ctx, tx, auditLogInput{
+		Context:    auditCtx,
+		Action:     "subscription.billing_config.update",
+		EntityType: "tenant_subscription",
+		EntityID:   input.TenantID,
+		Metadata: map[string]any{
+			"amount":         input.Amount,
+			"intervalMonths": input.IntervalMonths,
+			"dueDays":        input.DueDays,
+			"autoRenew":      input.AutoRenew,
+			"renewalMode":    input.RenewalMode,
+			"financeNote":    input.FinanceNote,
+		},
+	})
+	return tx.Commit()
 }
 
 func generateSubscriptionInvoice(ctx context.Context, db *sql.DB, input subscriptionInvoiceGenerateInput, user authenticatedUser, auditCtx requestAuditContext) (subscriptionInvoiceSummary, error) {
@@ -995,4 +1194,249 @@ VALUES (
 		sentAt,
 	)
 	return err
+}
+
+func parseSubscriptionBillingExportFilters(r *http.Request, tenantID string) subscriptionBillingExportFilters {
+	query := r.URL.Query()
+	return subscriptionBillingExportFilters{
+		TenantID:   tenantID,
+		Dataset:    headerKey(firstNonEmpty(query.Get("dataset"), "invoices")),
+		Status:     headerKey(query.Get("status")),
+		PeriodFrom: strings.TrimSpace(query.Get("periodFrom")),
+		PeriodTo:   strings.TrimSpace(query.Get("periodTo")),
+		DueFrom:    strings.TrimSpace(query.Get("dueFrom")),
+		DueTo:      strings.TrimSpace(query.Get("dueTo")),
+	}
+}
+
+func buildSubscriptionBillingCSV(ctx context.Context, db *sql.DB, filters subscriptionBillingExportFilters) (string, []byte, error) {
+	invoices, err := listSubscriptionInvoices(ctx, db, filters.TenantID)
+	if err != nil {
+		return "", nil, fmt.Errorf("cannot load subscription invoices")
+	}
+	filteredInvoices, err := filterSubscriptionInvoicesForExport(invoices, filters)
+	if err != nil {
+		return "", nil, err
+	}
+	var records [][]string
+	switch filters.Dataset {
+	case "invoices":
+		records = subscriptionInvoiceCSVRecords(filteredInvoices)
+	case "overdue":
+		records = subscriptionInvoiceCSVRecords(filterSubscriptionInvoicesByStatus(filteredInvoices, subscriptionInvoiceStatusPastDue, subscriptionInvoiceStatusOpen))
+	case "paid":
+		records = subscriptionInvoiceCSVRecords(filterSubscriptionInvoicesByStatus(filteredInvoices, subscriptionInvoiceStatusPaid))
+	case "dunning":
+		runs, err := listSubscriptionDunningRuns(ctx, db, filters.TenantID, filters)
+		if err != nil {
+			return "", nil, fmt.Errorf("cannot load subscription dunning runs")
+		}
+		records = subscriptionDunningCSVRecords(runs)
+	default:
+		return "", nil, fmt.Errorf("unsupported subscription billing dataset %q", filters.Dataset)
+	}
+	data, err := encodeSubscriptionCSVRecords(records)
+	if err != nil {
+		return "", nil, err
+	}
+	filename := fmt.Sprintf("abcsun-subscription-%s-%s.csv", filters.Dataset, time.Now().Format("20060102"))
+	return filename, data, nil
+}
+
+func filterSubscriptionInvoicesForExport(invoices []subscriptionInvoiceSummary, filters subscriptionBillingExportFilters) ([]subscriptionInvoiceSummary, error) {
+	var periodFrom time.Time
+	var periodTo time.Time
+	var dueFrom time.Time
+	var dueTo time.Time
+	var err error
+	if filters.PeriodFrom != "" {
+		periodFrom, err = parseRequiredBillingDate(filters.PeriodFrom, "periodFrom")
+		if err != nil {
+			return nil, err
+		}
+	}
+	if filters.PeriodTo != "" {
+		periodTo, err = parseRequiredBillingDate(filters.PeriodTo, "periodTo")
+		if err != nil {
+			return nil, err
+		}
+	}
+	if filters.DueFrom != "" {
+		dueFrom, err = parseRequiredBillingDate(filters.DueFrom, "dueFrom")
+		if err != nil {
+			return nil, err
+		}
+	}
+	if filters.DueTo != "" {
+		dueTo, err = parseRequiredBillingDate(filters.DueTo, "dueTo")
+		if err != nil {
+			return nil, err
+		}
+	}
+	filtered := []subscriptionInvoiceSummary{}
+	for _, invoice := range invoices {
+		if filters.Status != "" && invoice.Status != filters.Status {
+			continue
+		}
+		periodStart, _ := time.Parse("2006-01-02", invoice.PeriodStartsAt)
+		dueAt, _ := time.Parse("2006-01-02", invoice.DueAt)
+		if !periodFrom.IsZero() && periodStart.Before(periodFrom) {
+			continue
+		}
+		if !periodTo.IsZero() && periodStart.After(periodTo) {
+			continue
+		}
+		if !dueFrom.IsZero() && dueAt.Before(dueFrom) {
+			continue
+		}
+		if !dueTo.IsZero() && dueAt.After(dueTo) {
+			continue
+		}
+		filtered = append(filtered, invoice)
+	}
+	return filtered, nil
+}
+
+func filterSubscriptionInvoicesByStatus(invoices []subscriptionInvoiceSummary, statuses ...string) []subscriptionInvoiceSummary {
+	if len(statuses) == 0 {
+		return invoices
+	}
+	allowed := map[string]bool{}
+	for _, status := range statuses {
+		allowed[status] = true
+	}
+	filtered := []subscriptionInvoiceSummary{}
+	for _, invoice := range invoices {
+		if allowed[invoice.Status] {
+			filtered = append(filtered, invoice)
+		}
+	}
+	return filtered
+}
+
+func subscriptionInvoiceCSVRecords(invoices []subscriptionInvoiceSummary) [][]string {
+	records := [][]string{{
+		"invoice_code",
+		"plan_code",
+		"plan_name",
+		"period_starts_at",
+		"period_ends_at",
+		"due_at",
+		"status",
+		"amount",
+		"currency",
+		"paid_at",
+		"dunning_count",
+		"last_dunning_at",
+	}}
+	for _, invoice := range invoices {
+		records = append(records, []string{
+			invoice.InvoiceCode,
+			invoice.PlanCode,
+			invoice.PlanName,
+			invoice.PeriodStartsAt,
+			invoice.PeriodEndsAt,
+			invoice.DueAt,
+			invoice.Status,
+			strconv.Itoa(invoice.Amount),
+			invoice.Currency,
+			invoice.PaidAt,
+			strconv.Itoa(invoice.DunningCount),
+			invoice.LastDunningAt,
+		})
+	}
+	return records
+}
+
+type subscriptionDunningRunRow struct {
+	InvoiceCode       string
+	RecipientEmail    string
+	Status            string
+	DryRun            bool
+	ErrorMessage      string
+	Provider          string
+	ProviderMessageID string
+	SentAt            string
+	CreatedAt         string
+}
+
+func listSubscriptionDunningRuns(ctx context.Context, exec masterDataExecutor, tenantID string, filters subscriptionBillingExportFilters) ([]subscriptionDunningRunRow, error) {
+	query := `
+SELECT i.invoice_code,
+	dr.recipient_email,
+	dr.status,
+	dr.dry_run,
+	dr.error_message,
+	dr.provider,
+	dr.provider_message_id,
+	dr.sent_at,
+	dr.created_at
+FROM subscription_dunning_runs dr
+JOIN subscription_invoices i ON i.id = dr.invoice_id
+WHERE dr.tenant_id = $1::uuid`
+	args := []any{tenantID}
+	if filters.Status != "" {
+		args = append(args, filters.Status)
+		query += fmt.Sprintf(" AND dr.status = $%d", len(args))
+	}
+	query += " ORDER BY dr.created_at DESC"
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []subscriptionDunningRunRow{}
+	for rows.Next() {
+		var item subscriptionDunningRunRow
+		var sentAt sql.NullTime
+		var createdAt time.Time
+		if err := rows.Scan(&item.InvoiceCode, &item.RecipientEmail, &item.Status, &item.DryRun, &item.ErrorMessage, &item.Provider, &item.ProviderMessageID, &sentAt, &createdAt); err != nil {
+			return nil, err
+		}
+		item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+		if sentAt.Valid {
+			item.SentAt = sentAt.Time.UTC().Format(time.RFC3339)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func subscriptionDunningCSVRecords(rows []subscriptionDunningRunRow) [][]string {
+	records := [][]string{{
+		"invoice_code",
+		"recipient_email",
+		"status",
+		"dry_run",
+		"error_message",
+		"provider",
+		"provider_message_id",
+		"sent_at",
+		"created_at",
+	}}
+	for _, row := range rows {
+		records = append(records, []string{
+			row.InvoiceCode,
+			row.RecipientEmail,
+			row.Status,
+			strconv.FormatBool(row.DryRun),
+			row.ErrorMessage,
+			row.Provider,
+			row.ProviderMessageID,
+			row.SentAt,
+			row.CreatedAt,
+		})
+	}
+	return records
+}
+
+func encodeSubscriptionCSVRecords(records [][]string) ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString("\xEF\xBB\xBF")
+	writer := csv.NewWriter(&buf)
+	if err := writer.WriteAll(records); err != nil {
+		return nil, err
+	}
+	writer.Flush()
+	return buf.Bytes(), writer.Error()
 }

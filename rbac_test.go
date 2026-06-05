@@ -107,6 +107,8 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		"POST /api/v1/subscriptions/invoices/generate":      "subscription.update",
 		"POST /api/v1/subscriptions/invoices/mark-paid":     "subscription.update",
 		"POST /api/v1/subscriptions/dunning/run":            "subscription.update",
+		"POST /api/v1/subscriptions/billing/config":         "subscription.update",
+		"GET /api/v1/subscriptions/billing/export":          "report.export",
 		"POST /api/v1/master-data/import/csv":               "student.create",
 		"POST /api/v1/master-data/students/save":            "student.update",
 		"GET /api/v1/school-tree":                           "school_tree.view",

@@ -56,3 +56,44 @@ func TestNormalizeSubscriptionDunningRunInputKeepsRealSendOnlyWithConfirm(t *tes
 		t.Fatalf("expected dry run fallback when confirmSend=false, got %+v", got)
 	}
 }
+
+func TestSubscriptionBillingConfigFromProfileDefaults(t *testing.T) {
+	got := subscriptionBillingConfigFromProfile(tenantSubscriptionBillingProfile{})
+	if got.IntervalMonths != 1 || got.DueDays != 10 || got.RenewalMode != "manual" {
+		t.Fatalf("unexpected config defaults %+v", got)
+	}
+}
+
+func TestValidateSubscriptionBillingConfig(t *testing.T) {
+	err := validateSubscriptionBillingConfig(subscriptionBillingConfigSaveInput{
+		TenantID:       "tenant-1",
+		Amount:         1000,
+		IntervalMonths: 1,
+		DueDays:        10,
+		RenewalMode:    "auto_generate",
+	})
+	if err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+	if err := validateSubscriptionBillingConfig(subscriptionBillingConfigSaveInput{
+		TenantID:       "tenant-1",
+		Amount:         1000,
+		IntervalMonths: 0,
+		DueDays:        10,
+		RenewalMode:    "manual",
+	}); err == nil {
+		t.Fatal("expected interval validation error")
+	}
+}
+
+func TestFilterSubscriptionInvoicesByStatus(t *testing.T) {
+	invoices := []subscriptionInvoiceSummary{
+		{InvoiceCode: "A", Status: subscriptionInvoiceStatusOpen},
+		{InvoiceCode: "B", Status: subscriptionInvoiceStatusPastDue},
+		{InvoiceCode: "C", Status: subscriptionInvoiceStatusPaid},
+	}
+	got := filterSubscriptionInvoicesByStatus(invoices, subscriptionInvoiceStatusPaid, subscriptionInvoiceStatusPastDue)
+	if len(got) != 2 || got[0].InvoiceCode != "B" || got[1].InvoiceCode != "C" {
+		t.Fatalf("unexpected filtered invoices %+v", got)
+	}
+}

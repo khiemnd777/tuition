@@ -1512,6 +1512,82 @@
             </div>
           </div>
           <div id="subscriptionBillingSummary" class="tenant-summary"></div>
+          <div id="subscriptionBillingConfigForm" class="tenant-form">
+            <label>
+              <span>Amount</span>
+              <input id="subscriptionBillingConfigAmount" type="number" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Interval months</span>
+              <input id="subscriptionBillingConfigIntervalMonths" type="number" min="1" max="12" step="1" />
+            </label>
+            <label>
+              <span>Due days</span>
+              <input id="subscriptionBillingConfigDueDays" type="number" min="1" max="28" step="1" />
+            </label>
+            <label>
+              <span>Auto renew</span>
+              <select id="subscriptionBillingConfigAutoRenew">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+            <label>
+              <span>Renewal mode</span>
+              <select id="subscriptionBillingConfigRenewalMode">
+                <option value="manual">manual</option>
+                <option value="auto_generate">auto_generate</option>
+              </select>
+            </label>
+            <label>
+              <span>Finance note</span>
+              <input id="subscriptionBillingConfigFinanceNote" placeholder="Owner, contract, internal note" />
+            </label>
+            <div class="admin-user-actions">
+              <button id="saveSubscriptionBillingConfig" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu billing config</span></button>
+            </div>
+          </div>
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Finance export</p>
+              <h3 class="section-title"><span class="mui-icon" aria-hidden="true">download</span><span>CSV export</span></h3>
+            </div>
+          </div>
+          <div id="subscriptionBillingExportForm" class="tenant-form">
+            <label>
+              <span>Status</span>
+              <select id="subscriptionBillingExportStatus">
+                <option value="">all</option>
+                <option value="open">open</option>
+                <option value="past_due">past_due</option>
+                <option value="paid">paid</option>
+                <option value="sent">sent</option>
+                <option value="error">error</option>
+              </select>
+            </label>
+            <label>
+              <span>Period from</span>
+              <input id="subscriptionBillingExportPeriodFrom" type="date" />
+            </label>
+            <label>
+              <span>Period to</span>
+              <input id="subscriptionBillingExportPeriodTo" type="date" />
+            </label>
+            <label>
+              <span>Due from</span>
+              <input id="subscriptionBillingExportDueFrom" type="date" />
+            </label>
+            <label>
+              <span>Due to</span>
+              <input id="subscriptionBillingExportDueTo" type="date" />
+            </label>
+            <div class="admin-user-actions">
+              <button id="exportSubscriptionInvoicesCsv" type="button"><span class="mui-icon" aria-hidden="true">table_view</span><span>Export invoices CSV</span></button>
+              <button id="exportSubscriptionOverdueCsv" type="button"><span class="mui-icon" aria-hidden="true">warning</span><span>Export overdue CSV</span></button>
+              <button id="exportSubscriptionPaidCsv" type="button"><span class="mui-icon" aria-hidden="true">task_alt</span><span>Export paid CSV</span></button>
+              <button id="exportSubscriptionDunningCsv" type="button"><span class="mui-icon" aria-hidden="true">mail</span><span>Export dunning CSV</span></button>
+            </div>
+          </div>
           <div class="table-wrap admin-table-wrap">
             <table class="admin-table" aria-label="Subscription invoices">
               <colgroup>

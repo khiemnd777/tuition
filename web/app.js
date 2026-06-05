@@ -352,6 +352,22 @@ const generateSubscriptionInvoiceBtn = document.querySelector("#generateSubscrip
 const runSubscriptionDunningBtn = document.querySelector("#runSubscriptionDunning");
 const subscriptionBillingSummaryEl = document.querySelector("#subscriptionBillingSummary");
 const subscriptionBillingListEl = document.querySelector("#subscriptionBillingList");
+const subscriptionBillingConfigAmountEl = document.querySelector("#subscriptionBillingConfigAmount");
+const subscriptionBillingConfigIntervalMonthsEl = document.querySelector("#subscriptionBillingConfigIntervalMonths");
+const subscriptionBillingConfigDueDaysEl = document.querySelector("#subscriptionBillingConfigDueDays");
+const subscriptionBillingConfigAutoRenewEl = document.querySelector("#subscriptionBillingConfigAutoRenew");
+const subscriptionBillingConfigRenewalModeEl = document.querySelector("#subscriptionBillingConfigRenewalMode");
+const subscriptionBillingConfigFinanceNoteEl = document.querySelector("#subscriptionBillingConfigFinanceNote");
+const saveSubscriptionBillingConfigBtn = document.querySelector("#saveSubscriptionBillingConfig");
+const subscriptionBillingExportStatusEl = document.querySelector("#subscriptionBillingExportStatus");
+const subscriptionBillingExportPeriodFromEl = document.querySelector("#subscriptionBillingExportPeriodFrom");
+const subscriptionBillingExportPeriodToEl = document.querySelector("#subscriptionBillingExportPeriodTo");
+const subscriptionBillingExportDueFromEl = document.querySelector("#subscriptionBillingExportDueFrom");
+const subscriptionBillingExportDueToEl = document.querySelector("#subscriptionBillingExportDueTo");
+const exportSubscriptionInvoicesCsvBtn = document.querySelector("#exportSubscriptionInvoicesCsv");
+const exportSubscriptionOverdueCsvBtn = document.querySelector("#exportSubscriptionOverdueCsv");
+const exportSubscriptionPaidCsvBtn = document.querySelector("#exportSubscriptionPaidCsv");
+const exportSubscriptionDunningCsvBtn = document.querySelector("#exportSubscriptionDunningCsv");
 const subscriptionBillingGenerateFormEl = document.querySelector("#subscriptionBillingGenerateForm");
 const subscriptionBillingGenerateTenantIdEl = document.querySelector("#subscriptionBillingGenerateTenantId");
 const subscriptionBillingGeneratePeriodStartEl = document.querySelector("#subscriptionBillingGeneratePeriodStart");
@@ -1158,6 +1174,11 @@ function applyPermissionUI() {
   setElementAllowed(refreshSubscriptionBillingBtn, hasPermission("subscription.view"));
   setElementAllowed(generateSubscriptionInvoiceBtn, hasPermission("subscription.update"));
   setElementAllowed(runSubscriptionDunningBtn, hasPermission("subscription.update"));
+  setElementAllowed(saveSubscriptionBillingConfigBtn, hasPermission("subscription.update"));
+  setElementAllowed(exportSubscriptionInvoicesCsvBtn, hasPermission("report.export"));
+  setElementAllowed(exportSubscriptionOverdueCsvBtn, hasPermission("report.export"));
+  setElementAllowed(exportSubscriptionPaidCsvBtn, hasPermission("report.export"));
+  setElementAllowed(exportSubscriptionDunningCsvBtn, hasPermission("report.export"));
   setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
   setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
   setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
@@ -3949,12 +3970,23 @@ function applySubscriptionBillingPayload(data) {
     invoices: data?.invoices || [],
     summary: data?.summary || {},
     suggestedPeriod: data?.suggestedPeriod || {},
+    config: data?.config || {},
     tenant: data?.tenant || null,
     tenants: data?.tenants || [],
     dunningResults: data?.dunningResults || [],
   };
   subscriptionBillingLoaded = true;
+  populateSubscriptionBillingConfig(subscriptionBillingData.config || {});
   renderSubscriptionBilling(subscriptionBillingData);
+}
+
+function populateSubscriptionBillingConfig(config) {
+  if (subscriptionBillingConfigAmountEl) subscriptionBillingConfigAmountEl.value = Number(config.amount || 0);
+  if (subscriptionBillingConfigIntervalMonthsEl) subscriptionBillingConfigIntervalMonthsEl.value = Number(config.intervalMonths || 1);
+  if (subscriptionBillingConfigDueDaysEl) subscriptionBillingConfigDueDaysEl.value = Number(config.dueDays || 10);
+  if (subscriptionBillingConfigAutoRenewEl) subscriptionBillingConfigAutoRenewEl.value = String(Boolean(config.autoRenew));
+  if (subscriptionBillingConfigRenewalModeEl) subscriptionBillingConfigRenewalModeEl.value = optionValueOrEmpty(subscriptionBillingConfigRenewalModeEl, config.renewalMode || "manual") || "manual";
+  if (subscriptionBillingConfigFinanceNoteEl) subscriptionBillingConfigFinanceNoteEl.value = config.financeNote || "";
 }
 
 function renderSubscriptionBilling(data) {
@@ -3982,7 +4014,7 @@ function renderSubscriptionBilling(data) {
       </div>
       <div class="tenant-summary-item">
         <span>${muiIcon("payments")}Suggested amount</span>
-        <strong>${formatCurrency(Number(suggested.amount || 0))}</strong>
+        <strong>${formatMoney(Number(suggested.amount || 0))}</strong>
       </div>
     `
     : "";
@@ -3994,7 +4026,7 @@ function renderSubscriptionBilling(data) {
               <td><strong>${escapeHtml(invoice.invoiceCode || "-")}</strong></td>
               <td>${escapeHtml(invoice.planCode || invoice.planName || "-")}<br /><small>${escapeHtml(invoice.periodStartsAt || "-")} -> ${escapeHtml(invoice.periodEndsAt || "-")}</small></td>
               <td>${escapeHtml(invoice.planName || invoice.planCode || "-")}</td>
-              <td>${formatCurrency(Number(invoice.amount || 0))}</td>
+              <td>${formatMoney(Number(invoice.amount || 0))}</td>
               <td><span class="tag ${invoice.status === "paid" ? "tag-ready" : invoice.status === "past_due" ? "tag-warning" : ""}">${escapeHtml(invoice.status || "-")}</span></td>
               <td>${escapeHtml(invoice.dueAt || "-")}</td>
               <td>${escapeHtml(invoice.paidAt || "-")}</td>
@@ -4157,6 +4189,31 @@ async function saveTenantSubscription() {
   return true;
 }
 
+async function saveSubscriptionBillingConfig() {
+  setAdminStatus(tenantStatusEl, "Đang lưu billing config", "busy");
+  const res = await fetch("/api/v1/subscriptions/billing/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: activeTenantSummary().id || "",
+      amount: Number(subscriptionBillingConfigAmountEl?.value || 0),
+      intervalMonths: Number(subscriptionBillingConfigIntervalMonthsEl?.value || 1),
+      dueDays: Number(subscriptionBillingConfigDueDaysEl?.value || 10),
+      autoRenew: String(subscriptionBillingConfigAutoRenewEl?.value || "false") === "true",
+      renewalMode: subscriptionBillingConfigRenewalModeEl?.value || "manual",
+      financeNote: subscriptionBillingConfigFinanceNoteEl?.value || "",
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không lưu được billing config", "error");
+    return false;
+  }
+  applySubscriptionBillingPayload(JSON.parse(text));
+  setAdminStatus(tenantStatusEl, "Đã lưu billing config", "ready");
+  return true;
+}
+
 function openSubscriptionBillingGenerateDialog() {
   const activeTenant = tenantRowsForUI().find((tenant) => tenant.id === activeTenantSummary().id) || activeTenantSummary();
   const suggested = subscriptionBillingData?.suggestedPeriod || {};
@@ -4292,6 +4349,22 @@ async function runSubscriptionDunningNow() {
   const recipientCount = (data.dunningResults || []).reduce((sum, item) => sum + Number(item.recipientCount || 0), 0);
   setAdminStatus(tenantStatusEl, realSend ? `Đã chạy dunning (${recipientCount} recipient)` : `Đã preview dunning (${recipientCount} recipient)`, "ready");
   return true;
+}
+
+function subscriptionBillingExportQuery(dataset) {
+  const params = new URLSearchParams();
+  params.set("dataset", dataset);
+  if (subscriptionBillingExportStatusEl?.value) params.set("status", subscriptionBillingExportStatusEl.value);
+  if (subscriptionBillingExportPeriodFromEl?.value) params.set("periodFrom", subscriptionBillingExportPeriodFromEl.value);
+  if (subscriptionBillingExportPeriodToEl?.value) params.set("periodTo", subscriptionBillingExportPeriodToEl.value);
+  if (subscriptionBillingExportDueFromEl?.value) params.set("dueFrom", subscriptionBillingExportDueFromEl.value);
+  if (subscriptionBillingExportDueToEl?.value) params.set("dueTo", subscriptionBillingExportDueToEl.value);
+  return `/api/v1/subscriptions/billing/export?${params.toString()}`;
+}
+
+function exportSubscriptionBillingCSV(dataset) {
+  if (!hasPermission("report.export")) return;
+  window.open(subscriptionBillingExportQuery(dataset), "_blank", "noopener");
 }
 
 async function switchTenant(tenantId) {
@@ -8546,6 +8619,11 @@ editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
 editActiveTenantSubscriptionBtn?.addEventListener("click", openTenantSubscriptionDialog);
 generateSubscriptionInvoiceBtn?.addEventListener("click", openSubscriptionBillingGenerateDialog);
 runSubscriptionDunningBtn?.addEventListener("click", openSubscriptionDunningDialog);
+saveSubscriptionBillingConfigBtn?.addEventListener("click", saveSubscriptionBillingConfig);
+exportSubscriptionInvoicesCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("invoices"));
+exportSubscriptionOverdueCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("overdue"));
+exportSubscriptionPaidCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("paid"));
+exportSubscriptionDunningCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("dunning"));
 newAdminUserBtn.addEventListener("click", () => {
   clearAdminUserForm();
   openAdminUserDialog();

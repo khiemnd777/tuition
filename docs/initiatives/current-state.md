@@ -6,13 +6,13 @@ Last updated: 2026-06-05
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, and subscription billing operations complete.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, and subscription finance controls complete.
 
-Current phase: `subscription_phase_9_complete`
+Current phase: `subscription_phase_10_complete`
 
-Current initiative: Subscription Phase 9 - Subscription invoicing, collections, and dunning automation is complete.
+Current initiative: Subscription Phase 10 - Subscription self-service billing configuration, renewal controls, and finance exports is complete.
 
-Next recommended initiative: Subscription Phase 10 - Subscription self-service billing configuration, renewal controls, and finance exports.
+Next recommended initiative: Subscription Phase 11 - Cross-tenant finance console, scheduled renewals, and collection automation.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -99,6 +99,12 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added backend sync so overdue open subscription invoices move to `past_due`, while paid subscription invoices move the tenant subscription back to `active` and update the current paid period window.
   - Added tenant-admin billing UI with invoice list, suggested next billing period, generate invoice action, manual mark-paid action, and dunning run dialog.
   - Reused the existing Gmail/Resend send path for dunning emails to tenant owner/admin/accountant recipients, while keeping manual collection as the payment confirmation path for this phase.
+- Subscription Phase 10: Subscription self-service billing configuration, renewal controls, and finance exports is complete:
+  - Added billing configuration save API over `tenant_subscriptions.billing_metadata` for amount, interval months, due days, auto renew, renewal mode, and finance note.
+  - Exposed normalized billing config and renewal preview in the subscription billing response so tenant admins can manage billing without editing metadata manually.
+  - Added finance CSV exports for subscription invoices, overdue invoices, paid invoices, and dunning history under the active tenant.
+  - Added tenant-admin UI controls for billing config, renewal-oriented invoice generation from the suggested next period, and CSV export filters/actions.
+  - Kept renewal execution manual-triggered while making the config explicit for a future scheduled automation phase.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.
