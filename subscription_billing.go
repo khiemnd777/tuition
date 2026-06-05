@@ -124,6 +124,71 @@ type subscriptionBillingExportFilters struct {
 	DueTo      string
 }
 
+type subscriptionFinanceConsoleRow struct {
+	TenantID            string `json:"tenantId"`
+	TenantCode          string `json:"tenantCode"`
+	TenantName          string `json:"tenantName"`
+	PlanCode            string `json:"planCode"`
+	PlanName            string `json:"planName"`
+	SubscriptionStatus  string `json:"subscriptionStatus"`
+	LatestInvoiceCode   string `json:"latestInvoiceCode,omitempty"`
+	LatestInvoiceStatus string `json:"latestInvoiceStatus,omitempty"`
+	LatestDueAt         string `json:"latestDueAt,omitempty"`
+	NextPeriodStartsAt  string `json:"nextPeriodStartsAt,omitempty"`
+	NextPeriodEndsAt    string `json:"nextPeriodEndsAt,omitempty"`
+	NextDueAt           string `json:"nextDueAt,omitempty"`
+	Amount              int    `json:"amount"`
+	AutoRenew           bool   `json:"autoRenew"`
+	RenewalMode         string `json:"renewalMode"`
+	MissingConfig       bool   `json:"missingConfig"`
+	OpenCount           int    `json:"openCount"`
+	PastDueCount        int    `json:"pastDueCount"`
+	PaidCount           int    `json:"paidCount"`
+	LastDunningAt       string `json:"lastDunningAt,omitempty"`
+	LastDunningStatus   string `json:"lastDunningStatus,omitempty"`
+}
+
+type subscriptionFinanceConsoleSummary struct {
+	TenantCount           int `json:"tenantCount"`
+	ActiveCount           int `json:"activeCount"`
+	PastDueTenantCount    int `json:"pastDueTenantCount"`
+	RenewalCandidateCount int `json:"renewalCandidateCount"`
+	DunningCandidateCount int `json:"dunningCandidateCount"`
+	MissingConfigCount    int `json:"missingConfigCount"`
+}
+
+type subscriptionFinanceConsoleResponse struct {
+	Summary      subscriptionFinanceConsoleSummary `json:"summary"`
+	Rows         []subscriptionFinanceConsoleRow   `json:"rows"`
+	Scope        string                            `json:"scope"`
+	BatchResults []subscriptionBatchTenantResult   `json:"batchResults,omitempty"`
+}
+
+type subscriptionFinanceConsoleFilters struct {
+	Scope              string
+	Query              string
+	SubscriptionStatus string
+	InvoiceStatus      string
+	AutoRenew          string
+	RenewalMode        string
+	OverdueOnly        bool
+	MissingConfigOnly  bool
+}
+
+type subscriptionBatchRunInput struct {
+	Scope      string `json:"scope"`
+	DryRun     bool   `json:"dryRun"`
+	ConfirmRun bool   `json:"confirmRun"`
+}
+
+type subscriptionBatchTenantResult struct {
+	TenantID     string   `json:"tenantId"`
+	TenantCode   string   `json:"tenantCode"`
+	Action       string   `json:"action"`
+	InvoiceCodes []string `json:"invoiceCodes,omitempty"`
+	Message      string   `json:"message,omitempty"`
+}
+
 type tenantSubscriptionBillingProfile struct {
 	TenantID              string
 	TenantCode            string
@@ -353,6 +418,149 @@ func handleSubscriptionBillingExport(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+func handleSubscriptionFinanceConsole(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	activeTenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	scope, ok := resolveSubscriptionFinanceScope(w, r, user, activeTenantID)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+	filters := parseSubscriptionFinanceConsoleFilters(r, scope)
+	payload, err := loadSubscriptionFinanceConsole(r.Context(), db, filters)
+	if err != nil {
+		http.Error(w, "cannot load subscription finance console", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func handleSubscriptionFinanceRenewals(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	activeTenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input subscriptionBatchRunInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input = normalizeSubscriptionBatchRunInput(input)
+	scope, ok := resolveSubscriptionFinanceScopeFromValue(w, user, activeTenantID, input.Scope)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+	results, err := runSubscriptionRenewalBatch(r.Context(), db, user, auditContextFromRequest(r), scope, input)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	payload, err := loadSubscriptionFinanceConsole(r.Context(), db, subscriptionFinanceConsoleFilters{Scope: scope})
+	if err != nil {
+		http.Error(w, "cannot reload subscription finance console", http.StatusInternalServerError)
+		return
+	}
+	payload.BatchResults = results
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func handleSubscriptionFinanceDunning(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	activeTenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input subscriptionBatchRunInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input = normalizeSubscriptionBatchRunInput(input)
+	scope, ok := resolveSubscriptionFinanceScopeFromValue(w, user, activeTenantID, input.Scope)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+	results, err := runSubscriptionDunningBatch(r.Context(), db, user, auditContextFromRequest(r), scope, input, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	payload, err := loadSubscriptionFinanceConsole(r.Context(), db, subscriptionFinanceConsoleFilters{Scope: scope})
+	if err != nil {
+		http.Error(w, "cannot reload subscription finance console", http.StatusInternalServerError)
+		return
+	}
+	payload.BatchResults = results
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func handleSubscriptionFinanceExport(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	activeTenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	scope, ok := resolveSubscriptionFinanceScope(w, r, user, activeTenantID)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+	filters := parseSubscriptionFinanceConsoleFilters(r, scope)
+	filename, data, err := buildSubscriptionFinanceConsoleCSV(r.Context(), db, filters, headerKey(firstNonEmpty(r.URL.Query().Get("dataset"), "overview")))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
 func loadSubscriptionBillingResponse(ctx context.Context, db *sql.DB, user authenticatedUser, tenantID string) (subscriptionBillingResponse, error) {
 	if err := syncSubscriptionInvoicePastDueState(ctx, db, tenantID, time.Now()); err != nil {
 		return subscriptionBillingResponse{}, err
@@ -530,6 +738,47 @@ func boolValueFromAny(value any) bool {
 	}
 }
 
+func resolveSubscriptionFinanceScope(w http.ResponseWriter, r *http.Request, user authenticatedUser, activeTenantID string) (string, bool) {
+	return resolveSubscriptionFinanceScopeFromValue(w, user, activeTenantID, strings.TrimSpace(r.URL.Query().Get("scope")))
+}
+
+func resolveSubscriptionFinanceScopeFromValue(w http.ResponseWriter, user authenticatedUser, activeTenantID string, scope string) (string, bool) {
+	scope = headerKey(firstNonEmpty(scope, activeTenantID))
+	if scope == "" {
+		scope = headerKey(activeTenantID)
+	}
+	if scope == "all" {
+		if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+			return "all", true
+		}
+		http.Error(w, "cross-tenant finance scope requires cross-tenant permission", http.StatusForbidden)
+		return "", false
+	}
+	return strings.TrimSpace(activeTenantID), true
+}
+
+func parseSubscriptionFinanceConsoleFilters(r *http.Request, scope string) subscriptionFinanceConsoleFilters {
+	query := r.URL.Query()
+	return subscriptionFinanceConsoleFilters{
+		Scope:              firstNonEmpty(strings.TrimSpace(scope), strings.TrimSpace(query.Get("scope"))),
+		Query:              strings.TrimSpace(query.Get("q")),
+		SubscriptionStatus: headerKey(query.Get("subscriptionStatus")),
+		InvoiceStatus:      headerKey(query.Get("invoiceStatus")),
+		AutoRenew:          headerKey(query.Get("autoRenew")),
+		RenewalMode:        headerKey(query.Get("renewalMode")),
+		OverdueOnly:        parseBoolWithDefault(query.Get("overdueOnly"), false),
+		MissingConfigOnly:  parseBoolWithDefault(query.Get("missingConfigOnly"), false),
+	}
+}
+
+func normalizeSubscriptionBatchRunInput(input subscriptionBatchRunInput) subscriptionBatchRunInput {
+	input.Scope = headerKey(input.Scope)
+	if !input.ConfirmRun {
+		input.DryRun = true
+	}
+	return input
+}
+
 func saveSubscriptionBillingConfig(ctx context.Context, db *sql.DB, input subscriptionBillingConfigSaveInput, user authenticatedUser, auditCtx requestAuditContext) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -571,6 +820,185 @@ WHERE tenant_id = $1::uuid`, input.TenantID, string(metadataBytes), user.ID); er
 		},
 	})
 	return tx.Commit()
+}
+
+func loadSubscriptionFinanceConsole(ctx context.Context, db *sql.DB, filters subscriptionFinanceConsoleFilters) (subscriptionFinanceConsoleResponse, error) {
+	rows, err := listSubscriptionFinanceConsoleRows(ctx, db, filters)
+	if err != nil {
+		return subscriptionFinanceConsoleResponse{}, err
+	}
+	return subscriptionFinanceConsoleResponse{
+		Summary: summarizeSubscriptionFinanceConsole(rows),
+		Rows:    rows,
+		Scope:   filters.Scope,
+	}, nil
+}
+
+func listSubscriptionFinanceConsoleRows(ctx context.Context, db *sql.DB, filters subscriptionFinanceConsoleFilters) ([]subscriptionFinanceConsoleRow, error) {
+	args := []any{}
+	addArg := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	conditions := []string{"1=1"}
+	if strings.TrimSpace(filters.Scope) != "" && filters.Scope != "all" {
+		conditions = append(conditions, "tenant.id = "+addArg(filters.Scope)+"::uuid")
+	}
+	if strings.TrimSpace(filters.Query) != "" {
+		queryArg := "%" + strings.ToLower(strings.TrimSpace(filters.Query)) + "%"
+		conditions = append(conditions, "(lower(tenant.code) LIKE "+addArg(queryArg)+" OR lower(tenant.name) LIKE "+addArg(queryArg)+")")
+	}
+	if filters.SubscriptionStatus != "" {
+		conditions = append(conditions, "COALESCE(ts.status, '') = "+addArg(filters.SubscriptionStatus))
+	}
+	if filters.InvoiceStatus != "" {
+		conditions = append(conditions, "COALESCE(latest_invoice.status, '') = "+addArg(filters.InvoiceStatus))
+	}
+	query := `
+SELECT tenant.id::text,
+	tenant.code,
+	tenant.name,
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	COALESCE(ts.status, ''),
+	COALESCE(latest_invoice.invoice_code, ''),
+	COALESCE(latest_invoice.status, ''),
+	latest_invoice.due_at,
+	COALESCE(stats.open_count, 0),
+	COALESCE(stats.past_due_count, 0),
+	COALESCE(stats.paid_count, 0),
+	COALESCE(last_dunning.last_status, ''),
+	last_dunning.last_created_at,
+	COALESCE(ts.billing_metadata, '{}'::jsonb),
+	ts.current_period_starts_at,
+	ts.current_period_ends_at
+FROM tenants tenant
+JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
+LEFT JOIN LATERAL (
+	SELECT invoice_code, status, due_at
+	FROM subscription_invoices
+	WHERE tenant_id = tenant.id
+	ORDER BY created_at DESC
+	LIMIT 1
+) latest_invoice ON true
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (WHERE status = 'open')::integer AS open_count,
+		COUNT(*) FILTER (WHERE status = 'past_due')::integer AS past_due_count,
+		COUNT(*) FILTER (WHERE status = 'paid')::integer AS paid_count
+	FROM subscription_invoices
+	WHERE tenant_id = tenant.id
+) stats ON true
+LEFT JOIN LATERAL (
+	SELECT status AS last_status, created_at AS last_created_at
+	FROM subscription_dunning_runs
+	WHERE tenant_id = tenant.id
+	ORDER BY created_at DESC
+	LIMIT 1
+) last_dunning ON true
+WHERE ` + strings.Join(conditions, " AND ") + `
+ORDER BY tenant.code`
+	sqlRows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer sqlRows.Close()
+	items := []subscriptionFinanceConsoleRow{}
+	for sqlRows.Next() {
+		var item subscriptionFinanceConsoleRow
+		var latestDueAt sql.NullTime
+		var lastDunningAt sql.NullTime
+		var billingMetadataBytes []byte
+		var currentPeriodStartsAt sql.NullTime
+		var currentPeriodEndsAt sql.NullTime
+		if err := sqlRows.Scan(
+			&item.TenantID,
+			&item.TenantCode,
+			&item.TenantName,
+			&item.PlanCode,
+			&item.PlanName,
+			&item.SubscriptionStatus,
+			&item.LatestInvoiceCode,
+			&item.LatestInvoiceStatus,
+			&latestDueAt,
+			&item.OpenCount,
+			&item.PastDueCount,
+			&item.PaidCount,
+			&item.LastDunningStatus,
+			&lastDunningAt,
+			&billingMetadataBytes,
+			&currentPeriodStartsAt,
+			&currentPeriodEndsAt,
+		); err != nil {
+			return nil, err
+		}
+		profile := tenantSubscriptionBillingProfile{
+			TenantID:              item.TenantID,
+			TenantCode:            item.TenantCode,
+			TenantName:            item.TenantName,
+			PlanCode:              item.PlanCode,
+			PlanName:              item.PlanName,
+			SubscriptionStatus:    item.SubscriptionStatus,
+			BillingMetadata:       decodeMetadata(billingMetadataBytes),
+			CurrentPeriodStartsAt: currentPeriodStartsAt,
+			CurrentPeriodEndsAt:   currentPeriodEndsAt,
+		}
+		config := subscriptionBillingConfigFromProfile(profile)
+		suggested := suggestSubscriptionBillingPeriod(profile, time.Now())
+		item.Amount = config.Amount
+		item.AutoRenew = config.AutoRenew
+		item.RenewalMode = config.RenewalMode
+		item.NextPeriodStartsAt = suggested.PeriodStartsAt
+		item.NextPeriodEndsAt = suggested.PeriodEndsAt
+		item.NextDueAt = suggested.DueAt
+		item.MissingConfig = config.Amount <= 0 || config.IntervalMonths <= 0 || config.DueDays <= 0
+		if latestDueAt.Valid {
+			item.LatestDueAt = latestDueAt.Time.UTC().Format("2006-01-02")
+		}
+		if lastDunningAt.Valid {
+			item.LastDunningAt = lastDunningAt.Time.UTC().Format(time.RFC3339)
+		}
+		if filters.OverdueOnly && item.PastDueCount == 0 && item.LatestInvoiceStatus != subscriptionInvoiceStatusPastDue {
+			continue
+		}
+		if filters.MissingConfigOnly && !item.MissingConfig {
+			continue
+		}
+		if filters.AutoRenew != "" {
+			want := filters.AutoRenew == "true"
+			if item.AutoRenew != want {
+				continue
+			}
+		}
+		if filters.RenewalMode != "" && item.RenewalMode != filters.RenewalMode {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, sqlRows.Err()
+}
+
+func summarizeSubscriptionFinanceConsole(rows []subscriptionFinanceConsoleRow) subscriptionFinanceConsoleSummary {
+	summary := subscriptionFinanceConsoleSummary{TenantCount: len(rows)}
+	for _, row := range rows {
+		if row.SubscriptionStatus == subscriptionStatusActive {
+			summary.ActiveCount++
+		}
+		if row.PastDueCount > 0 || row.LatestInvoiceStatus == subscriptionInvoiceStatusPastDue {
+			summary.PastDueTenantCount++
+		}
+		if row.AutoRenew && row.RenewalMode == "auto_generate" && !row.MissingConfig {
+			summary.RenewalCandidateCount++
+		}
+		if row.PastDueCount > 0 || (row.LatestInvoiceStatus == subscriptionInvoiceStatusOpen && row.LatestDueAt != "" && row.LatestDueAt <= time.Now().UTC().Format("2006-01-02")) {
+			summary.DunningCandidateCount++
+		}
+		if row.MissingConfig {
+			summary.MissingConfigCount++
+		}
+	}
+	return summary
 }
 
 func generateSubscriptionInvoice(ctx context.Context, db *sql.DB, input subscriptionInvoiceGenerateInput, user authenticatedUser, auditCtx requestAuditContext) (subscriptionInvoiceSummary, error) {
@@ -1439,4 +1867,213 @@ func encodeSubscriptionCSVRecords(records [][]string) ([]byte, error) {
 	}
 	writer.Flush()
 	return buf.Bytes(), writer.Error()
+}
+
+func runSubscriptionRenewalBatch(ctx context.Context, db *sql.DB, user authenticatedUser, auditCtx requestAuditContext, scope string, input subscriptionBatchRunInput) ([]subscriptionBatchTenantResult, error) {
+	rows, err := listSubscriptionFinanceConsoleRows(ctx, db, subscriptionFinanceConsoleFilters{Scope: scope})
+	if err != nil {
+		return nil, err
+	}
+	results := []subscriptionBatchTenantResult{}
+	for _, row := range rows {
+		if !row.AutoRenew || row.RenewalMode != "auto_generate" || row.MissingConfig || row.PlanCode == subscriptionPlanFreeTrial {
+			continue
+		}
+		profile, err := loadTenantSubscriptionBillingProfile(ctx, db, row.TenantID)
+		if err != nil {
+			return nil, err
+		}
+		suggested := suggestSubscriptionBillingPeriod(profile, time.Now())
+		startAt, err := parseRequiredBillingDate(suggested.PeriodStartsAt, "periodStartsAt")
+		if err != nil {
+			return nil, err
+		}
+		endAt, err := parseRequiredBillingDate(suggested.PeriodEndsAt, "periodEndsAt")
+		if err != nil {
+			return nil, err
+		}
+		existing, err := findSubscriptionInvoiceByPeriod(ctx, db, profile.SubscriptionID, startAt, endAt)
+		if err != nil {
+			return nil, err
+		}
+		if existing.ID != "" {
+			results = append(results, subscriptionBatchTenantResult{
+				TenantID:     row.TenantID,
+				TenantCode:   row.TenantCode,
+				Action:       "skipped_existing_invoice",
+				InvoiceCodes: []string{existing.InvoiceCode},
+				Message:      "next renewal invoice already exists",
+			})
+			continue
+		}
+		if input.DryRun {
+			results = append(results, subscriptionBatchTenantResult{
+				TenantID:     row.TenantID,
+				TenantCode:   row.TenantCode,
+				Action:       "preview_generate",
+				InvoiceCodes: []string{buildSubscriptionInvoiceCode(row.TenantCode, startAt)},
+				Message:      fmt.Sprintf("%s -> %s", suggested.PeriodStartsAt, suggested.PeriodEndsAt),
+			})
+			continue
+		}
+		invoice, err := generateSubscriptionInvoice(ctx, db, subscriptionInvoiceGenerateInput{
+			TenantID:       row.TenantID,
+			PeriodStartsAt: suggested.PeriodStartsAt,
+			PeriodEndsAt:   suggested.PeriodEndsAt,
+			DueAt:          suggested.DueAt,
+			Amount:         row.Amount,
+		}, user, auditCtx)
+		if err != nil {
+			results = append(results, subscriptionBatchTenantResult{
+				TenantID:   row.TenantID,
+				TenantCode: row.TenantCode,
+				Action:     "error",
+				Message:    err.Error(),
+			})
+			continue
+		}
+		results = append(results, subscriptionBatchTenantResult{
+			TenantID:     row.TenantID,
+			TenantCode:   row.TenantCode,
+			Action:       "generated",
+			InvoiceCodes: []string{invoice.InvoiceCode},
+		})
+	}
+	return results, nil
+}
+
+func runSubscriptionDunningBatch(ctx context.Context, db *sql.DB, user authenticatedUser, auditCtx requestAuditContext, scope string, input subscriptionBatchRunInput, r *http.Request) ([]subscriptionBatchTenantResult, error) {
+	rows, err := listSubscriptionFinanceConsoleRows(ctx, db, subscriptionFinanceConsoleFilters{Scope: scope})
+	if err != nil {
+		return nil, err
+	}
+	cfg, _ := loadEmailConfig()
+	baseURL := appBaseURL(r, cfg)
+	results := []subscriptionBatchTenantResult{}
+	for _, row := range rows {
+		if row.PastDueCount == 0 && !(row.LatestInvoiceStatus == subscriptionInvoiceStatusOpen && row.LatestDueAt != "" && row.LatestDueAt <= time.Now().UTC().Format("2006-01-02")) {
+			continue
+		}
+		dunningResults, err := runSubscriptionDunning(ctx, db, user, subscriptionDunningRunInput{
+			TenantID:    row.TenantID,
+			DryRun:      input.DryRun,
+			ConfirmSend: input.ConfirmRun,
+		}, auditCtx, baseURL)
+		if err != nil {
+			results = append(results, subscriptionBatchTenantResult{
+				TenantID:   row.TenantID,
+				TenantCode: row.TenantCode,
+				Action:     "error",
+				Message:    err.Error(),
+			})
+			continue
+		}
+		invoiceCodes := []string{}
+		for _, result := range dunningResults {
+			if result.InvoiceCode != "" {
+				invoiceCodes = append(invoiceCodes, result.InvoiceCode)
+			}
+		}
+		action := "preview_dunning"
+		if !input.DryRun {
+			action = "ran_dunning"
+		}
+		results = append(results, subscriptionBatchTenantResult{
+			TenantID:     row.TenantID,
+			TenantCode:   row.TenantCode,
+			Action:       action,
+			InvoiceCodes: invoiceCodes,
+			Message:      fmt.Sprintf("%d invoices", len(invoiceCodes)),
+		})
+	}
+	return results, nil
+}
+
+func buildSubscriptionFinanceConsoleCSV(ctx context.Context, db *sql.DB, filters subscriptionFinanceConsoleFilters, dataset string) (string, []byte, error) {
+	rows, err := listSubscriptionFinanceConsoleRows(ctx, db, filters)
+	if err != nil {
+		return "", nil, err
+	}
+	var records [][]string
+	switch dataset {
+	case "overview":
+		records = subscriptionFinanceOverviewCSVRecords(rows)
+	case "overdue":
+		records = subscriptionFinanceOverviewCSVRecords(filterSubscriptionFinanceRows(rows, func(row subscriptionFinanceConsoleRow) bool {
+			return row.PastDueCount > 0 || row.LatestInvoiceStatus == subscriptionInvoiceStatusPastDue
+		}))
+	case "renewals":
+		records = subscriptionFinanceOverviewCSVRecords(filterSubscriptionFinanceRows(rows, func(row subscriptionFinanceConsoleRow) bool {
+			return row.AutoRenew && row.RenewalMode == "auto_generate" && !row.MissingConfig
+		}))
+	case "dunning":
+		records = subscriptionFinanceOverviewCSVRecords(filterSubscriptionFinanceRows(rows, func(row subscriptionFinanceConsoleRow) bool {
+			return row.PastDueCount > 0 || row.LastDunningStatus == "error"
+		}))
+	default:
+		return "", nil, fmt.Errorf("unsupported subscription finance dataset %q", dataset)
+	}
+	data, err := encodeSubscriptionCSVRecords(records)
+	if err != nil {
+		return "", nil, err
+	}
+	return fmt.Sprintf("abcsun-subscription-finance-%s-%s.csv", dataset, time.Now().Format("20060102")), data, nil
+}
+
+func filterSubscriptionFinanceRows(rows []subscriptionFinanceConsoleRow, keep func(subscriptionFinanceConsoleRow) bool) []subscriptionFinanceConsoleRow {
+	filtered := []subscriptionFinanceConsoleRow{}
+	for _, row := range rows {
+		if keep(row) {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered
+}
+
+func subscriptionFinanceOverviewCSVRecords(rows []subscriptionFinanceConsoleRow) [][]string {
+	records := [][]string{{
+		"tenant_code",
+		"tenant_name",
+		"plan_code",
+		"subscription_status",
+		"latest_invoice_code",
+		"latest_invoice_status",
+		"latest_due_at",
+		"next_period_starts_at",
+		"next_period_ends_at",
+		"next_due_at",
+		"amount",
+		"auto_renew",
+		"renewal_mode",
+		"missing_config",
+		"open_count",
+		"past_due_count",
+		"paid_count",
+		"last_dunning_status",
+		"last_dunning_at",
+	}}
+	for _, row := range rows {
+		records = append(records, []string{
+			row.TenantCode,
+			row.TenantName,
+			row.PlanCode,
+			row.SubscriptionStatus,
+			row.LatestInvoiceCode,
+			row.LatestInvoiceStatus,
+			row.LatestDueAt,
+			row.NextPeriodStartsAt,
+			row.NextPeriodEndsAt,
+			row.NextDueAt,
+			strconv.Itoa(row.Amount),
+			strconv.FormatBool(row.AutoRenew),
+			row.RenewalMode,
+			strconv.FormatBool(row.MissingConfig),
+			strconv.Itoa(row.OpenCount),
+			strconv.Itoa(row.PastDueCount),
+			strconv.Itoa(row.PaidCount),
+			row.LastDunningStatus,
+			row.LastDunningAt,
+		})
+	}
+	return records
 }

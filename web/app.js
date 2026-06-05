@@ -368,6 +368,22 @@ const exportSubscriptionInvoicesCsvBtn = document.querySelector("#exportSubscrip
 const exportSubscriptionOverdueCsvBtn = document.querySelector("#exportSubscriptionOverdueCsv");
 const exportSubscriptionPaidCsvBtn = document.querySelector("#exportSubscriptionPaidCsv");
 const exportSubscriptionDunningCsvBtn = document.querySelector("#exportSubscriptionDunningCsv");
+const refreshSubscriptionFinanceConsoleBtn = document.querySelector("#refreshSubscriptionFinanceConsole");
+const previewSubscriptionRenewalsBtn = document.querySelector("#previewSubscriptionRenewals");
+const runSubscriptionRenewalsBtn = document.querySelector("#runSubscriptionRenewals");
+const previewSubscriptionFinanceDunningBtn = document.querySelector("#previewSubscriptionFinanceDunning");
+const runSubscriptionFinanceDunningBtn = document.querySelector("#runSubscriptionFinanceDunning");
+const exportSubscriptionFinanceOverviewBtn = document.querySelector("#exportSubscriptionFinanceOverview");
+const subscriptionFinanceConsoleSummaryEl = document.querySelector("#subscriptionFinanceConsoleSummary");
+const subscriptionFinanceConsoleListEl = document.querySelector("#subscriptionFinanceConsoleList");
+const subscriptionFinanceScopeEl = document.querySelector("#subscriptionFinanceScope");
+const subscriptionFinanceQueryEl = document.querySelector("#subscriptionFinanceQuery");
+const subscriptionFinanceSubscriptionStatusEl = document.querySelector("#subscriptionFinanceSubscriptionStatus");
+const subscriptionFinanceInvoiceStatusEl = document.querySelector("#subscriptionFinanceInvoiceStatus");
+const subscriptionFinanceAutoRenewEl = document.querySelector("#subscriptionFinanceAutoRenew");
+const subscriptionFinanceRenewalModeEl = document.querySelector("#subscriptionFinanceRenewalMode");
+const subscriptionFinanceOverdueOnlyEl = document.querySelector("#subscriptionFinanceOverdueOnly");
+const subscriptionFinanceMissingConfigOnlyEl = document.querySelector("#subscriptionFinanceMissingConfigOnly");
 const subscriptionBillingGenerateFormEl = document.querySelector("#subscriptionBillingGenerateForm");
 const subscriptionBillingGenerateTenantIdEl = document.querySelector("#subscriptionBillingGenerateTenantId");
 const subscriptionBillingGeneratePeriodStartEl = document.querySelector("#subscriptionBillingGeneratePeriodStart");
@@ -434,6 +450,8 @@ let subscriptionPlansLoaded = false;
 let subscriptionPlansData = [];
 let subscriptionBillingLoaded = false;
 let subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
+let subscriptionFinanceConsoleLoaded = false;
+let subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
 let authSession = null;
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
@@ -1179,6 +1197,12 @@ function applyPermissionUI() {
   setElementAllowed(exportSubscriptionOverdueCsvBtn, hasPermission("report.export"));
   setElementAllowed(exportSubscriptionPaidCsvBtn, hasPermission("report.export"));
   setElementAllowed(exportSubscriptionDunningCsvBtn, hasPermission("report.export"));
+  setElementAllowed(refreshSubscriptionFinanceConsoleBtn, hasPermission("subscription.view"));
+  setElementAllowed(previewSubscriptionRenewalsBtn, hasPermission("subscription.update"));
+  setElementAllowed(runSubscriptionRenewalsBtn, hasPermission("subscription.update"));
+  setElementAllowed(previewSubscriptionFinanceDunningBtn, hasPermission("subscription.update"));
+  setElementAllowed(runSubscriptionFinanceDunningBtn, hasPermission("subscription.update"));
+  setElementAllowed(exportSubscriptionFinanceOverviewBtn, hasPermission("report.export"));
   setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
   setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
   setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
@@ -3866,6 +3890,7 @@ async function loadTenants(force = false) {
   renderTenantSwitcher();
   renderTenantAdmin(tenantsData);
   await loadSubscriptionBilling(force);
+  await loadSubscriptionFinanceConsole(force);
   setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
 }
 
@@ -4367,6 +4392,104 @@ function exportSubscriptionBillingCSV(dataset) {
   window.open(subscriptionBillingExportQuery(dataset), "_blank", "noopener");
 }
 
+function subscriptionFinanceConsoleQuery() {
+  const params = new URLSearchParams();
+  const scopeValue = subscriptionFinanceScopeEl?.value || "active";
+  params.set("scope", scopeValue === "all" ? "all" : "active");
+  if (subscriptionFinanceQueryEl?.value) params.set("q", subscriptionFinanceQueryEl.value);
+  if (subscriptionFinanceSubscriptionStatusEl?.value) params.set("subscriptionStatus", subscriptionFinanceSubscriptionStatusEl.value);
+  if (subscriptionFinanceInvoiceStatusEl?.value) params.set("invoiceStatus", subscriptionFinanceInvoiceStatusEl.value);
+  if (subscriptionFinanceAutoRenewEl?.value) params.set("autoRenew", subscriptionFinanceAutoRenewEl.value);
+  if (subscriptionFinanceRenewalModeEl?.value) params.set("renewalMode", subscriptionFinanceRenewalModeEl.value);
+  if (subscriptionFinanceOverdueOnlyEl?.value === "true") params.set("overdueOnly", "true");
+  if (subscriptionFinanceMissingConfigOnlyEl?.value === "true") params.set("missingConfigOnly", "true");
+  return params.toString();
+}
+
+async function loadSubscriptionFinanceConsole(force = false) {
+  if (!hasPermission("subscription.view")) {
+    subscriptionFinanceConsoleLoaded = false;
+    subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
+    renderSubscriptionFinanceConsole(null);
+    return;
+  }
+  if (!force && subscriptionFinanceConsoleLoaded) {
+    renderSubscriptionFinanceConsole(subscriptionFinanceConsoleData);
+    return;
+  }
+  const res = await fetch(`/api/v1/subscriptions/finance-console?${subscriptionFinanceConsoleQuery()}`);
+  const text = await res.text();
+  if (!res.ok) {
+    subscriptionFinanceConsoleLoaded = false;
+    subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
+    renderSubscriptionFinanceConsole(null);
+    setAdminStatus(tenantStatusEl, text || "Không tải được subscription finance console", "error");
+    return;
+  }
+  subscriptionFinanceConsoleData = JSON.parse(text);
+  subscriptionFinanceConsoleLoaded = true;
+  renderSubscriptionFinanceConsole(subscriptionFinanceConsoleData);
+}
+
+function renderSubscriptionFinanceConsole(data) {
+  if (!subscriptionFinanceConsoleSummaryEl || !subscriptionFinanceConsoleListEl) return;
+  const summary = data?.summary || {};
+  const rows = data?.rows || [];
+  subscriptionFinanceConsoleSummaryEl.innerHTML = hasPermission("operation_log.cross_tenant_view") || hasPermission("audit_log.cross_tenant_view") || rows.length
+    ? `
+      <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenants</span><strong>${Number(summary.tenantCount || 0)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Active</span><strong>${Number(summary.activeCount || 0)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("warning")}Past due</span><strong>${Number(summary.pastDueTenantCount || 0)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("autorenew")}Renewals</span><strong>${Number(summary.renewalCandidateCount || 0)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("drafts")}Dunning</span><strong>${Number(summary.dunningCandidateCount || 0)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("settings_alert")}Missing config</span><strong>${Number(summary.missingConfigCount || 0)}</strong></div>
+    `
+    : "";
+  subscriptionFinanceConsoleListEl.innerHTML = rows.length
+    ? rows.map((row) => `
+      <tr>
+        <td><strong>${escapeHtml(row.tenantCode || "-")}</strong><br /><small>${escapeHtml(row.tenantName || "-")}</small></td>
+        <td>${escapeHtml(row.planCode || row.planName || "-")}</td>
+        <td><span class="tag ${row.subscriptionStatus === "past_due" ? "tag-warning" : row.subscriptionStatus === "active" ? "tag-ready" : ""}">${escapeHtml(row.subscriptionStatus || "-")}</span></td>
+        <td>${escapeHtml(row.latestInvoiceCode || "-")}<br /><small>${escapeHtml(row.latestInvoiceStatus || "-")} · ${escapeHtml(row.latestDueAt || "-")}</small></td>
+        <td>${escapeHtml(row.nextPeriodStartsAt || "-")} -> ${escapeHtml(row.nextPeriodEndsAt || "-")}<br /><small>Due ${escapeHtml(row.nextDueAt || "-")}</small></td>
+        <td>${formatMoney(Number(row.amount || 0))}<br /><small>${row.autoRenew ? "auto" : "manual"} · ${escapeHtml(row.renewalMode || "-")}${row.missingConfig ? " · missing config" : ""}</small></td>
+        <td>${Number(row.openCount || 0)} / ${Number(row.pastDueCount || 0)} / ${Number(row.paidCount || 0)}</td>
+        <td>${escapeHtml(row.lastDunningStatus || "-")}<br /><small>${escapeHtml(row.lastDunningAt || "-")}</small></td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="8">Chưa có finance console rows</td></tr>`;
+}
+
+async function runSubscriptionFinanceBatch(kind, dryRun) {
+  const path = kind === "renewals" ? "/api/v1/subscriptions/finance-console/renewals" : "/api/v1/subscriptions/finance-console/dunning";
+  setAdminStatus(tenantStatusEl, dryRun ? `Đang preview ${kind}` : `Đang chạy ${kind}`, "busy");
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope: subscriptionFinanceScopeEl?.value === "all" ? "all" : "active",
+      dryRun,
+      confirmRun: !dryRun,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || `Không chạy được ${kind}`, "error");
+    return false;
+  }
+  subscriptionFinanceConsoleData = JSON.parse(text);
+  subscriptionFinanceConsoleLoaded = true;
+  renderSubscriptionFinanceConsole(subscriptionFinanceConsoleData);
+  setAdminStatus(tenantStatusEl, dryRun ? `Đã preview ${kind}` : `Đã chạy ${kind}`, "ready");
+  return true;
+}
+
+function exportSubscriptionFinanceConsoleCSV(dataset) {
+  if (!hasPermission("report.export")) return;
+  window.open(`/api/v1/subscriptions/finance-console/export?dataset=${encodeURIComponent(dataset)}&${subscriptionFinanceConsoleQuery()}`, "_blank", "noopener");
+}
+
 async function switchTenant(tenantId) {
   tenantId = String(tenantId || "").trim();
   if (!tenantId || tenantId === activeTenantSummary().id) {
@@ -4403,6 +4526,8 @@ function resetTenantScopedState() {
   subscriptionPlansData = [];
   subscriptionBillingLoaded = false;
   subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
+  subscriptionFinanceConsoleLoaded = false;
+  subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
   masterDataLoaded = false;
   masterDataOptions = { schools: [], schoolYears: [], classes: [] };
   masterStudentsRawData = [];
@@ -8614,6 +8739,7 @@ operationLimitEl.addEventListener("change", () => loadOperations(true));
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
 refreshTenantsBtn?.addEventListener("click", () => loadTenants(true));
 refreshSubscriptionBillingBtn?.addEventListener("click", () => loadSubscriptionBilling(true));
+refreshSubscriptionFinanceConsoleBtn?.addEventListener("click", () => loadSubscriptionFinanceConsole(true));
 newTenantBtn?.addEventListener("click", () => openTenantDialog("create"));
 editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
 editActiveTenantSubscriptionBtn?.addEventListener("click", openTenantSubscriptionDialog);
@@ -8624,6 +8750,19 @@ exportSubscriptionInvoicesCsvBtn?.addEventListener("click", () => exportSubscrip
 exportSubscriptionOverdueCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("overdue"));
 exportSubscriptionPaidCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("paid"));
 exportSubscriptionDunningCsvBtn?.addEventListener("click", () => exportSubscriptionBillingCSV("dunning"));
+previewSubscriptionRenewalsBtn?.addEventListener("click", () => runSubscriptionFinanceBatch("renewals", true));
+runSubscriptionRenewalsBtn?.addEventListener("click", () => runSubscriptionFinanceBatch("renewals", false));
+previewSubscriptionFinanceDunningBtn?.addEventListener("click", () => runSubscriptionFinanceBatch("dunning", true));
+runSubscriptionFinanceDunningBtn?.addEventListener("click", () => runSubscriptionFinanceBatch("dunning", false));
+exportSubscriptionFinanceOverviewBtn?.addEventListener("click", () => exportSubscriptionFinanceConsoleCSV("overview"));
+subscriptionFinanceScopeEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceSubscriptionStatusEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceInvoiceStatusEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceAutoRenewEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceRenewalModeEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceOverdueOnlyEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceMissingConfigOnlyEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
+subscriptionFinanceQueryEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
 newAdminUserBtn.addEventListener("click", () => {
   clearAdminUserForm();
   openAdminUserDialog();

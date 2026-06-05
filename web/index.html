@@ -1662,6 +1662,105 @@
           </div>
         </section>
 
+        <section class="panel tenant-admin-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Cross-tenant finance</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">account_balance</span><span>Subscription finance console</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshSubscriptionFinanceConsole" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="previewSubscriptionRenewals" type="button"><span class="mui-icon" aria-hidden="true">preview</span><span>Preview renewals</span></button>
+              <button id="runSubscriptionRenewals" type="button"><span class="mui-icon" aria-hidden="true">autorenew</span><span>Generate renewals</span></button>
+              <button id="previewSubscriptionFinanceDunning" type="button"><span class="mui-icon" aria-hidden="true">drafts</span><span>Preview dunning</span></button>
+              <button id="runSubscriptionFinanceDunning" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Run dunning</span></button>
+              <button id="exportSubscriptionFinanceOverview" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Export overview</span></button>
+            </div>
+          </div>
+          <div id="subscriptionFinanceConsoleSummary" class="tenant-summary"></div>
+          <div id="subscriptionFinanceConsoleFilters" class="tenant-form">
+            <label>
+              <span>Scope</span>
+              <select id="subscriptionFinanceScope">
+                <option value="active">active_tenant</option>
+                <option value="all">all_tenants</option>
+              </select>
+            </label>
+            <label>
+              <span>Tenant search</span>
+              <input id="subscriptionFinanceQuery" placeholder="ABC_SUN" />
+            </label>
+            <label>
+              <span>Subscription status</span>
+              <select id="subscriptionFinanceSubscriptionStatus">
+                <option value="">all</option>
+                <option value="active">active</option>
+                <option value="past_due">past_due</option>
+                <option value="suspended">suspended</option>
+                <option value="trial">trial</option>
+              </select>
+            </label>
+            <label>
+              <span>Invoice status</span>
+              <select id="subscriptionFinanceInvoiceStatus">
+                <option value="">all</option>
+                <option value="open">open</option>
+                <option value="past_due">past_due</option>
+                <option value="paid">paid</option>
+              </select>
+            </label>
+            <label>
+              <span>Auto renew</span>
+              <select id="subscriptionFinanceAutoRenew">
+                <option value="">all</option>
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+            <label>
+              <span>Renewal mode</span>
+              <select id="subscriptionFinanceRenewalMode">
+                <option value="">all</option>
+                <option value="manual">manual</option>
+                <option value="auto_generate">auto_generate</option>
+              </select>
+            </label>
+            <label>
+              <span>Overdue only</span>
+              <select id="subscriptionFinanceOverdueOnly">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+            <label>
+              <span>Missing config</span>
+              <select id="subscriptionFinanceMissingConfigOnly">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Cross-tenant subscription finance">
+              <thead>
+                <tr>
+                  <th>Tenant</th>
+                  <th>Plan</th>
+                  <th>Subscription</th>
+                  <th>Latest invoice</th>
+                  <th>Next renewal</th>
+                  <th>Billing</th>
+                  <th>Counts</th>
+                  <th>Dunning</th>
+                </tr>
+              </thead>
+              <tbody id="subscriptionFinanceConsoleList">
+                <tr><td colspan="8">Chưa tải finance console</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel admin-user-editor-panel">
           <div class="panel-head">
             <div>

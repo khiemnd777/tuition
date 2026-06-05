@@ -6,13 +6,13 @@ Last updated: 2026-06-05
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, and subscription finance controls complete.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, and cross-tenant finance operations complete.
 
-Current phase: `subscription_phase_10_complete`
+Current phase: `subscription_phase_11_complete`
 
-Current initiative: Subscription Phase 10 - Subscription self-service billing configuration, renewal controls, and finance exports is complete.
+Current initiative: Subscription Phase 11 - Cross-tenant finance console, scheduled renewals, and collection automation is complete.
 
-Next recommended initiative: Subscription Phase 11 - Cross-tenant finance console, scheduled renewals, and collection automation.
+Next recommended initiative: Subscription Phase 12 - Background scheduler for renewals/dunning and subscription suspension policy automation.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -105,6 +105,12 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added finance CSV exports for subscription invoices, overdue invoices, paid invoices, and dunning history under the active tenant.
   - Added tenant-admin UI controls for billing config, renewal-oriented invoice generation from the suggested next period, and CSV export filters/actions.
   - Kept renewal execution manual-triggered while making the config explicit for a future scheduled automation phase.
+- Subscription Phase 11: Cross-tenant finance console, scheduled renewals, and collection automation is complete:
+  - Added cross-tenant subscription finance console APIs with filters for tenant search, subscription status, invoice status, auto renew, renewal mode, overdue-only, and missing-config-only scope.
+  - Added scope-aware enforcement so `all` tenant finance actions require existing cross-tenant audit or operation permissions.
+  - Added batch preview/run APIs for renewal invoice generation and dunning execution across multiple tenants using the same billing and email flows already implemented for single-tenant operations.
+  - Added cross-tenant finance CSV exports for overview, overdue tenants, renewal candidates, and dunning-target tenants.
+  - Added Web Admin cross-tenant finance console panel with summary cards, filters, renewal batch actions, dunning batch actions, and export trigger.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

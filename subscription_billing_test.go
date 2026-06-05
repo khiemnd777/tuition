@@ -97,3 +97,10 @@ func TestFilterSubscriptionInvoicesByStatus(t *testing.T) {
 		t.Fatalf("unexpected filtered invoices %+v", got)
 	}
 }
+
+func TestNormalizeSubscriptionBatchRunInput(t *testing.T) {
+	got := normalizeSubscriptionBatchRunInput(subscriptionBatchRunInput{Scope: "ALL", DryRun: false, ConfirmRun: false})
+	if got.Scope != "all" || !got.DryRun {
+		t.Fatalf("unexpected normalized batch input %+v", got)
+	}
+}
