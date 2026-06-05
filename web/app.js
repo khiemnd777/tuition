@@ -347,6 +347,25 @@ const tenantSubscriptionPlanEl = document.querySelector("#tenantSubscriptionPlan
 const tenantSubscriptionStatusEl = document.querySelector("#tenantSubscriptionStatus");
 const tenantSubscriptionTrialEndsAtEl = document.querySelector("#tenantSubscriptionTrialEndsAt");
 const tenantSubscriptionCurrentPeriodEndsAtEl = document.querySelector("#tenantSubscriptionCurrentPeriodEndsAt");
+const refreshSubscriptionBillingBtn = document.querySelector("#refreshSubscriptionBilling");
+const generateSubscriptionInvoiceBtn = document.querySelector("#generateSubscriptionInvoice");
+const runSubscriptionDunningBtn = document.querySelector("#runSubscriptionDunning");
+const subscriptionBillingSummaryEl = document.querySelector("#subscriptionBillingSummary");
+const subscriptionBillingListEl = document.querySelector("#subscriptionBillingList");
+const subscriptionBillingGenerateFormEl = document.querySelector("#subscriptionBillingGenerateForm");
+const subscriptionBillingGenerateTenantIdEl = document.querySelector("#subscriptionBillingGenerateTenantId");
+const subscriptionBillingGeneratePeriodStartEl = document.querySelector("#subscriptionBillingGeneratePeriodStart");
+const subscriptionBillingGeneratePeriodEndEl = document.querySelector("#subscriptionBillingGeneratePeriodEnd");
+const subscriptionBillingGenerateDueAtEl = document.querySelector("#subscriptionBillingGenerateDueAt");
+const subscriptionBillingGenerateAmountEl = document.querySelector("#subscriptionBillingGenerateAmount");
+const subscriptionBillingPaidFormEl = document.querySelector("#subscriptionBillingPaidForm");
+const subscriptionBillingPaidTenantIdEl = document.querySelector("#subscriptionBillingPaidTenantId");
+const subscriptionBillingPaidInvoiceIdEl = document.querySelector("#subscriptionBillingPaidInvoiceId");
+const subscriptionBillingPaidAtEl = document.querySelector("#subscriptionBillingPaidAt");
+const subscriptionBillingPaymentNoteEl = document.querySelector("#subscriptionBillingPaymentNote");
+const subscriptionBillingDunningFormEl = document.querySelector("#subscriptionBillingDunningForm");
+const subscriptionBillingDunningTenantIdEl = document.querySelector("#subscriptionBillingDunningTenantId");
+const subscriptionBillingDunningModeEl = document.querySelector("#subscriptionBillingDunningMode");
 
 let banks = [];
 let currentItems = [];
@@ -397,6 +416,8 @@ let tenantsLoaded = false;
 let tenantsData = { tenants: [] };
 let subscriptionPlansLoaded = false;
 let subscriptionPlansData = [];
+let subscriptionBillingLoaded = false;
+let subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
 let authSession = null;
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
@@ -1134,6 +1155,9 @@ function applyPermissionUI() {
   setElementAllowed(newTenantBtn, hasPermission("tenant.create"));
   setElementAllowed(editActiveTenantBtn, hasPermission("tenant.update"));
   setElementAllowed(editActiveTenantSubscriptionBtn, hasPermission("subscription.view") || hasPermission("subscription.update"));
+  setElementAllowed(refreshSubscriptionBillingBtn, hasPermission("subscription.view"));
+  setElementAllowed(generateSubscriptionInvoiceBtn, hasPermission("subscription.update"));
+  setElementAllowed(runSubscriptionDunningBtn, hasPermission("subscription.update"));
   setElementAllowed(openEmailConfigDialogBtn, hasPermission("email_config.view") || hasPermission("email_config.update"));
   setElementAllowed(saveEmailConfigBtn, hasPermission("email_config.update"));
   setElementAllowed(previewEmailBtn, hasPermission("notification.send"));
@@ -3808,8 +3832,11 @@ async function loadTenants(force = false) {
   if (!res.ok) {
     tenantsLoaded = false;
     tenantsData = { tenants: [] };
+    subscriptionBillingLoaded = false;
+    subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
     renderTenantSwitcher();
     renderTenantAdmin(null);
+    renderSubscriptionBilling(null);
     setAdminStatus(tenantStatusEl, text || "Không tải được tenant", "error");
     return;
   }
@@ -3817,6 +3844,7 @@ async function loadTenants(force = false) {
   tenantsLoaded = true;
   renderTenantSwitcher();
   renderTenantAdmin(tenantsData);
+  await loadSubscriptionBilling(force);
   setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
 }
 
@@ -3883,6 +3911,106 @@ function renderTenantAdmin(data) {
   }
   tenantListEl.querySelectorAll("[data-switch-tenant]").forEach((button) => {
     button.addEventListener("click", () => switchTenant(button.dataset.switchTenant || ""));
+  });
+}
+
+async function loadSubscriptionBilling(force = false) {
+  if (!hasPermission("subscription.view")) {
+    subscriptionBillingLoaded = false;
+    subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
+    renderSubscriptionBilling(null);
+    return;
+  }
+  if (!force && subscriptionBillingLoaded) {
+    renderSubscriptionBilling(subscriptionBillingData);
+    return;
+  }
+  const res = await fetch("/api/v1/subscriptions/invoices");
+  const text = await res.text();
+  if (!res.ok) {
+    subscriptionBillingLoaded = false;
+    subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
+    renderSubscriptionBilling(null);
+    setAdminStatus(tenantStatusEl, text || "Không tải được subscription billing", "error");
+    return;
+  }
+  const data = JSON.parse(text);
+  applySubscriptionBillingPayload(data);
+}
+
+function applySubscriptionBillingPayload(data) {
+  if (data?.tenants?.length) {
+    tenantsData = { tenants: data.tenants || [] };
+    tenantsLoaded = true;
+    renderTenantSwitcher();
+    renderTenantAdmin(tenantsData);
+  }
+  subscriptionBillingData = {
+    invoices: data?.invoices || [],
+    summary: data?.summary || {},
+    suggestedPeriod: data?.suggestedPeriod || {},
+    tenant: data?.tenant || null,
+    tenants: data?.tenants || [],
+    dunningResults: data?.dunningResults || [],
+  };
+  subscriptionBillingLoaded = true;
+  renderSubscriptionBilling(subscriptionBillingData);
+}
+
+function renderSubscriptionBilling(data) {
+  if (!subscriptionBillingSummaryEl || !subscriptionBillingListEl) return;
+  const summary = data?.summary || {};
+  const suggested = data?.suggestedPeriod || {};
+  const invoices = data?.invoices || [];
+  subscriptionBillingSummaryEl.innerHTML = activeTenantSummary().id
+    ? `
+      <div class="tenant-summary-item">
+        <span>${muiIcon("receipt_long")}Latest invoice</span>
+        <strong>${escapeHtml(summary.latestInvoiceCode || "-")}</strong>
+      </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("pending_actions")}Open / past due</span>
+        <strong>${Number(summary.openCount || 0)} / ${Number(summary.pastDueCount || 0)}</strong>
+      </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("task_alt")}Paid</span>
+        <strong>${Number(summary.paidCount || 0)}</strong>
+      </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("event")}Next period</span>
+        <strong>${escapeHtml([suggested.periodStartsAt || "-", suggested.periodEndsAt || "-"].join(" -> "))}</strong>
+      </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("payments")}Suggested amount</span>
+        <strong>${formatCurrency(Number(suggested.amount || 0))}</strong>
+      </div>
+    `
+    : "";
+  subscriptionBillingListEl.innerHTML = invoices.length
+    ? invoices
+        .map(
+          (invoice) => `
+            <tr>
+              <td><strong>${escapeHtml(invoice.invoiceCode || "-")}</strong></td>
+              <td>${escapeHtml(invoice.planCode || invoice.planName || "-")}<br /><small>${escapeHtml(invoice.periodStartsAt || "-")} -> ${escapeHtml(invoice.periodEndsAt || "-")}</small></td>
+              <td>${escapeHtml(invoice.planName || invoice.planCode || "-")}</td>
+              <td>${formatCurrency(Number(invoice.amount || 0))}</td>
+              <td><span class="tag ${invoice.status === "paid" ? "tag-ready" : invoice.status === "past_due" ? "tag-warning" : ""}">${escapeHtml(invoice.status || "-")}</span></td>
+              <td>${escapeHtml(invoice.dueAt || "-")}</td>
+              <td>${escapeHtml(invoice.paidAt || "-")}</td>
+              <td>${Number(invoice.dunningCount || 0)}<br /><small>${escapeHtml(invoice.lastDunningAt || "-")}</small></td>
+              <td>
+                <div class="table-actions">
+                  <button type="button" data-mark-subscription-paid="${escapeAttr(invoice.id || "")}" ${invoice.status === "paid" ? "disabled" : ""}>${muiIcon("payments")}<span>Mark paid</span></button>
+                </div>
+              </td>
+            </tr>
+          `,
+        )
+        .join("")
+    : `<tr><td colspan="9">Chưa có subscription invoice</td></tr>`;
+  subscriptionBillingListEl.querySelectorAll("[data-mark-subscription-paid]").forEach((button) => {
+    button.addEventListener("click", () => openSubscriptionBillingPaidDialog(button.dataset.markSubscriptionPaid || ""));
   });
 }
 
@@ -4023,7 +4151,146 @@ async function saveTenantSubscription() {
     updateAuthBadge(session);
     applyPermissionUI();
   }
+  subscriptionBillingLoaded = false;
+  await loadSubscriptionBilling(true);
   setAdminStatus(tenantStatusEl, "Đã lưu subscription", "ready");
+  return true;
+}
+
+function openSubscriptionBillingGenerateDialog() {
+  const activeTenant = tenantRowsForUI().find((tenant) => tenant.id === activeTenantSummary().id) || activeTenantSummary();
+  const suggested = subscriptionBillingData?.suggestedPeriod || {};
+  subscriptionBillingGenerateTenantIdEl.value = activeTenant.id || "";
+  subscriptionBillingGeneratePeriodStartEl.value = suggested.periodStartsAt || "";
+  subscriptionBillingGeneratePeriodEndEl.value = suggested.periodEndsAt || "";
+  subscriptionBillingGenerateDueAtEl.value = suggested.dueAt || "";
+  subscriptionBillingGenerateAmountEl.value = suggested.amount || 0;
+  openAppDialog({
+    title: "Tạo subscription invoice",
+    kicker: "Subscription billing",
+    icon: "receipt_long",
+    nodes: [subscriptionBillingGenerateFormEl],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Tạo invoice", icon: "save", variant: "primary", onClick: saveSubscriptionBillingGenerate, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function saveSubscriptionBillingGenerate() {
+  setAdminStatus(tenantStatusEl, "Đang tạo subscription invoice", "busy");
+  const res = await fetch("/api/v1/subscriptions/invoices/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: subscriptionBillingGenerateTenantIdEl.value,
+      periodStartsAt: subscriptionBillingGeneratePeriodStartEl.value,
+      periodEndsAt: subscriptionBillingGeneratePeriodEndEl.value,
+      dueAt: subscriptionBillingGenerateDueAtEl.value,
+      amount: Number(subscriptionBillingGenerateAmountEl.value || 0),
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không tạo được subscription invoice", "error");
+    return false;
+  }
+  applySubscriptionBillingPayload(JSON.parse(text));
+  const session = await loadCurrentAuthSession();
+  if (session) {
+    authSession = session;
+    updateAuthBadge(session);
+    applyPermissionUI();
+  }
+  setAdminStatus(tenantStatusEl, "Đã tạo subscription invoice", "ready");
+  return true;
+}
+
+function openSubscriptionBillingPaidDialog(invoiceId) {
+  const invoice = (subscriptionBillingData?.invoices || []).find((item) => item.id === invoiceId);
+  subscriptionBillingPaidTenantIdEl.value = activeTenantSummary().id || "";
+  subscriptionBillingPaidInvoiceIdEl.value = invoiceId || "";
+  subscriptionBillingPaidAtEl.value = new Date().toISOString().slice(0, 10);
+  subscriptionBillingPaymentNoteEl.value = invoice?.invoiceCode ? `Paid ${invoice.invoiceCode}` : "";
+  openAppDialog({
+    title: "Mark subscription paid",
+    kicker: "Subscription billing",
+    icon: "payments",
+    nodes: [subscriptionBillingPaidFormEl],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Mark paid", icon: "save", variant: "primary", onClick: saveSubscriptionBillingPaid, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function saveSubscriptionBillingPaid() {
+  setAdminStatus(tenantStatusEl, "Đang cập nhật subscription payment", "busy");
+  const res = await fetch("/api/v1/subscriptions/invoices/mark-paid", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: subscriptionBillingPaidTenantIdEl.value,
+      invoiceId: subscriptionBillingPaidInvoiceIdEl.value,
+      paidAt: subscriptionBillingPaidAtEl.value,
+      paymentNote: subscriptionBillingPaymentNoteEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không cập nhật được subscription payment", "error");
+    return false;
+  }
+  applySubscriptionBillingPayload(JSON.parse(text));
+  const session = await loadCurrentAuthSession();
+  if (session) {
+    authSession = session;
+    updateAuthBadge(session);
+    applyPermissionUI();
+  }
+  setAdminStatus(tenantStatusEl, "Đã cập nhật subscription payment", "ready");
+  return true;
+}
+
+function openSubscriptionDunningDialog() {
+  subscriptionBillingDunningTenantIdEl.value = activeTenantSummary().id || "";
+  subscriptionBillingDunningModeEl.value = "dry_run";
+  openAppDialog({
+    title: "Run subscription dunning",
+    kicker: "Subscription billing",
+    icon: "mark_email_unread",
+    nodes: [subscriptionBillingDunningFormEl],
+    size: "sm",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Chạy dunning", icon: "send", variant: "primary", onClick: runSubscriptionDunningNow, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function runSubscriptionDunningNow() {
+  const realSend = subscriptionBillingDunningModeEl.value === "real_send";
+  setAdminStatus(tenantStatusEl, realSend ? "Đang gửi dunning" : "Đang preview dunning", "busy");
+  const res = await fetch("/api/v1/subscriptions/dunning/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: subscriptionBillingDunningTenantIdEl.value,
+      dryRun: !realSend,
+      confirmSend: realSend,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không chạy được subscription dunning", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  applySubscriptionBillingPayload(data);
+  const recipientCount = (data.dunningResults || []).reduce((sum, item) => sum + Number(item.recipientCount || 0), 0);
+  setAdminStatus(tenantStatusEl, realSend ? `Đã chạy dunning (${recipientCount} recipient)` : `Đã preview dunning (${recipientCount} recipient)`, "ready");
   return true;
 }
 
@@ -4061,6 +4328,8 @@ function resetTenantScopedState() {
   tenantsData = { tenants: [] };
   subscriptionPlansLoaded = false;
   subscriptionPlansData = [];
+  subscriptionBillingLoaded = false;
+  subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
   masterDataLoaded = false;
   masterDataOptions = { schools: [], schoolYears: [], classes: [] };
   masterStudentsRawData = [];
@@ -8271,9 +8540,12 @@ operationLimitEl.addEventListener("change", () => loadOperations(true));
 
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
 refreshTenantsBtn?.addEventListener("click", () => loadTenants(true));
+refreshSubscriptionBillingBtn?.addEventListener("click", () => loadSubscriptionBilling(true));
 newTenantBtn?.addEventListener("click", () => openTenantDialog("create"));
 editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
 editActiveTenantSubscriptionBtn?.addEventListener("click", openTenantSubscriptionDialog);
+generateSubscriptionInvoiceBtn?.addEventListener("click", openSubscriptionBillingGenerateDialog);
+runSubscriptionDunningBtn?.addEventListener("click", openSubscriptionDunningDialog);
 newAdminUserBtn.addEventListener("click", () => {
   clearAdminUserForm();
   openAdminUserDialog();

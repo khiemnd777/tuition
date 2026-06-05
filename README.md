@@ -109,7 +109,7 @@ Migration SQL nằm trong `migrations/` và được embed vào binary. Migratio
 Quy ước production hiện tại:
 
 - Primary key dùng UUID do PostgreSQL sinh bằng `gen_random_uuid()`.
-- Tenant mặc định hiện là `ABC_SUN`; auth session tự chọn active tenant đầu tiên, route-level RBAC đọc role theo tenant, và các API school-owned production data lọc theo active tenant. Web Admin có tenant switcher, tenant onboarding, và tenant subscription admin cho operator có quyền; phase thanh toán đã triển khai tenant-scoped provider credentials và webhook ownership: provider list sẽ trả `webhookPath` theo tenant, `payOS` ưu tiên credential trong `payment_providers.config`, và write workflow production sẽ bị chặn khi subscription tenant không còn `active` hoặc `trial`. Subscription Phase 8 bổ sung entitlement/usage metering cho `schools`, `operators`, `students`, và `monthly_notifications`; quota được enforce ở các workflow create/import/send thật và tenant panel hiển thị usage theo plan hiện tại.
+- Tenant mặc định hiện là `ABC_SUN`; auth session tự chọn active tenant đầu tiên, route-level RBAC đọc role theo tenant, và các API school-owned production data lọc theo active tenant. Web Admin có tenant switcher, tenant onboarding, và tenant subscription admin cho operator có quyền; phase thanh toán đã triển khai tenant-scoped provider credentials và webhook ownership: provider list sẽ trả `webhookPath` theo tenant, `payOS` ưu tiên credential trong `payment_providers.config`, và write workflow production sẽ bị chặn khi subscription tenant không còn `active` hoặc `trial`. Subscription Phase 8 bổ sung entitlement/usage metering cho `schools`, `operators`, `students`, và `monthly_notifications`; quota được enforce ở các workflow create/import/send thật và tenant panel hiển thị usage theo plan hiện tại. Subscription Phase 9 bổ sung lane billing riêng cho tenant subscription với `subscription_invoices`, manual mark-paid, và dunning email cho overdue invoice, tách biệt khỏi invoice học phí của học sinh.
 - Bảng vận hành có `created_at`, `updated_at`, `created_by_user_id`, `updated_by_user_id` khi cần audit actor.
 - Phiếu thu tiền mặt và điều chỉnh phí cần lý do; app ghi thêm audit log bất biến cho các thay đổi này.
 - Web Admin dùng cookie HttpOnly cho access/refresh token. Access token mặc định sống 15 phút, refresh token mặc định sống 7 ngày và được rotate sau mỗi lần refresh.
@@ -319,6 +319,10 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice; yêu cầu lý do audit qua `reason`.
 - `GET /api/v1/subscriptions/plans`: danh sách subscription plan cho tenant admin.
 - `POST /api/v1/tenants/subscription/save`: cập nhật plan/status/date của subscription tenant đang active; yêu cầu quyền `subscription.update`.
+- `GET /api/v1/subscriptions/invoices`: danh sách subscription invoice của tenant active, summary billing hiện tại, và gợi ý kỳ billing tiếp theo.
+- `POST /api/v1/subscriptions/invoices/generate`: tạo hoặc trả lại invoice subscription hiện có cho kỳ billing được chọn; có thể truyền `amount` thủ công nếu tenant chưa cấu hình billing amount trong metadata.
+- `POST /api/v1/subscriptions/invoices/mark-paid`: đánh dấu subscription invoice đã thanh toán thủ công, đồng thời đồng bộ `tenant_subscriptions` về `active` cho kỳ đã trả.
+- `POST /api/v1/subscriptions/dunning/run`: chạy dry-run hoặc real-send dunning email cho subscription invoice đang `open` hoặc `past_due` của tenant active.
 - `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
 - `GET /api/v1/notifications/templates`: danh sách notification template/version.
 - `GET /api/v1/notifications/campaigns`: danh sách campaign đã lưu.

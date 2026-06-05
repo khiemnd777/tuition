@@ -6,13 +6,13 @@ Last updated: 2026-06-05
 
 Production roadmap implementation has student, parent, class master data, fee schedule setup, invoice/PDF receipt output, invoice issuance workbench, payment/reconciliation ledger, notification campaigns, communication campaign workbench, production Web Admin screens, reports/export, audit review, operational readiness, responsive/accessibility hardening, and operator guardrails complete.
 
-Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, and tenant entitlement/metering complete.
+Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, and subscription billing operations complete.
 
-Current phase: `subscription_phase_8_complete`
+Current phase: `subscription_phase_9_complete`
 
-Current initiative: Subscription Phase 8 - Tenant feature entitlements, usage metering, and billing operations workflow is complete.
+Current initiative: Subscription Phase 9 - Subscription invoicing, collections, and dunning automation is complete.
 
-Next recommended initiative: Subscription Phase 9 - Subscription invoicing, collections, and dunning automation.
+Next recommended initiative: Subscription Phase 10 - Subscription self-service billing configuration, renewal controls, and finance exports.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -92,6 +92,13 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added backend quota enforcement for school creation, student creation/import, tenant operator role assignment, and real notification sends.
   - Counted monthly notification usage only for real sent recipients, not dry runs or skipped duplicate recipients.
   - Extended tenant admin responses with per-tenant usage summaries so operators can see current plan consumption in Web Admin.
+- Subscription Phase 9: Subscription invoicing, collections, and dunning automation is complete:
+  - Added migration `0022_subscription_invoicing_and_dunning`.
+  - Added `subscription_invoices`, `subscription_invoice_status_history`, and `subscription_dunning_runs` as a dedicated billing lane separate from school tuition invoices.
+  - Added subscription billing APIs for listing invoices, generating the current period invoice, marking invoice payment manually, and running dry-run or real dunning sends for overdue subscription invoices.
+  - Added backend sync so overdue open subscription invoices move to `past_due`, while paid subscription invoices move the tenant subscription back to `active` and update the current paid period window.
+  - Added tenant-admin billing UI with invoice list, suggested next billing period, generate invoice action, manual mark-paid action, and dunning run dialog.
+  - Reused the existing Gmail/Resend send path for dunning emails to tenant owner/admin/accountant recipients, while keeping manual collection as the payment confirmation path for this phase.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

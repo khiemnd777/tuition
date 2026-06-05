@@ -1500,6 +1500,90 @@
               <input id="tenantSubscriptionCurrentPeriodEndsAt" type="date" />
             </label>
           </div>
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Subscription billing</p>
+              <h3 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Billing và dunning</span></h3>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshSubscriptionBilling" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại billing</span></button>
+              <button id="generateSubscriptionInvoice" type="button"><span class="mui-icon" aria-hidden="true">receipt</span><span>Tạo invoice</span></button>
+              <button id="runSubscriptionDunning" type="button"><span class="mui-icon" aria-hidden="true">mark_email_unread</span><span>Run dunning</span></button>
+            </div>
+          </div>
+          <div id="subscriptionBillingSummary" class="tenant-summary"></div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Subscription invoices">
+              <colgroup>
+                <col class="admin-col-code" />
+                <col class="admin-col-class" />
+                <col class="admin-col-status" />
+                <col class="admin-col-money" />
+                <col class="admin-col-status" />
+                <col class="admin-col-date" />
+                <col class="admin-col-date" />
+                <col class="admin-col-date" />
+                <col class="admin-col-actions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Plan / period</th>
+                  <th>Billing</th>
+                  <th>Số tiền</th>
+                  <th>Status</th>
+                  <th>Due</th>
+                  <th>Paid</th>
+                  <th>Dunning</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="subscriptionBillingList">
+                <tr><td colspan="9">Chưa tải subscription billing</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="subscriptionBillingGenerateForm" class="tenant-form" hidden>
+            <input id="subscriptionBillingGenerateTenantId" type="hidden" />
+            <label>
+              <span>Period starts at</span>
+              <input id="subscriptionBillingGeneratePeriodStart" type="date" />
+            </label>
+            <label>
+              <span>Period ends at</span>
+              <input id="subscriptionBillingGeneratePeriodEnd" type="date" />
+            </label>
+            <label>
+              <span>Due at</span>
+              <input id="subscriptionBillingGenerateDueAt" type="date" />
+            </label>
+            <label>
+              <span>Amount</span>
+              <input id="subscriptionBillingGenerateAmount" type="number" min="0" step="1000" />
+            </label>
+          </div>
+          <div id="subscriptionBillingPaidForm" class="tenant-form" hidden>
+            <input id="subscriptionBillingPaidTenantId" type="hidden" />
+            <input id="subscriptionBillingPaidInvoiceId" type="hidden" />
+            <label>
+              <span>Paid at</span>
+              <input id="subscriptionBillingPaidAt" type="date" />
+            </label>
+            <label>
+              <span>Payment note</span>
+              <input id="subscriptionBillingPaymentNote" placeholder="Bank transfer / internal note" />
+            </label>
+          </div>
+          <div id="subscriptionBillingDunningForm" class="tenant-form" hidden>
+            <input id="subscriptionBillingDunningTenantId" type="hidden" />
+            <label>
+              <span>Mode</span>
+              <select id="subscriptionBillingDunningMode">
+                <option value="dry_run">dry_run</option>
+                <option value="real_send">real_send</option>
+              </select>
+            </label>
+          </div>
         </section>
 
         <section class="panel admin-user-editor-panel">
