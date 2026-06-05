@@ -3825,6 +3825,15 @@ function renderTenantAdmin(data) {
   const activeTenant = activeTenantSummary();
   const tenants = data?.tenants || tenantRowsForUI();
   const activeRow = tenants.find((tenant) => tenant.id === activeTenant.id) || activeTenant;
+  const usageSummary = (activeRow.usageMetrics || [])
+    .map((metric) => {
+      const used = Number(metric.used || 0);
+      if (metric.unlimited) {
+        return `${metric.label || metric.metricCode}: ${used}`;
+      }
+      return `${metric.label || metric.metricCode}: ${used}/${Number(metric.limit || 0)}`;
+    })
+    .join(" · ");
   tenantSummaryEl.innerHTML = activeTenant.id
     ? `
       <div class="tenant-summary-item">
@@ -3843,16 +3852,28 @@ function renderTenantAdmin(data) {
         <span>${muiIcon("workspace_premium")}Subscription</span>
         <strong>${escapeHtml([activeRow.subscriptionStatus || "-", activeRow.planCode || activeRow.planName || "-"].join(" · "))}</strong>
       </div>
+      <div class="tenant-summary-item">
+        <span>${muiIcon("monitoring")}Usage</span>
+        <strong>${escapeHtml(usageSummary || "-")}</strong>
+      </div>
     `
     : "";
   tenantListEl.innerHTML = tenants
     .map((tenant) => {
       const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
+      const quotaSummary = (tenant.usageMetrics || [])
+        .map((metric) => {
+          const used = Number(metric.used || 0);
+          return metric.unlimited
+            ? `${metric.metricCode}:${used}`
+            : `${metric.metricCode}:${used}/${Number(metric.limit || 0)}`;
+        })
+        .join(" · ");
       return `
         <button class="tenant-list-row${tenant.id === activeTenant.id ? " is-active" : ""}" type="button" data-switch-tenant="${escapeAttr(tenant.id || "")}">
           <span>${muiIcon(tenant.id === activeTenant.id ? "radio_button_checked" : "radio_button_unchecked")}</span>
           <strong>${escapeHtml(label || tenant.id || "-")}</strong>
-          <small>${escapeHtml(tenant.status || "-")} · ${escapeHtml(tenant.membershipStatus || "-")} · ${escapeHtml(tenant.subscriptionStatus || "-")} · ${escapeHtml(tenant.planCode || tenant.planName || "-")} · ${Number(tenant.schoolCount || 0)} school</small>
+          <small>${escapeHtml(tenant.status || "-")} · ${escapeHtml(tenant.membershipStatus || "-")} · ${escapeHtml(tenant.subscriptionStatus || "-")} · ${escapeHtml(tenant.planCode || tenant.planName || "-")} · ${Number(tenant.schoolCount || 0)} school${quotaSummary ? ` · ${escapeHtml(quotaSummary)}` : ""}</small>
         </button>
       `;
     })

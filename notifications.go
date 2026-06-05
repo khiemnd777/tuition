@@ -495,6 +495,22 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 		}
 		sentLimit = quota.Remaining
 	}
+	if !input.DryRun {
+		plannedSends, err := countNotificationRecipientsPlannedForSend(r.Context(), db, input.CampaignID, preview.Template, recipients, input.ForceResend, sentLimit)
+		if err != nil {
+			http.Error(w, "cannot inspect notification send quota", http.StatusInternalServerError)
+			return
+		}
+		if err := enforceTenantUsageLimit(r.Context(), db, tenantID, subscriptionMetricMonthlyNotifications, plannedSends, time.Now()); err != nil {
+			var usageErr *tenantUsageLimitError
+			if errors.As(err, &usageErr) {
+				http.Error(w, usageErr.Error(), http.StatusForbidden)
+				return
+			}
+			http.Error(w, "cannot inspect subscription usage", http.StatusInternalServerError)
+			return
+		}
+	}
 
 	response, err := sendNotificationCampaign(r.Context(), db, cfg, preview.Template, input, recipients, appBaseURL(r, cfg), sentLimit)
 	if err != nil {
@@ -558,6 +574,11 @@ func handleNotificationPaidConfirmationSend(w http.ResponseWriter, r *http.Reque
 		Operation:   "notification.paid_confirmation.manual",
 	})
 	if err != nil {
+		var usageErr *tenantUsageLimitError
+		if errors.As(err, &usageErr) {
+			http.Error(w, usageErr.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -1406,6 +1427,9 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 	}
 	if !input.DryRun {
 		recordEmailCronSent(countSentEmails(results), time.Now())
+		if err := incrementTenantUsageCounter(ctx, db, input.TenantID, subscriptionMetricMonthlyNotifications, subscriptionUsagePeriodKey(subscriptionMetricMonthlyNotifications, time.Now()), countSentEmails(results)); err != nil {
+			return notificationSendResponse{}, err
+		}
 	}
 	status := notificationCampaignStatusFromResults(results, input.DryRun)
 	updateQuery := `UPDATE notification_campaigns SET status = $2`
@@ -1519,6 +1543,29 @@ SELECT EXISTS (
 	return exists, err
 }
 
+func countNotificationRecipientsPlannedForSend(ctx context.Context, db *sql.DB, campaignID string, template notificationTemplate, recipients []notificationRecipientCandidate, forceResend bool, sendLimit int) (int, error) {
+	if sendLimit <= 0 {
+		return 0, nil
+	}
+	planned := 0
+	for _, recipient := range recipients {
+		if sendLimit > 0 && planned >= sendLimit {
+			break
+		}
+		if !forceResend {
+			alreadySent, err := notificationAlreadySent(ctx, db, campaignID, template, recipient.InvoiceID, recipient.RecipientEmail)
+			if err != nil {
+				return 0, err
+			}
+			if alreadySent {
+				continue
+			}
+		}
+		planned++
+	}
+	return planned, nil
+}
+
 func sendAutomaticPaidConfirmationBestEffort(ctx context.Context, db *sql.DB, invoiceID string, trigger string) {
 	if strings.TrimSpace(invoiceID) == "" {
 		return
@@ -1621,6 +1668,13 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 	if err != nil {
 		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, cfg.Provider, err.Error()), nil
 	}
+	plannedSends, err := countPaidConfirmationRecipientsPlannedForSend(ctx, db, campaignID, template, recipients, options.ForceResend, quota.Remaining)
+	if err != nil {
+		return nil, err
+	}
+	if err := enforceTenantUsageLimit(ctx, db, tenantID, subscriptionMetricMonthlyNotifications, plannedSends, time.Now()); err != nil {
+		return nil, err
+	}
 
 	results := make([]emailSendResult, 0, len(recipients))
 	sent := 0
@@ -1661,6 +1715,9 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 	}
 	if sent > 0 {
 		recordEmailCronSent(sent, time.Now())
+		if err := incrementTenantUsageCounter(ctx, db, tenantID, subscriptionMetricMonthlyNotifications, subscriptionUsagePeriodKey(subscriptionMetricMonthlyNotifications, time.Now()), sent); err != nil {
+			return nil, err
+		}
 	}
 	status := notificationCampaignStatusFromResults(results, false)
 	if len(results) == 0 {
@@ -1673,6 +1730,29 @@ SET status = $2,
 WHERE id = $1::uuid
 	AND tenant_id = $3::uuid`, campaignID, status, tenantID)
 	return results, nil
+}
+
+func countPaidConfirmationRecipientsPlannedForSend(ctx context.Context, db *sql.DB, campaignID string, template notificationTemplate, recipients []notificationRecipientCandidate, forceResend bool, sendLimit int) (int, error) {
+	if sendLimit <= 0 {
+		return 0, nil
+	}
+	planned := 0
+	for _, recipient := range recipients {
+		if sendLimit > 0 && planned >= sendLimit {
+			break
+		}
+		if !forceResend {
+			alreadySent, err := notificationAlreadySent(ctx, db, campaignID, template, recipient.InvoiceID, recipient.RecipientEmail)
+			if err != nil {
+				return 0, err
+			}
+			if alreadySent {
+				continue
+			}
+		}
+		planned++
+	}
+	return planned, nil
 }
 
 func ensurePaidConfirmationCampaign(ctx context.Context, db *sql.DB, template notificationTemplate, invoice invoiceDocument, tenantID string, options paidConfirmationSendOptions) (string, error) {

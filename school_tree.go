@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type schoolTreeResponse struct {
@@ -200,6 +201,11 @@ func handleSchoolTreeSchoolSave(w http.ResponseWriter, r *http.Request) {
 
 	saved, err := saveSchoolTreeSchool(r.Context(), db, tenantID, input, auditContextFromRequest(r))
 	if err != nil {
+		var usageErr *tenantUsageLimitError
+		if errors.As(err, &usageErr) {
+			http.Error(w, usageErr.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, "cannot save school", http.StatusInternalServerError)
 		return
 	}
@@ -650,11 +656,17 @@ func schoolTreeIssueCount(studentCount int, missingBillingRecipientCount int, cu
 func saveSchoolTreeSchool(ctx context.Context, db *sql.DB, tenantID string, input schoolTreeSchoolInput, auditCtx requestAuditContext) (masterDataSchoolOption, error) {
 	var saved masterDataSchoolOption
 	if input.ID == "" {
+		if err := enforceTenantUsageLimit(ctx, db, tenantID, subscriptionMetricSchools, 1, time.Now()); err != nil {
+			return saved, err
+		}
 		err := db.QueryRowContext(ctx, `
 INSERT INTO schools (tenant_id, code, name, status, created_by_user_id, updated_by_user_id)
 VALUES ($5::uuid, $1, $2, $3, nullif($4, '')::uuid, nullif($4, '')::uuid)
 RETURNING id::text, code, name, status`,
 			input.Code, input.Name, input.Status, auditCtx.ActorUserID, tenantID).Scan(&saved.ID, &saved.Code, &saved.Name, &saved.Status)
+		if err == nil {
+			err = rebuildTenantUsageCounter(ctx, db, tenantID, subscriptionMetricSchools, time.Now())
+		}
 		return saved, err
 	}
 	err := db.QueryRowContext(ctx, `

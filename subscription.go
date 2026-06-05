@@ -280,6 +280,11 @@ GROUP BY tenant.id, tenant.code, tenant.name, tenant.status, ts.status, plan.cod
 	}
 	tenant.TrialEndsAt = formatNullDate(trialEndsAt)
 	tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
+	usageMetrics, err := loadTenantUsageSummaries(ctx, db, tenant.ID, time.Now())
+	if err != nil {
+		return tenantSummary{}, err
+	}
+	tenant.UsageMetrics = usageMetrics
 	return tenant, nil
 }
 

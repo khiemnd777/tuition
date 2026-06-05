@@ -13,19 +13,20 @@ import (
 )
 
 type tenantSummary struct {
-	ID                  string `json:"id"`
-	Code                string `json:"code"`
-	Name                string `json:"name"`
-	Status              string `json:"status"`
-	MembershipStatus    string `json:"membershipStatus,omitempty"`
-	IsOwner             bool   `json:"isOwner,omitempty"`
-	SchoolCount         int    `json:"schoolCount"`
-	IsActive            bool   `json:"isActive,omitempty"`
-	SubscriptionStatus  string `json:"subscriptionStatus,omitempty"`
-	PlanCode            string `json:"planCode,omitempty"`
-	PlanName            string `json:"planName,omitempty"`
-	TrialEndsAt         string `json:"trialEndsAt,omitempty"`
-	CurrentPeriodEndsAt string `json:"currentPeriodEndsAt,omitempty"`
+	ID                  string                     `json:"id"`
+	Code                string                     `json:"code"`
+	Name                string                     `json:"name"`
+	Status              string                     `json:"status"`
+	MembershipStatus    string                     `json:"membershipStatus,omitempty"`
+	IsOwner             bool                       `json:"isOwner,omitempty"`
+	SchoolCount         int                        `json:"schoolCount"`
+	IsActive            bool                       `json:"isActive,omitempty"`
+	SubscriptionStatus  string                     `json:"subscriptionStatus,omitempty"`
+	PlanCode            string                     `json:"planCode,omitempty"`
+	PlanName            string                     `json:"planName,omitempty"`
+	TrialEndsAt         string                     `json:"trialEndsAt,omitempty"`
+	CurrentPeriodEndsAt string                     `json:"currentPeriodEndsAt,omitempty"`
+	UsageMetrics        []tenantUsageMetricSummary `json:"usageMetrics,omitempty"`
 }
 
 type tenantListResponse struct {
@@ -336,6 +337,11 @@ ORDER BY CASE WHEN tenant.id::text = $2 THEN 0 WHEN tenant.code = $3 THEN 1 ELSE
 		tenant.IsActive = tenant.ID == strings.TrimSpace(activeTenantID)
 		tenant.TrialEndsAt = formatNullDate(trialEndsAt)
 		tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
+		usageMetrics, err := loadTenantUsageSummaries(ctx, db, tenant.ID, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		tenant.UsageMetrics = usageMetrics
 		tenants = append(tenants, tenant)
 	}
 	return tenants, rows.Err()
@@ -391,6 +397,11 @@ ORDER BY CASE WHEN tenant.id::text = $1 THEN 0 WHEN tenant.code = $2 THEN 1 ELSE
 		tenant.IsActive = tenant.ID == strings.TrimSpace(activeTenantID)
 		tenant.TrialEndsAt = formatNullDate(trialEndsAt)
 		tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
+		usageMetrics, err := loadTenantUsageSummaries(ctx, db, tenant.ID, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		tenant.UsageMetrics = usageMetrics
 		tenants = append(tenants, tenant)
 	}
 	return tenants, rows.Err()
@@ -459,6 +470,7 @@ ON CONFLICT (tenant_id, code) DO NOTHING`, tenant.ID, input.InitialSchoolCode, i
 	if tenant.SubscriptionStatus == subscriptionStatusTrial {
 		tenant.TrialEndsAt = time.Now().UTC().Add(30 * 24 * time.Hour).Format("2006-01-02")
 	}
+	tenant.UsageMetrics = []tenantUsageMetricSummary{}
 	return tenant, nil
 }
 

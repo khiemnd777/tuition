@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -358,6 +359,11 @@ func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	if err := assignAdminUserRoles(r.Context(), db, input, tenantID); err != nil {
+		var usageErr *tenantUsageLimitError
+		if errors.As(err, &usageErr) {
+			http.Error(w, usageErr.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, "cannot assign user roles", http.StatusInternalServerError)
 		return
 	}
@@ -1100,6 +1106,15 @@ func assignAdminUserRoles(ctx context.Context, db *sql.DB, input adminUserRoleIn
 	}
 	defer tx.Rollback()
 
+	hadRoles, err := tenantUserHasAssignedRoles(ctx, tx, tenantID, input.UserID)
+	if err != nil {
+		return err
+	}
+	if !hadRoles && len(input.RoleCodes) > 0 {
+		if err := enforceTenantUsageLimit(ctx, tx, tenantID, subscriptionMetricOperators, 1, time.Now()); err != nil {
+			return err
+		}
+	}
 	if err := ensureTenantMembership(ctx, tx, tenantID, input.UserID, false); err != nil {
 		return err
 	}
@@ -1120,7 +1135,22 @@ ON CONFLICT (tenant_id, user_id, role_id) DO NOTHING`,
 			return err
 		}
 	}
+	if err := rebuildTenantUsageCounter(ctx, tx, tenantID, subscriptionMetricOperators, time.Now()); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+func tenantUserHasAssignedRoles(ctx context.Context, exec masterDataExecutor, tenantID string, userID string) (bool, error) {
+	var hasRoles bool
+	err := exec.QueryRowContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM tenant_user_roles
+	WHERE tenant_id = $1::uuid
+		AND user_id = $2::uuid
+)`, tenantID, userID).Scan(&hasRoles)
+	return hasRoles, err
 }
 
 func normalizeAdminRoleCodes(values []string) []string {

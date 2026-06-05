@@ -660,6 +660,39 @@ func TestLoadEmbeddedMigrationsIncludesTenantSubscriptionBilling(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesTenantUsageEntitlements(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var migrationItem migration
+	for _, item := range migrations {
+		if item.Version == "0021" {
+			migrationItem = item
+			break
+		}
+	}
+	if migrationItem.Name != "tenant_usage_entitlements" {
+		t.Fatalf("expected tenant usage entitlements migration 0021, got %+v", migrationItem)
+	}
+
+	for _, want := range []string{
+		"CREATE TABLE IF NOT EXISTS tenant_usage_counters",
+		"'schools'",
+		"'operators'",
+		"'students'",
+		"'monthly_notifications'",
+		`"students":200`,
+		`"monthly_notifications":10000`,
+		"tenant_usage_counters_metric_idx",
+	} {
+		if !strings.Contains(migrationItem.SQL, want) {
+			t.Fatalf("expected tenant usage entitlements migration to contain %q", want)
+		}
+	}
+}
+
 func TestRunMigrationsAppliesOnlyPendingMigrations(t *testing.T) {
 	sqlText := "CREATE TABLE app_users (id uuid PRIMARY KEY);"
 	migrations := []migration{{

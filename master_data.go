@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -309,6 +310,11 @@ func handleMasterDataStudentSave(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, saveErr.Message, saveErr.Status)
 			return
 		}
+		var usageErr *tenantUsageLimitError
+		if errors.As(err, &usageErr) {
+			http.Error(w, usageErr.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, "cannot save student", http.StatusInternalServerError)
 		return
 	}
@@ -343,6 +349,11 @@ func handleMasterDataImportCSV(w http.ResponseWriter, r *http.Request) {
 	apply := parseBoolWithDefault(r.URL.Query().Get("apply"), false)
 	response, err := importMasterDataRows(r.Context(), db, rows, apply, tenantID)
 	if err != nil {
+		var usageErr *tenantUsageLimitError
+		if errors.As(err, &usageErr) {
+			http.Error(w, usageErr.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, "cannot import master data", http.StatusInternalServerError)
 		return
 	}
@@ -948,7 +959,23 @@ func importMasterDataRows(ctx context.Context, db *sql.DB, rows []masterDataImpo
 			response.Applied = false
 			return response, err
 		}
+		usageDelta, err := masterDataImportUsageDelta(ctx, tx, rows, tenantID)
+		if err != nil {
+			return masterDataImportResponse{}, err
+		}
+		if err := enforceTenantUsageLimit(ctx, tx, tenantID, subscriptionMetricSchools, usageDelta[subscriptionMetricSchools], time.Now()); err != nil {
+			return masterDataImportResponse{}, err
+		}
+		if err := enforceTenantUsageLimit(ctx, tx, tenantID, subscriptionMetricStudents, usageDelta[subscriptionMetricStudents], time.Now()); err != nil {
+			return masterDataImportResponse{}, err
+		}
 		if err := applyMasterDataImportRows(ctx, tx, rows, tenantID); err != nil {
+			return masterDataImportResponse{}, err
+		}
+		if err := rebuildTenantUsageCounter(ctx, tx, tenantID, subscriptionMetricSchools, time.Now()); err != nil {
+			return masterDataImportResponse{}, err
+		}
+		if err := rebuildTenantUsageCounter(ctx, tx, tenantID, subscriptionMetricStudents, time.Now()); err != nil {
 			return masterDataImportResponse{}, err
 		}
 		options, err := listMasterDataOptionsTx(ctx, tx, tenantID)
@@ -1138,6 +1165,68 @@ func classifyMasterDataImportRow(ctx context.Context, exec masterDataExecutor, r
 	return "unchanged", issues, nil
 }
 
+func masterDataImportUsageDelta(ctx context.Context, exec masterDataExecutor, rows []masterDataImportRow, tenantID string) (map[string]int, error) {
+	schoolCodes := []string{}
+	studentCodes := []string{}
+	schoolSeen := map[string]bool{}
+	studentSeen := map[string]bool{}
+	for _, row := range rows {
+		schoolCode := schoolCodeOrDefault(row.SchoolCode)
+		if schoolCode != "" && !schoolSeen[schoolCode] {
+			schoolSeen[schoolCode] = true
+			schoolCodes = append(schoolCodes, schoolCode)
+		}
+		if row.StudentCode != "" && !studentSeen[row.StudentCode] {
+			studentSeen[row.StudentCode] = true
+			studentCodes = append(studentCodes, row.StudentCode)
+		}
+	}
+	existingSchools, err := masterDataExistingCodeSet(ctx, exec, tenantID, "schools", "code", schoolCodes)
+	if err != nil {
+		return nil, err
+	}
+	existingStudents, err := masterDataExistingCodeSet(ctx, exec, tenantID, "students", "student_code", studentCodes)
+	if err != nil {
+		return nil, err
+	}
+	delta := map[string]int{
+		subscriptionMetricSchools:  0,
+		subscriptionMetricStudents: 0,
+	}
+	for _, code := range schoolCodes {
+		if !existingSchools[code] {
+			delta[subscriptionMetricSchools]++
+		}
+	}
+	for _, code := range studentCodes {
+		if !existingStudents[code] {
+			delta[subscriptionMetricStudents]++
+		}
+	}
+	return delta, nil
+}
+
+func masterDataExistingCodeSet(ctx context.Context, exec masterDataExecutor, tenantID string, tableName string, columnName string, codes []string) (map[string]bool, error) {
+	result := map[string]bool{}
+	if len(codes) == 0 {
+		return result, nil
+	}
+	query := fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid AND %s = ANY($2)`, columnName, tableName, columnName)
+	rows, err := exec.QueryContext(ctx, query, tenantID, codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		result[code] = true
+	}
+	return result, rows.Err()
+}
+
 func applyMasterDataImportRows(ctx context.Context, exec masterDataExecutor, rows []masterDataImportRow, tenantID string) error {
 	for _, row := range rows {
 		schoolYearID, err := ensureMasterDataSchoolYear(ctx, exec, row.SchoolCode, row.SchoolYearCode, tenantID)
@@ -1225,6 +1314,9 @@ RETURNING id::text`,
 			return masterDataStudent{}, err
 		}
 	} else {
+		if err := enforceTenantUsageLimit(ctx, tx, tenantID, subscriptionMetricStudents, 1, time.Now()); err != nil {
+			return masterDataStudent{}, err
+		}
 		err = tx.QueryRowContext(ctx, `
 INSERT INTO students (tenant_id, student_code, full_name, class_id, status, created_by_user_id, updated_by_user_id)
 VALUES ($1::uuid, $2, $3, $4::uuid, $5, nullif($6, '')::uuid, nullif($6, '')::uuid)
@@ -1267,6 +1359,9 @@ SET relationship = EXCLUDED.relationship,
 
 	saved, err := getMasterDataStudentByID(ctx, tx, studentID, tenantID)
 	if err != nil {
+		return masterDataStudent{}, err
+	}
+	if err := rebuildTenantUsageCounter(ctx, tx, tenantID, subscriptionMetricStudents, time.Now()); err != nil {
 		return masterDataStudent{}, err
 	}
 	return saved, tx.Commit()
