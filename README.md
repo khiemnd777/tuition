@@ -17,7 +17,7 @@ Nếu cổng mặc định đang bận, có thể chạy bằng `PORT=18081 go r
 Stack Docker local gồm 4 service: `api`, `admin`, `postgres`, và `redis`.
 
 ```sh
-cp .env.docker.example .env
+cp .env.example .env
 docker compose up --build
 ```
 
