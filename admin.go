@@ -269,6 +269,31 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func handlePlatformUsers(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok || !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	users, roles, permissions, err := loadPlatformUsersAndRoles(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load platform users and roles", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, adminUsersResponse{
+		Users:       users,
+		Roles:       roles,
+		Permissions: permissions,
+	})
+}
+
 func handleAdminRoles(w http.ResponseWriter, r *http.Request) {
 	tenantID := activeTenantIDFromRequest(r)
 	if tenantID == "" {
@@ -285,6 +310,27 @@ func handleAdminRoles(w http.ResponseWriter, r *http.Request) {
 	_, roles, permissions, err := loadAdminUsersAndRoles(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load roles", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"roles": roles, "permissions": permissions})
+}
+
+func handlePlatformRoles(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok || !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	_, roles, permissions, err := loadPlatformUsersAndRoles(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot load platform roles", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"roles": roles, "permissions": permissions})
@@ -327,6 +373,46 @@ func handleAdminUserSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+func handlePlatformUserSave(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok || !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input adminUserSaveInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	if err := validateAdminUserSaveInput(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	permission := "user.create"
+	if input.ID != "" {
+		permission = "user.update"
+	}
+	if !authenticatedUserHasPermission(user, permission) {
+		http.Error(w, "missing required API permission: "+permission, http.StatusForbidden)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	saved, err := saveAdminUser(r.Context(), db, input, "")
+	if err != nil {
+		http.Error(w, "cannot save platform user", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": saved})
 }
 
 func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
@@ -375,6 +461,54 @@ func handleAdminUserRoles(w http.ResponseWriter, r *http.Request) {
 	for _, user := range users {
 		if user.ID == input.UserID {
 			writeJSON(w, http.StatusOK, map[string]any{"user": user})
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"userId": input.UserID})
+}
+
+func handlePlatformUserRoles(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok || !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
+	if !authenticatedUserHasPermission(user, "user.assign_role") {
+		http.Error(w, "missing required API permission: user.assign_role", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input adminUserRoleInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input.UserID = strings.TrimSpace(input.UserID)
+	input.RoleCodes = normalizePlatformRoleCodes(input.RoleCodes)
+	if input.UserID == "" {
+		http.Error(w, "userId is required", http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	if err := assignPlatformUserRoles(r.Context(), db, input); err != nil {
+		http.Error(w, "cannot assign platform user roles", http.StatusInternalServerError)
+		return
+	}
+	users, _, _, err := loadPlatformUsersAndRoles(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot reload platform users", http.StatusInternalServerError)
+		return
+	}
+	for _, platformUser := range users {
+		if platformUser.ID == input.UserID {
+			writeJSON(w, http.StatusOK, map[string]any{"user": platformUser})
 			return
 		}
 	}
@@ -789,6 +923,22 @@ func loadAdminUsersAndRoles(ctx context.Context, db *sql.DB, tenantID string) ([
 	return users, roles, permissions, nil
 }
 
+func loadPlatformUsersAndRoles(ctx context.Context, db *sql.DB) ([]adminUserSummary, []adminRoleSummary, []adminPermissionSummary, error) {
+	permissions, err := listAdminPermissions(ctx, db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	roles, err := listPlatformRoles(ctx, db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	users, err := listPlatformUsers(ctx, db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return users, roles, permissions, nil
+}
+
 func listAdminPermissions(ctx context.Context, db *sql.DB) ([]adminPermissionSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT id::text, code, description
@@ -826,11 +976,12 @@ SELECT r.id::text,
 FROM app_roles r
 LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
 LEFT JOIN app_permissions p ON p.id = rp.permission_id
-WHERE r.code IN ('admin', 'staff', 'accountant')
+WHERE r.code IN ('tenant_owner', 'tenant_admin', 'tenant_staff', 'tenant_accountant')
 ORDER BY CASE r.code
-	WHEN 'admin' THEN 1
-	WHEN 'staff' THEN 2
-	WHEN 'accountant' THEN 3
+	WHEN 'tenant_owner' THEN 1
+	WHEN 'tenant_admin' THEN 2
+	WHEN 'tenant_staff' THEN 3
+	WHEN 'tenant_accountant' THEN 4
 	ELSE 99
 END, p.code`)
 	if err != nil {
@@ -878,6 +1029,66 @@ END, p.code`)
 	return roles, nil
 }
 
+func listPlatformRoles(ctx context.Context, db *sql.DB) ([]adminRoleSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT r.id::text,
+	r.code,
+	r.name,
+	r.description,
+	r.is_system,
+	COALESCE(p.id::text, ''),
+	COALESCE(p.code, ''),
+	COALESCE(p.description, '')
+FROM app_roles r
+LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
+LEFT JOIN app_permissions p ON p.id = rp.permission_id
+WHERE r.code IN ('platform_admin')
+ORDER BY r.code, p.code`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	roleOrder := []string{}
+	roleByID := map[string]*adminRoleSummary{}
+	for rows.Next() {
+		var roleID string
+		var role adminRoleSummary
+		var permission adminPermissionSummary
+		if err := rows.Scan(
+			&roleID,
+			&role.Code,
+			&role.Name,
+			&role.Description,
+			&role.IsSystem,
+			&permission.ID,
+			&permission.Code,
+			&permission.Description,
+		); err != nil {
+			return nil, err
+		}
+		existing := roleByID[roleID]
+		if existing == nil {
+			role.ID = roleID
+			role.Permissions = []adminPermissionSummary{}
+			existing = &role
+			roleByID[roleID] = existing
+			roleOrder = append(roleOrder, roleID)
+		}
+		if permission.Code != "" && isCanonicalAdminPermissionCode(permission.Code) {
+			existing.Permissions = append(existing.Permissions, permission)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	roles := make([]adminRoleSummary, 0, len(roleOrder))
+	for _, roleID := range roleOrder {
+		roles = append(roles, *roleByID[roleID])
+	}
+	return roles, nil
+}
+
 func listAdminUsers(ctx context.Context, db *sql.DB, tenantID string) ([]adminUserSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT u.id::text,
@@ -898,6 +1109,7 @@ FROM tenant_memberships membership
 JOIN app_users u ON u.id = membership.user_id
 LEFT JOIN tenant_user_roles ur ON ur.user_id = u.id AND ur.tenant_id = membership.tenant_id
 LEFT JOIN app_roles r ON r.id = ur.role_id
+	AND r.code IN ('tenant_owner', 'tenant_admin', 'tenant_staff', 'tenant_accountant')
 WHERE membership.tenant_id = $1::uuid
 	AND membership.status <> 'removed'
 ORDER BY lower(u.email), r.code`, tenantID)
@@ -939,6 +1151,82 @@ ORDER BY lower(u.email), r.code`, tenantID)
 				user.LastLoginAt = lastLogin.Time.Format(time.RFC3339)
 			}
 			existing = &user
+			userByID[userID] = existing
+			userOrder = append(userOrder, userID)
+		}
+		if role.Code != "" {
+			existing.Roles = append(existing.Roles, role)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	users := make([]adminUserSummary, 0, len(userOrder))
+	for _, userID := range userOrder {
+		users = append(users, *userByID[userID])
+	}
+	return users, nil
+}
+
+func listPlatformUsers(ctx context.Context, db *sql.DB) ([]adminUserSummary, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT u.id::text,
+	COALESCE(u.email, ''),
+	u.phone,
+	u.display_name,
+	u.status,
+	u.password_hash <> '',
+	u.last_login_at,
+	u.created_at,
+	u.updated_at,
+	COALESCE(r.id::text, ''),
+	COALESCE(r.code, ''),
+	COALESCE(r.name, ''),
+	COALESCE(r.description, ''),
+	COALESCE(r.is_system, false)
+FROM app_users u
+LEFT JOIN app_user_roles ur ON ur.user_id = u.id
+LEFT JOIN app_roles r ON r.id = ur.role_id
+	AND r.code IN ('platform_admin')
+ORDER BY lower(COALESCE(u.email, '')), u.phone, r.code`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	userOrder := []string{}
+	userByID := map[string]*adminUserSummary{}
+	for rows.Next() {
+		var userID string
+		var platformUser adminUserSummary
+		var lastLogin sql.NullTime
+		var role adminRoleSummary
+		if err := rows.Scan(
+			&userID,
+			&platformUser.Email,
+			&platformUser.Phone,
+			&platformUser.DisplayName,
+			&platformUser.Status,
+			&platformUser.HasPassword,
+			&lastLogin,
+			&platformUser.CreatedAt,
+			&platformUser.UpdatedAt,
+			&role.ID,
+			&role.Code,
+			&role.Name,
+			&role.Description,
+			&role.IsSystem,
+		); err != nil {
+			return nil, err
+		}
+		existing := userByID[userID]
+		if existing == nil {
+			platformUser.ID = userID
+			platformUser.Roles = []adminRoleSummary{}
+			if lastLogin.Valid {
+				platformUser.LastLoginAt = lastLogin.Time.Format(time.RFC3339)
+			}
+			existing = &platformUser
 			userByID[userID] = existing
 			userOrder = append(userOrder, userID)
 		}
@@ -1065,8 +1353,10 @@ RETURNING id::text, COALESCE(email, ''), phone, display_name, status, password_h
 		if err != nil {
 			return adminUserSummary{}, err
 		}
-		if err := ensureTenantMembership(ctx, db, tenantID, user.ID, false); err != nil {
-			return adminUserSummary{}, err
+		if tenantID != "" {
+			if err := ensureTenantMembership(ctx, db, tenantID, user.ID, false); err != nil {
+				return adminUserSummary{}, err
+			}
 		}
 		user.Roles = []adminRoleSummary{}
 		return user, nil
@@ -1092,8 +1382,10 @@ RETURNING id::text, COALESCE(email, ''), phone, display_name, status, password_h
 	if err != nil {
 		return adminUserSummary{}, err
 	}
-	if err := ensureTenantMembership(ctx, db, tenantID, user.ID, false); err != nil {
-		return adminUserSummary{}, err
+	if tenantID != "" {
+		if err := ensureTenantMembership(ctx, db, tenantID, user.ID, false); err != nil {
+			return adminUserSummary{}, err
+		}
 	}
 	user.Roles = []adminRoleSummary{}
 	return user, nil
@@ -1168,13 +1460,58 @@ func normalizeAdminRoleCodes(values []string) []string {
 	return normalized
 }
 
+func normalizePlatformRoleCodes(values []string) []string {
+	seen := map[string]bool{}
+	normalized := []string{}
+	for _, value := range values {
+		code := headerKey(value)
+		if code == "" || seen[code] || !isCanonicalPlatformRoleCode(code) {
+			continue
+		}
+		seen[code] = true
+		normalized = append(normalized, code)
+	}
+	sort.Strings(normalized)
+	return normalized
+}
+
 func isCanonicalAdminRoleCode(code string) bool {
 	switch code {
-	case "admin", "staff", "accountant":
+	case "tenant_owner", "tenant_admin", "tenant_staff", "tenant_accountant":
 		return true
 	default:
 		return false
 	}
+}
+
+func isCanonicalPlatformRoleCode(code string) bool {
+	return code == "platform_admin"
+}
+
+func assignPlatformUserRoles(ctx context.Context, db *sql.DB, input adminUserRoleInput) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM app_user_roles WHERE user_id = $1::uuid`, input.UserID); err != nil {
+		return err
+	}
+	for _, roleCode := range input.RoleCodes {
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO app_user_roles (user_id, role_id)
+SELECT $1::uuid, id
+FROM app_roles
+WHERE code = $2
+ON CONFLICT (user_id, role_id) DO NOTHING`,
+			input.UserID,
+			roleCode,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func isCanonicalAdminPermissionCode(code string) bool {

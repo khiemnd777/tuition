@@ -390,6 +390,13 @@ textarea:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
+.login-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 18px 18px 0;
+}
+
 .login-form {
   display: grid;
   gap: 14px;
@@ -424,6 +431,15 @@ textarea:focus-visible {
 
 .login-status[data-tone="error"] {
   color: var(--red);
+}
+
+.tenant-onboarding-banner {
+  margin-bottom: 16px;
+}
+
+.tenant-onboarding-banner p {
+  margin: 0;
+  color: var(--ink-soft);
 }
 
 .app-sidebar {

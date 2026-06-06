@@ -71,10 +71,7 @@ func handleSubscriptionAutomationStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	scope, ok := resolveSubscriptionFinanceScope(w, r, user, activeTenantID)
 	if !ok {
 		return
@@ -100,10 +97,7 @@ func handleSubscriptionAutomationRun(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input subscriptionBatchRunInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {

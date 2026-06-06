@@ -79,27 +79,29 @@ type paymentIntentResponse struct {
 }
 
 type paymentTransactionSummary struct {
-	ID                    string    `json:"id"`
-	ProviderCode          string    `json:"provider"`
-	ProviderTransactionID string    `json:"providerTransactionId"`
-	InvoiceID             string    `json:"invoiceId,omitempty"`
-	InvoiceCode           string    `json:"invoiceCode,omitempty"`
-	StudentCode           string    `json:"studentCode,omitempty"`
-	StudentName           string    `json:"studentName,omitempty"`
-	Direction             string    `json:"direction"`
-	Amount                int       `json:"amount"`
-	Currency              string    `json:"currency"`
-	TransactionTime       time.Time `json:"transactionTime"`
-	AccountNumber         string    `json:"accountNumber,omitempty"`
-	BankName              string    `json:"bankName,omitempty"`
-	Description           string    `json:"description,omitempty"`
-	ReferenceCode         string    `json:"referenceCode,omitempty"`
-	Status                string    `json:"status"`
-	MatchType             string    `json:"matchType,omitempty"`
-	MatchStatus           string    `json:"matchStatus,omitempty"`
-	MatchScore            int       `json:"matchScore,omitempty"`
-	AmountApplied         int       `json:"amountApplied,omitempty"`
-	MatchReason           string    `json:"matchReason,omitempty"`
+	ID                      string    `json:"id"`
+	ProviderCode            string    `json:"provider"`
+	ProviderTransactionID   string    `json:"providerTransactionId"`
+	InvoiceID               string    `json:"invoiceId,omitempty"`
+	InvoiceCode             string    `json:"invoiceCode,omitempty"`
+	SubscriptionInvoiceID   string    `json:"subscriptionInvoiceId,omitempty"`
+	SubscriptionInvoiceCode string    `json:"subscriptionInvoiceCode,omitempty"`
+	StudentCode             string    `json:"studentCode,omitempty"`
+	StudentName             string    `json:"studentName,omitempty"`
+	Direction               string    `json:"direction"`
+	Amount                  int       `json:"amount"`
+	Currency                string    `json:"currency"`
+	TransactionTime         time.Time `json:"transactionTime"`
+	AccountNumber           string    `json:"accountNumber,omitempty"`
+	BankName                string    `json:"bankName,omitempty"`
+	Description             string    `json:"description,omitempty"`
+	ReferenceCode           string    `json:"referenceCode,omitempty"`
+	Status                  string    `json:"status"`
+	MatchType               string    `json:"matchType,omitempty"`
+	MatchStatus             string    `json:"matchStatus,omitempty"`
+	MatchScore              int       `json:"matchScore,omitempty"`
+	AmountApplied           int       `json:"amountApplied,omitempty"`
+	MatchReason             string    `json:"matchReason,omitempty"`
 }
 
 type paymentReconciliationSummary struct {
@@ -163,6 +165,7 @@ type normalizedPaymentTransaction struct {
 	ProviderEventID       string
 	PaymentIntentID       string
 	InvoiceID             string
+	SubscriptionInvoiceID string
 	Direction             string
 	Amount                int
 	Currency              string
@@ -200,6 +203,15 @@ type paymentMatchCandidate struct {
 	MatchType     string
 	AmountApplied int
 	Reason        string
+}
+
+type subscriptionPaymentCandidate struct {
+	ID                string
+	InvoiceCode       string
+	Status            string
+	Amount            int
+	PaidAt            string
+	ProviderReference string
 }
 
 type invoicePaymentStatusRefresh struct {
@@ -907,6 +919,8 @@ SELECT pt.id::text,
 	pt.provider_transaction_id,
 	COALESCE(pt.invoice_id::text, ''),
 	COALESCE(i.invoice_code, ''),
+	COALESCE(pt.subscription_invoice_id::text, ''),
+	COALESCE(si.invoice_code, ''),
 	COALESCE(i.student_code, ''),
 	COALESCE(i.student_name, ''),
 	pt.direction,
@@ -926,6 +940,7 @@ SELECT pt.id::text,
 FROM payment_transactions pt
 JOIN payment_providers pp ON pp.id = pt.provider_id
 LEFT JOIN invoices i ON i.id = pt.invoice_id
+LEFT JOIN subscription_invoices si ON si.id = pt.subscription_invoice_id
 LEFT JOIN LATERAL (
 	SELECT rm.match_type, rm.status, rm.score, rm.amount_applied, rm.reason
 	FROM reconciliation_matches rm
@@ -953,6 +968,8 @@ LIMIT ` + limitArg
 			&item.ProviderTransactionID,
 			&item.InvoiceID,
 			&item.InvoiceCode,
+			&item.SubscriptionInvoiceID,
+			&item.SubscriptionInvoiceCode,
 			&item.StudentCode,
 			&item.StudentName,
 			&item.Direction,
@@ -1218,15 +1235,15 @@ func insertPaymentTransaction(ctx context.Context, exec masterDataExecutor, prov
 	var item insertedPaymentTransaction
 	err = exec.QueryRowContext(ctx, `
 WITH inserted AS (
-	INSERT INTO payment_transactions (
-		provider_id, provider_event_id, payment_intent_id, invoice_id, provider_transaction_id,
+		INSERT INTO payment_transactions (
+		provider_id, provider_event_id, payment_intent_id, invoice_id, subscription_invoice_id, provider_transaction_id,
 		direction, amount, currency, transaction_time, account_number, account_name,
 		bank_bin, bank_name, description, reference_code, status, raw_payload
 	)
 	VALUES (
-		$1::uuid, nullif($2, '')::uuid, nullif($3, '')::uuid, nullif($4, '')::uuid, $5,
-		$6, $7, $8, $9, $10, $11,
-		$12, $13, $14, $15, $16, $17::jsonb
+		$1::uuid, nullif($2, '')::uuid, nullif($3, '')::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6,
+		$7, $8, $9, $10, $11, $12,
+		$13, $14, $15, $16, $17, $18::jsonb
 	)
 	ON CONFLICT (provider_id, provider_transaction_id) WHERE provider_transaction_id <> '' DO NOTHING
 	RETURNING id::text, false AS duplicate
@@ -1242,6 +1259,7 @@ LIMIT 1`,
 		normalized.ProviderEventID,
 		normalized.PaymentIntentID,
 		normalized.InvoiceID,
+		normalized.SubscriptionInvoiceID,
 		normalized.ProviderTransactionID,
 		firstNonEmpty(normalized.Direction, paymentDirectionIn),
 		normalized.Amount,
@@ -1289,12 +1307,15 @@ SELECT pt.id::text,
 FROM payment_transactions pt
 JOIN payment_providers pp ON pp.id = pt.provider_id
 LEFT JOIN invoices i ON i.id = pt.invoice_id
+LEFT JOIN subscription_invoices si ON si.id = pt.subscription_invoice_id
 WHERE pt.id = $1::uuid`, transactionID).Scan(
 		&item.ID,
 		&item.ProviderCode,
 		&item.ProviderTransactionID,
 		&item.InvoiceID,
 		&item.InvoiceCode,
+		&item.SubscriptionInvoiceID,
+		&item.SubscriptionInvoiceCode,
 		&item.StudentCode,
 		&item.StudentName,
 		&item.Direction,
@@ -1311,7 +1332,7 @@ WHERE pt.id = $1::uuid`, transactionID).Scan(
 }
 
 func reconcilePaymentTransaction(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary, tenantID string) (*paymentMatchCandidate, invoicePaymentStatusRefresh, error) {
-	if transaction.Status == paymentTransactionStatusMatched && transaction.InvoiceID != "" {
+	if transaction.Status == paymentTransactionStatusMatched && (transaction.InvoiceID != "" || transaction.SubscriptionInvoiceID != "") {
 		return nil, invoicePaymentStatusRefresh{}, nil
 	}
 	candidates, err := loadPaymentInvoiceCandidates(ctx, exec, transaction, tenantID)
@@ -1320,7 +1341,14 @@ func reconcilePaymentTransaction(ctx context.Context, exec masterDataExecutor, t
 	}
 	match, ok := matchPaymentTransactionToInvoices(transaction, candidates)
 	if !ok {
-		_, err := exec.ExecContext(ctx, `
+		subscriptionMatched, err := reconcileSubscriptionPaymentTransaction(ctx, exec, transaction, tenantID)
+		if err != nil {
+			return nil, invoicePaymentStatusRefresh{}, err
+		}
+		if subscriptionMatched {
+			return nil, invoicePaymentStatusRefresh{}, nil
+		}
+		_, err = exec.ExecContext(ctx, `
 UPDATE payment_transactions
 SET status = $2
 WHERE id = $1::uuid
@@ -1539,6 +1567,90 @@ WHERE id = $1::uuid`,
 		return refresh, insertInvoiceStatusHistory(ctx, exec, invoiceID, oldStatus, newStatus, reason)
 	}
 	return refresh, nil
+}
+
+func reconcileSubscriptionPaymentTransaction(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary, tenantID string) (bool, error) {
+	candidates, err := loadSubscriptionPaymentCandidates(ctx, exec, transaction, tenantID)
+	if err != nil {
+		return false, err
+	}
+	candidate, ok := matchPaymentTransactionToSubscriptionInvoices(transaction, candidates)
+	if !ok {
+		return false, nil
+	}
+	if _, err := exec.ExecContext(ctx, `
+UPDATE payment_transactions
+SET subscription_invoice_id = $2::uuid,
+	status = $3
+WHERE id = $1::uuid`,
+		transaction.ID,
+		candidate.ID,
+		paymentTransactionStatusMatched,
+	); err != nil {
+		return false, err
+	}
+	if err := autoConfirmSubscriptionInvoicePaid(ctx, exec, candidate.ID, transaction, "provider webhook auto-confirm"); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func loadSubscriptionPaymentCandidates(ctx context.Context, exec masterDataExecutor, transaction paymentTransactionSummary, tenantID string) ([]subscriptionPaymentCandidate, error) {
+	rows, err := exec.QueryContext(ctx, `
+SELECT i.id::text,
+	i.invoice_code,
+	i.status,
+	i.amount,
+	COALESCE(i.paid_at::text, ''),
+	COALESCE(i.metadata->>'provider_reference', '')
+FROM subscription_invoices i
+WHERE i.tenant_id = $1::uuid
+	AND i.status IN ('open', 'past_due')
+ORDER BY i.created_at DESC
+LIMIT 100`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []subscriptionPaymentCandidate{}
+	for rows.Next() {
+		var item subscriptionPaymentCandidate
+		if err := rows.Scan(
+			&item.ID,
+			&item.InvoiceCode,
+			&item.Status,
+			&item.Amount,
+			&item.PaidAt,
+			&item.ProviderReference,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func matchPaymentTransactionToSubscriptionInvoices(transaction paymentTransactionSummary, candidates []subscriptionPaymentCandidate) (subscriptionPaymentCandidate, bool) {
+	if transaction.Amount <= 0 || transaction.Direction != paymentDirectionIn {
+		return subscriptionPaymentCandidate{}, false
+	}
+	referenceBlob := normalizedPaymentReference(strings.Join(nonEmptyStrings(
+		transaction.ProviderTransactionID,
+		transaction.ReferenceCode,
+		transaction.Description,
+	), " "))
+	for _, candidate := range candidates {
+		if candidate.Amount != transaction.Amount {
+			continue
+		}
+		if containsPaymentReference(referenceBlob, candidate.InvoiceCode) {
+			return candidate, true
+		}
+		if candidate.ProviderReference != "" && containsPaymentReference(referenceBlob, candidate.ProviderReference) {
+			return candidate, true
+		}
+	}
+	return subscriptionPaymentCandidate{}, false
 }
 
 func recordManualCashReceipt(ctx context.Context, db *sql.DB, input manualCashReceiptRequest, tenantID string, auditCtx requestAuditContext) (manualCashReceiptResponse, error) {

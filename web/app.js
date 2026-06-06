@@ -287,6 +287,23 @@ const adminUserCountEl = document.querySelector("#adminUserCount");
 const adminUserRowsEl = document.querySelector("#adminUserRows");
 const adminRoleCountEl = document.querySelector("#adminRoleCount");
 const adminRoleListEl = document.querySelector("#adminRoleList");
+const platformUsersStatusEl = document.querySelector("#platformUsersStatus");
+const refreshPlatformUsersBtn = document.querySelector("#refreshPlatformUsers");
+const newPlatformUserBtn = document.querySelector("#newPlatformUser");
+const platformUserIdEl = document.querySelector("#platformUserId");
+const platformUserEmailEl = document.querySelector("#platformUserEmail");
+const platformUserPhoneEl = document.querySelector("#platformUserPhone");
+const platformUserDisplayNameEl = document.querySelector("#platformUserDisplayName");
+const platformUserStatusEl = document.querySelector("#platformUserStatus");
+const platformUserPasswordEl = document.querySelector("#platformUserPassword");
+const platformUserRolesEl = document.querySelector("#platformUserRoles");
+const clearPlatformUserBtn = document.querySelector("#clearPlatformUser");
+const savePlatformUserBtn = document.querySelector("#savePlatformUser");
+const assignPlatformUserRolesBtn = document.querySelector("#assignPlatformUserRoles");
+const platformUserCountEl = document.querySelector("#platformUserCount");
+const platformUserRowsEl = document.querySelector("#platformUserRows");
+const platformRoleCountEl = document.querySelector("#platformRoleCount");
+const platformRoleListEl = document.querySelector("#platformRoleList");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 const legacyPaymentActionsEl = document.querySelector(".legacy-payment-actions");
@@ -305,6 +322,8 @@ const loginEmailEl = document.querySelector("#loginEmail");
 const loginPasswordEl = document.querySelector("#loginPassword");
 const loginSubmitBtn = document.querySelector("#loginSubmit");
 const loginStatusEl = document.querySelector("#loginStatus");
+const showLoginModeBtn = document.querySelector("#showLoginMode");
+const showSignupModeBtn = document.querySelector("#showSignupMode");
 const bootstrapFormEl = document.querySelector("#bootstrapForm");
 const bootstrapDisplayNameEl = document.querySelector("#bootstrapDisplayName");
 const bootstrapEmailEl = document.querySelector("#bootstrapEmail");
@@ -313,6 +332,31 @@ const bootstrapPasswordEl = document.querySelector("#bootstrapPassword");
 const bootstrapPasswordConfirmEl = document.querySelector("#bootstrapPasswordConfirm");
 const bootstrapSubmitBtn = document.querySelector("#bootstrapSubmit");
 const bootstrapStatusEl = document.querySelector("#bootstrapStatus");
+const signupFormEl = document.querySelector("#signupForm");
+const signupTenantNameEl = document.querySelector("#signupTenantName");
+const signupTenantCodeEl = document.querySelector("#signupTenantCode");
+const signupSchoolNameEl = document.querySelector("#signupSchoolName");
+const signupSchoolCodeEl = document.querySelector("#signupSchoolCode");
+const signupOwnerDisplayNameEl = document.querySelector("#signupOwnerDisplayName");
+const signupOwnerEmailEl = document.querySelector("#signupOwnerEmail");
+const signupOwnerPhoneEl = document.querySelector("#signupOwnerPhone");
+const signupPasswordEl = document.querySelector("#signupPassword");
+const signupPasswordConfirmEl = document.querySelector("#signupPasswordConfirm");
+const signupSubmitBtn = document.querySelector("#signupSubmit");
+const signupStatusEl = document.querySelector("#signupStatus");
+const tenantOnboardingBannerEl = document.querySelector("#tenantOnboardingBanner");
+const refreshSubscriptionPurchaseBtn = document.querySelector("#refreshSubscriptionPurchase");
+const subscriptionPurchaseStatusEl = document.querySelector("#subscriptionPurchaseStatus");
+const subscriptionPurchaseSummaryEl = document.querySelector("#subscriptionPurchaseSummary");
+const subscriptionPurchasePlanEl = document.querySelector("#subscriptionPurchasePlan");
+const subscriptionPurchaseProviderEl = document.querySelector("#subscriptionPurchaseProvider");
+const subscriptionPurchasePeriodStartEl = document.querySelector("#subscriptionPurchasePeriodStart");
+const subscriptionPurchasePeriodEndEl = document.querySelector("#subscriptionPurchasePeriodEnd");
+const subscriptionPurchaseDueAtEl = document.querySelector("#subscriptionPurchaseDueAt");
+const subscriptionPurchaseAmountEl = document.querySelector("#subscriptionPurchaseAmount");
+const startSubscriptionCheckoutBtn = document.querySelector("#startSubscriptionCheckout");
+const subscriptionCheckoutResultEl = document.querySelector("#subscriptionCheckoutResult");
+const subscriptionPurchaseInvoicesEl = document.querySelector("#subscriptionPurchaseInvoices");
 const authUserBadgeEl = document.querySelector("#authUserBadge");
 const tenantSwitcherWrapEl = document.querySelector("#tenantSwitcherWrap");
 const tenantSwitcherEl = document.querySelector("#tenantSwitcher");
@@ -385,6 +429,8 @@ const runSubscriptionAutomationBtn = document.querySelector("#runSubscriptionAut
 const subscriptionFinanceConsoleSummaryEl = document.querySelector("#subscriptionFinanceConsoleSummary");
 const subscriptionAutomationSummaryEl = document.querySelector("#subscriptionAutomationSummary");
 const subscriptionFinanceConsoleListEl = document.querySelector("#subscriptionFinanceConsoleList");
+const platformEntitlementSummaryEl = document.querySelector("#platformEntitlementSummary");
+const platformEntitlementRowsEl = document.querySelector("#platformEntitlementRows");
 const subscriptionFinanceScopeEl = document.querySelector("#subscriptionFinanceScope");
 const subscriptionFinanceQueryEl = document.querySelector("#subscriptionFinanceQuery");
 const subscriptionFinanceSubscriptionStatusEl = document.querySelector("#subscriptionFinanceSubscriptionStatus");
@@ -453,6 +499,8 @@ let operationsData = { operationLogs: [], auditLogs: [], operationSummary: {}, a
 let selectedOperationLog = { type: "", id: "" };
 let adminUsersLoaded = false;
 let adminUsersData = { users: [], roles: [], permissions: [] };
+let platformUsersLoaded = false;
+let platformUsersData = { users: [], roles: [], permissions: [] };
 let tenantsLoaded = false;
 let tenantsData = { tenants: [] };
 let subscriptionPlansLoaded = false;
@@ -464,6 +512,8 @@ let subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
 let subscriptionAutomationLoaded = false;
 let subscriptionAutomationData = { scope: "active", scheduler: {}, latestRun: { summary: {} } };
 let authSession = null;
+let subscriptionPurchaseLoaded = false;
+let subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
 let appContextApplyTimer = 0;
@@ -592,11 +642,23 @@ const tabMetadata = {
     description: "Kiểm tra operational logs, audit logs và các lỗi nền cần xử lý.",
     breadcrumbs: ["Báo cáo & vận hành", "Vận hành"],
   },
-  usersTab: {
-    kicker: "Thiết lập",
-    title: "Người dùng & quyền",
-    description: "Quản lý user, role và permission trước khi bật enforcement đầy đủ.",
-    breadcrumbs: ["Thiết lập", "Người dùng & quyền"],
+  subscriptionTab: {
+    kicker: "Subscription",
+    title: "Gói và thanh toán",
+    description: "Owner tenant tự chọn gói, tạo checkout QR/link và theo dõi invoice subscription.",
+    breadcrumbs: ["Subscription", "Checkout"],
+  },
+  tenantUsersTab: {
+    kicker: "Tenant Access",
+    title: "Người dùng tenant",
+    description: "Quản lý operator, role và permission trong tenant đang active.",
+    breadcrumbs: ["Platform Admin", "Tenant Access"],
+  },
+  platformAdminTab: {
+    kicker: "Platform Admin",
+    title: "Platform control plane",
+    description: "Quản lý tenant, subscription, entitlement, automation và finance console cấp hệ thống.",
+    breadcrumbs: ["Platform Admin", "Control plane"],
   },
 };
 
@@ -609,9 +671,11 @@ const tabAccess = {
   paymentsTab: ["payment.create"],
   notificationTab: ["notification.view"],
   emailTab: { any: ["email_config.view", "email_config.update", "notification.send", "email_cron.view", "email_cron.update"] },
+  subscriptionTab: { any: ["subscription.view", "subscription.update"] },
   reportsTab: ["report.view"],
   operationsTab: ["operation_log.view"],
-  usersTab: ["user.view"],
+  tenantUsersTab: { any: ["user.view", "user.create", "user.update", "user.assign_role", "role.view"] },
+  platformAdminTab: { any: ["tenant.view", "tenant.create", "tenant.update", "operation_log.cross_tenant_view", "audit_log.cross_tenant_view"] },
 };
 
 const permissionAliases = {
@@ -928,7 +992,7 @@ async function init() {
   }
   const session = await loadCurrentAuthSession();
   if (!session) {
-    showLogin(loginStatusEl.textContent || "Vui lòng đăng nhập");
+    showLogin(loginStatusEl.textContent || "Vui lòng đăng nhập", { allowSignup: Boolean(bootstrapStatus.signupEnabled) });
     return;
   }
   showApp(session);
@@ -968,7 +1032,8 @@ async function initializeAppData() {
   renderAdminDashboard(null);
   renderAdminReports(null);
   renderOperations(null);
-  renderAdminUsers(null);
+  renderUserDirectory(null, tenantUserDirectoryConfig());
+  renderUserDirectory(null, platformUserDirectoryConfig());
   renderFeeTemplate(defaultPaymentItems);
   renderRows(hasPermission("payment.create") ? sampleRows : []);
   if (hasPermission("dashboard.view")) {
@@ -1031,7 +1096,7 @@ async function authAwareFetch(input, options = {}) {
 }
 
 function authPathSkipsRefresh(path) {
-  return ["/api/v1/auth/login", "/api/v1/auth/bootstrap", "/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout"].includes(path);
+  return ["/api/v1/auth/login", "/api/v1/auth/bootstrap", "/api/v1/auth/tenant-signup", "/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout"].includes(path);
 }
 
 function requestPath(input) {
@@ -1059,12 +1124,16 @@ async function refreshAuthSession() {
   return refreshAuthPromise;
 }
 
-function showLogin(message = "") {
+function showLogin(message = "", options = {}) {
+  const allowSignup = options.allowSignup !== false;
   authSession = null;
   loginScreenEl.hidden = false;
   appShellEl.hidden = true;
   loginFormEl.hidden = false;
   bootstrapFormEl.hidden = true;
+  signupFormEl.hidden = true;
+  if (showLoginModeBtn) showLoginModeBtn.hidden = false;
+  setLoginMode("login", allowSignup);
   if (message) setLoginStatus(message, message.includes("hết hạn") ? "error" : "");
   loginSubmitBtn.disabled = false;
 }
@@ -1075,8 +1144,25 @@ function showBootstrap(message = "") {
   appShellEl.hidden = true;
   loginFormEl.hidden = true;
   bootstrapFormEl.hidden = false;
+  signupFormEl.hidden = true;
+  if (showLoginModeBtn) showLoginModeBtn.hidden = true;
+  if (showSignupModeBtn) showSignupModeBtn.hidden = true;
+  setLoginMode("bootstrap", false);
   setBootstrapStatus(message, "");
   bootstrapSubmitBtn.disabled = false;
+}
+
+function showSignup(message = "") {
+  authSession = null;
+  loginScreenEl.hidden = false;
+  appShellEl.hidden = true;
+  loginFormEl.hidden = true;
+  bootstrapFormEl.hidden = true;
+  signupFormEl.hidden = false;
+  if (showLoginModeBtn) showLoginModeBtn.hidden = false;
+  setLoginMode("signup", true);
+  setSignupStatus(message, "");
+  signupSubmitBtn.disabled = false;
 }
 
 function showApp(session) {
@@ -1094,6 +1180,7 @@ function showApp(session) {
   }
   loginScreenEl.hidden = true;
   appShellEl.hidden = false;
+  renderTenantOnboardingBanner(session);
   loginPasswordEl.value = "";
   setLoginStatus("", "");
   updateAuthBadge(session);
@@ -1103,8 +1190,65 @@ function showApp(session) {
 
 function updateAuthBadge(session) {
   const user = session?.user || {};
-  authUserBadgeEl.textContent = user.displayName || user.email || user.phone || "Đã đăng nhập";
+  const baseLabel = user.displayName || user.email || user.phone || "Đã đăng nhập";
+  authUserBadgeEl.textContent = isPlatformOnlySession(session) ? `${baseLabel} · Platform admin` : baseLabel;
   renderTenantSwitcher();
+}
+
+function isPlatformAdmin() {
+  return Boolean(authSession?.user?.isPlatformAdmin);
+}
+
+function isPlatformOnlySession(session = authSession) {
+  return Boolean(session?.user?.isPlatformAdmin) && !session?.user?.activeTenant?.id;
+}
+
+function isTenantWorkspaceUser() {
+  return Boolean(authSession?.user?.activeTenant?.id) && hasAnyPermission([
+    "dashboard.view",
+    "student.view",
+    "fee.view",
+    "invoice.view",
+    "payment.view",
+    "notification.view",
+    "subscription.view",
+    "user.view",
+  ]);
+}
+
+function preferredPlatformScope() {
+  return !activeTenantSummary().id && isPlatformAdmin() ? "all" : "active";
+}
+
+function renderTenantOnboardingBanner(session) {
+  if (!tenantOnboardingBannerEl) return;
+  const onboarding = session?.onboarding || {};
+  const tenant = session?.user?.activeTenant || {};
+  if (!onboarding.isNewTenantOwner) {
+    tenantOnboardingBannerEl.hidden = true;
+    tenantOnboardingBannerEl.innerHTML = "";
+    return;
+  }
+  const notes = [];
+  if (tenant.planName || onboarding.activeTenantPlanName) {
+    notes.push(`Gói hiện tại: <strong>${escapeHtml(onboarding.activeTenantPlanName || tenant.planName || "-")}</strong>`);
+  }
+  if (onboarding.activeTenantTrialEnds || tenant.trialEndsAt) {
+    notes.push(`Trial đến <strong>${escapeHtml(onboarding.activeTenantTrialEnds || tenant.trialEndsAt)}</strong>`);
+  }
+  if (onboarding.needsInitialSchool) {
+    notes.push(`Tenant này chưa có trường khởi tạo.`);
+  }
+  tenantOnboardingBannerEl.hidden = false;
+  tenantOnboardingBannerEl.innerHTML = `
+    <div class="panel-head">
+      <div>
+        <p class="section-kicker">Tenant onboarding</p>
+        <h2 class="section-title"><span class="mui-icon" aria-hidden="true">rocket_launch</span><span>${escapeHtml(tenant.name || tenant.code || "Tenant mới")}</span></h2>
+      </div>
+    </div>
+    <p>${notes.join(" · ") || "Tenant owner session đã sẵn sàng."}</p>
+  `;
 }
 
 function currentPermissionSet() {
@@ -1150,10 +1294,25 @@ function updateLegacyPaymentActions(targetId = activeTabId()) {
 
 function applyPermissionUI() {
   tabButtons.forEach((button) => {
-    button.hidden = !canUseTab(button.dataset.tabTarget);
+    const tabId = button.dataset.tabTarget;
+    let allowed = canUseTab(tabId);
+    if (tabId === "platformAdminTab") {
+      allowed = allowed && isPlatformAdmin();
+    }
+    if (tabId === "tenantUsersTab") {
+      allowed = allowed && isTenantWorkspaceUser();
+    }
+    button.hidden = !allowed;
   });
   tabPanels.forEach((panel) => {
-    if (!canUseTab(panel.id)) {
+    let allowed = canUseTab(panel.id);
+    if (panel.id === "platformAdminTab") {
+      allowed = allowed && isPlatformAdmin();
+    }
+    if (panel.id === "tenantUsersTab") {
+      allowed = allowed && isTenantWorkspaceUser();
+    }
+    if (!allowed) {
       panel.hidden = true;
       panel.classList.remove("active");
     }
@@ -1193,6 +1352,8 @@ function applyPermissionUI() {
   setElementAllowed(exportAdminReportClassesBtn, hasPermission("report.export"));
   setElementAllowed(exportAdminReportInvoicesBtn, hasPermission("report.export"));
   setElementAllowed(exportAdminReportTransactionsBtn, hasPermission("report.export"));
+  setElementAllowed(refreshSubscriptionPurchaseBtn, hasPermission("subscription.view"));
+  setElementAllowed(startSubscriptionCheckoutBtn, hasPermission("subscription.update"));
   setElementAllowed(newAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
   setElementAllowed(saveAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
   setElementAllowed(assignAdminUserRolesBtn, hasPermission("user.assign_role"));
@@ -1233,11 +1394,14 @@ function applyPermissionUI() {
 
 function activateInitialAllowedTab(preferredTabId = "") {
   const current = tabPanels.find((panel) => panel.classList.contains("active"))?.id || "dashboardTab";
+  const defaultTabId = isPlatformAdmin() ? "platformAdminTab" : "dashboardTab";
   const targetId = canUseTab(preferredTabId)
     ? preferredTabId
-    : canUseTab(current)
-      ? current
-      : tabButtons.find((button) => !button.hidden)?.dataset.tabTarget || "";
+    : canUseTab(defaultTabId)
+      ? defaultTabId
+      : canUseTab(current)
+        ? current
+        : tabButtons.find((button) => !button.hidden)?.dataset.tabTarget || "";
   if (!targetId) {
     currentSectionKickerEl.textContent = "Không đủ quyền";
     currentSectionTitleEl.textContent = "Chưa có màn hình được cấp quyền";
@@ -1302,6 +1466,21 @@ function setBootstrapStatus(message, tone = "") {
   bootstrapStatusEl.dataset.tone = tone;
 }
 
+function setSignupStatus(message, tone = "") {
+  signupStatusEl.textContent = message;
+  signupStatusEl.dataset.tone = tone;
+}
+
+function setLoginMode(mode = "login", allowSignup = true) {
+  if (showLoginModeBtn) {
+    showLoginModeBtn.classList.toggle("primary", mode === "login");
+  }
+  if (showSignupModeBtn) {
+    showSignupModeBtn.classList.toggle("primary", mode === "signup");
+    showSignupModeBtn.hidden = !allowSignup;
+  }
+}
+
 async function submitLogin(event) {
   event.preventDefault();
   loginSubmitBtn.disabled = true;
@@ -1357,6 +1536,46 @@ async function submitBootstrap(event) {
   const session = JSON.parse(text);
   bootstrapPasswordEl.value = "";
   bootstrapPasswordConfirmEl.value = "";
+  showApp(session);
+  await initializeAppData();
+}
+
+async function submitSignup(event) {
+  event.preventDefault();
+  const password = signupPasswordEl.value;
+  if (password !== signupPasswordConfirmEl.value) {
+    setSignupStatus("Password xác nhận không khớp", "error");
+    return;
+  }
+  if (!signupOwnerEmailEl.value.trim() && !signupOwnerPhoneEl.value.trim()) {
+    setSignupStatus("Nhập Email hoặc SĐT owner", "error");
+    return;
+  }
+  signupSubmitBtn.disabled = true;
+  setSignupStatus("Đang tạo tenant", "busy");
+  const res = await nativeFetch("/api/v1/auth/tenant-signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantName: signupTenantNameEl.value.trim(),
+      tenantCode: signupTenantCodeEl.value.trim(),
+      initialSchoolName: signupSchoolNameEl.value.trim(),
+      initialSchoolCode: signupSchoolCodeEl.value.trim(),
+      ownerDisplayName: signupOwnerDisplayNameEl.value.trim(),
+      ownerEmail: signupOwnerEmailEl.value.trim(),
+      ownerPhone: signupOwnerPhoneEl.value.trim(),
+      password,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    signupSubmitBtn.disabled = false;
+    setSignupStatus(text || "Không tạo được tenant", "error");
+    return;
+  }
+  const session = JSON.parse(text);
+  signupPasswordEl.value = "";
+  signupPasswordConfirmEl.value = "";
   showApp(session);
   await initializeAppData();
 }
@@ -1422,12 +1641,19 @@ async function loadActiveTabData(targetId) {
   if (targetId === "reportsTab") {
     await loadAdminReports();
   }
+  if (targetId === "subscriptionTab") {
+    await loadSubscriptionPurchase();
+    await loadSubscriptionBilling(true);
+  }
   if (targetId === "operationsTab") {
     await loadOperations();
   }
-  if (targetId === "usersTab") {
-    await loadTenants();
+  if (targetId === "tenantUsersTab") {
     await loadAdminUsers();
+  }
+  if (targetId === "platformAdminTab") {
+    await loadTenants();
+    await loadPlatformUsers();
   }
   if (targetId === "emailTab") {
     if (hasPermission("notification.send")) {
@@ -3633,13 +3859,13 @@ function renderOperationsTenantFilter() {
     operationTenantFilterEl.value = "";
     return;
   }
-  const selected = operationTenantFilterEl.value || "";
+  const selected = operationTenantFilterEl.value || (preferredPlatformScope() === "all" ? "all" : "");
   const tenantOptions = tenantRowsForUI().map((tenant) => {
     const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
     return `<option value="${escapeAttr(tenant.id || "")}">${escapeHtml(label || tenant.id || "Tenant")}</option>`;
   });
   operationTenantFilterEl.innerHTML = [`<option value="">Active tenant</option>`, `<option value="all">Tất cả tenant</option>`, ...tenantOptions].join("");
-  operationTenantFilterEl.value = optionValueOrEmpty(operationTenantFilterEl, selected) || "";
+  operationTenantFilterEl.value = optionValueOrEmpty(operationTenantFilterEl, selected) || (preferredPlatformScope() === "all" ? "all" : "");
 }
 
 function renderOperationsSummary(operationSummary = {}, auditSummary = {}) {
@@ -3819,14 +4045,40 @@ async function loadAdminUsers(force = false) {
   if (!res.ok) {
     adminUsersLoaded = false;
     adminUsersData = { users: [], roles: [], permissions: [] };
-    renderAdminUsers(null);
+    renderUserDirectory(null, tenantUserDirectoryConfig());
     setAdminStatus(adminUsersStatusEl, text || "Chưa cấu hình DB", "error");
     return;
   }
   adminUsersData = JSON.parse(text);
   adminUsersLoaded = true;
-  renderAdminUsers(adminUsersData);
+  renderUserDirectory(adminUsersData, tenantUserDirectoryConfig());
   setAdminStatus(adminUsersStatusEl, "Sẵn sàng", "ready");
+}
+
+async function loadPlatformUsers(force = false) {
+  if (!isPlatformAdmin() || !hasAnyPermission(["user.view", "role.view", "user.create", "user.update", "user.assign_role"])) {
+    platformUsersLoaded = false;
+    platformUsersData = { users: [], roles: [], permissions: [] };
+    renderUserDirectory(null, platformUserDirectoryConfig());
+    return;
+  }
+  if (!force && platformUsersLoaded) {
+    return;
+  }
+  setAdminStatus(platformUsersStatusEl, "Đang tải", "busy");
+  const res = await fetch("/api/v1/platform/users");
+  const text = await res.text();
+  if (!res.ok) {
+    platformUsersLoaded = false;
+    platformUsersData = { users: [], roles: [], permissions: [] };
+    renderUserDirectory(null, platformUserDirectoryConfig());
+    setAdminStatus(platformUsersStatusEl, text || "Chưa cấu hình DB", "error");
+    return;
+  }
+  platformUsersData = JSON.parse(text);
+  platformUsersLoaded = true;
+  renderUserDirectory(platformUsersData, platformUserDirectoryConfig());
+  setAdminStatus(platformUsersStatusEl, "Sẵn sàng", "ready");
 }
 
 function activeTenantSummary() {
@@ -3856,7 +4108,17 @@ function renderTenantSwitcher() {
   if (!tenantSwitcherWrapEl || !tenantSwitcherEl) return;
   const activeTenant = activeTenantSummary();
   const tenants = tenantRowsForUI().filter((tenant) => tenant.membershipStatus === "active" && ["active", "trial"].includes(tenant.status));
+  if (isPlatformOnlySession() && !tenants.length) {
+    tenantSwitcherEl.innerHTML = "";
+    tenantSwitcherEl.value = "";
+    tenantSwitcherEl.dataset.currentTenantId = "";
+    tenantSwitcherWrapEl.hidden = true;
+    return;
+  }
   if (!activeTenant.id && !tenants.length) {
+    tenantSwitcherEl.innerHTML = "";
+    tenantSwitcherEl.value = "";
+    tenantSwitcherEl.dataset.currentTenantId = "";
     tenantSwitcherWrapEl.hidden = true;
     return;
   }
@@ -3902,15 +4164,17 @@ async function loadTenants(force = false) {
   tenantsLoaded = true;
   renderTenantSwitcher();
   renderTenantAdmin(tenantsData);
-  await loadSubscriptionBilling(force);
-  await loadSubscriptionFinanceConsole(force);
-  await loadSubscriptionAutomationStatus(force);
+  if (activeTenantSummary().id) {
+    await loadSubscriptionFinanceConsole(force);
+    await loadSubscriptionAutomationStatus(force);
+  }
   setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
 }
 
 function renderTenantAdmin(data) {
   if (!tenantSummaryEl || !tenantListEl) return;
   const activeTenant = activeTenantSummary();
+  const platformOnly = isPlatformOnlySession();
   const tenants = data?.tenants || tenantRowsForUI();
   const activeRow = tenants.find((tenant) => tenant.id === activeTenant.id) || activeTenant;
   const usageSummary = (activeRow.usageMetrics || [])
@@ -3945,7 +4209,22 @@ function renderTenantAdmin(data) {
         <strong>${escapeHtml(usageSummary || "-")}</strong>
       </div>
     `
-    : "";
+    : platformOnly
+      ? `
+        <div class="tenant-summary-item">
+          <span>${muiIcon("admin_panel_settings")}Platform scope</span>
+          <strong>All tenants</strong>
+        </div>
+        <div class="tenant-summary-item">
+          <span>${muiIcon("domain")}Visible tenants</span>
+          <strong>${Number(tenants.length || 0)}</strong>
+        </div>
+        <div class="tenant-summary-item">
+          <span>${muiIcon("swap_horiz")}Workspace mode</span>
+          <strong>Control plane only</strong>
+        </div>
+      `
+      : "";
   tenantListEl.innerHTML = tenants
     .map((tenant) => {
       const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
@@ -3967,11 +4246,47 @@ function renderTenantAdmin(data) {
     })
     .join("");
   if (!tenants.length) {
-    tenantListEl.textContent = "Chưa có tenant";
+    tenantListEl.textContent = platformOnly ? "Chưa có tenant nào trong platform scope." : "Chưa có tenant";
   }
   tenantListEl.querySelectorAll("[data-switch-tenant]").forEach((button) => {
     button.addEventListener("click", () => switchTenant(button.dataset.switchTenant || ""));
   });
+  renderPlatformEntitlements(tenants);
+}
+
+function usageMetricValue(metrics, metricCode) {
+  const item = (metrics || []).find((metric) => metric.metricCode === metricCode);
+  if (!item) return "-";
+  const used = Number(item.used || 0);
+  if (item.unlimited) {
+    return `${used}`;
+  }
+  return `${used}/${Number(item.limit || 0)}`;
+}
+
+function renderPlatformEntitlements(tenants) {
+  if (!platformEntitlementSummaryEl || !platformEntitlementRowsEl) return;
+  const rows = tenants || [];
+  const overLimitCount = rows.filter((tenant) => (tenant.usageMetrics || []).some((metric) => !metric.unlimited && Number(metric.limit || 0) > 0 && Number(metric.used || 0) > Number(metric.limit || 0))).length;
+  platformEntitlementSummaryEl.innerHTML = rows.length
+    ? `
+      <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenants</span><strong>${rows.length}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("workspace_premium")}Subscribed</span><strong>${rows.filter((tenant) => tenant.subscriptionStatus && tenant.subscriptionStatus !== "cancelled").length}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("warning")}Over limit</span><strong>${overLimitCount}</strong></div>
+    `
+    : "";
+  platformEntitlementRowsEl.innerHTML = rows.length
+    ? rows.map((tenant) => `
+      <tr>
+        <td><strong>${escapeHtml(tenant.code || "-")}</strong><br /><small>${escapeHtml(tenant.name || "-")}</small></td>
+        <td>${escapeHtml(tenant.subscriptionStatus || "-")}<br /><small>${escapeHtml(tenant.planCode || tenant.planName || "-")}</small></td>
+        <td>${escapeHtml(usageMetricValue(tenant.usageMetrics, "schools"))}</td>
+        <td>${escapeHtml(usageMetricValue(tenant.usageMetrics, "operators"))}</td>
+        <td>${escapeHtml(usageMetricValue(tenant.usageMetrics, "students"))}</td>
+        <td>${escapeHtml(usageMetricValue(tenant.usageMetrics, "monthly_notifications"))}</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="6">Chưa tải entitlement</td></tr>`;
 }
 
 async function loadSubscriptionBilling(force = false) {
@@ -4017,6 +4332,124 @@ function applySubscriptionBillingPayload(data) {
   subscriptionBillingLoaded = true;
   populateSubscriptionBillingConfig(subscriptionBillingData.config || {});
   renderSubscriptionBilling(subscriptionBillingData);
+  renderSubscriptionPurchase(subscriptionPurchaseData);
+}
+
+async function loadSubscriptionPurchase(force = false) {
+  if (!hasPermission("subscription.view")) {
+    subscriptionPurchaseLoaded = false;
+    subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
+    renderSubscriptionPurchase(null);
+    return;
+  }
+  if (!force && subscriptionPurchaseLoaded) {
+    renderSubscriptionPurchase(subscriptionPurchaseData);
+    return;
+  }
+  const res = await fetch("/api/v1/subscriptions/purchase");
+  const text = await res.text();
+  if (!res.ok) {
+    subscriptionPurchaseLoaded = false;
+    subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
+    renderSubscriptionPurchase(null);
+    setAdminStatus(subscriptionPurchaseStatusEl, text || "Không tải được subscription purchase", "error");
+    return;
+  }
+  subscriptionPurchaseData = JSON.parse(text);
+  subscriptionPurchaseLoaded = true;
+  renderSubscriptionPurchase(subscriptionPurchaseData);
+  setAdminStatus(subscriptionPurchaseStatusEl, "Sẵn sàng", "ready");
+}
+
+function renderSubscriptionPurchase(data) {
+  if (!subscriptionPurchaseSummaryEl || !subscriptionCheckoutResultEl || !subscriptionPurchaseInvoicesEl) return;
+  const tenant = data?.tenant || activeTenantSummary();
+  const hasActiveTenant = Boolean(tenant?.id);
+  const currentPlan = data?.currentPlan || {};
+  const suggested = data?.suggested || {};
+  const providers = data?.providers || [];
+  const plans = data?.plans || [];
+  subscriptionPurchaseSummaryEl.innerHTML = hasActiveTenant
+    ? `
+      <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>${escapeHtml([tenant.code, tenant.name].filter(Boolean).join(" · "))}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("workspace_premium")}Plan</span><strong>${escapeHtml(currentPlan.planName || tenant.planName || "-")}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("pending_actions")}Status</span><strong>${escapeHtml(currentPlan.status || tenant.subscriptionStatus || "-")}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("event")}Current period</span><strong>${escapeHtml(currentPlan.currentPeriodEndsAt || tenant.currentPeriodEndsAt || "-")}</strong></div>
+    `
+    : isPlatformOnlySession()
+      ? `
+        <div class="tenant-summary-item"><span>${muiIcon("admin_panel_settings")}Platform session</span><strong>Chưa chọn tenant làm việc</strong></div>
+        <div class="tenant-summary-item"><span>${muiIcon("store")}Checkout scope</span><strong>Mỗi lần chỉ mua cho một tenant</strong></div>
+      `
+      : "Chưa có dữ liệu subscription";
+  subscriptionPurchasePlanEl.innerHTML = plans.length
+    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    : `<option value="">Chưa có plan</option>`;
+  subscriptionPurchasePlanEl.value = optionValueOrEmpty(subscriptionPurchasePlanEl, currentPlan.planCode || tenant.planCode || "") || plans[0]?.code || "";
+  subscriptionPurchaseProviderEl.innerHTML = providers.length
+    ? providers.map((provider) => `<option value="${escapeAttr(provider.code || "")}">${escapeHtml(provider.displayName || provider.code || "")}</option>`).join("")
+    : `<option value="">Chưa có provider</option>`;
+  subscriptionPurchaseProviderEl.value = optionValueOrEmpty(subscriptionPurchaseProviderEl, providers[0]?.code || "") || "";
+  subscriptionPurchasePeriodStartEl.value = suggested.periodStartsAt || "";
+  subscriptionPurchasePeriodEndEl.value = suggested.periodEndsAt || "";
+  subscriptionPurchaseDueAtEl.value = suggested.dueAt || "";
+  subscriptionPurchaseAmountEl.value = Number(suggested.amount || 0);
+  subscriptionCheckoutResultEl.innerHTML = data?.checkout
+    ? paymentIntentDetailTemplate({ intent: data.checkout.intent, qr: data.checkout.qr || {} })
+    : hasActiveTenant
+      ? "Chưa tạo checkout"
+      : "Chọn một tenant đang active rồi tạo checkout cho tenant đó.";
+  const invoices = subscriptionBillingData?.invoices || [];
+  subscriptionPurchaseInvoicesEl.innerHTML = invoices.length
+    ? invoices.map((invoice) => `
+      <tr>
+        <td><strong>${escapeHtml(invoice.invoiceCode || "")}</strong></td>
+        <td>${escapeHtml(invoice.planName || invoice.planCode || "-")}</td>
+        <td>${formatMoney(invoice.amount || 0)}</td>
+        <td><span class="tag ${paymentReconStatusTone(invoice.status)}">${escapeHtml(invoice.status || "")}</span></td>
+        <td>${escapeHtml(invoice.dueAt || "-")}</td>
+        <td>${escapeHtml(invoice.paidAt || "-")}</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="6">${hasActiveTenant ? "Chưa có subscription invoice" : "Chưa có tenant active để hiển thị invoice subscription."}</td></tr>`;
+  [subscriptionPurchasePlanEl, subscriptionPurchaseProviderEl, subscriptionPurchasePeriodStartEl, subscriptionPurchasePeriodEndEl, subscriptionPurchaseDueAtEl, subscriptionPurchaseAmountEl, startSubscriptionCheckoutBtn]
+    .forEach((el) => {
+      if (el) el.disabled = !hasActiveTenant;
+    });
+}
+
+async function startSubscriptionCheckout() {
+  setAdminStatus(subscriptionPurchaseStatusEl, "Đang tạo checkout", "busy");
+  const res = await fetch("/api/v1/subscriptions/purchase/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: activeTenantSummary().id || "",
+      planCode: subscriptionPurchasePlanEl.value,
+      provider: subscriptionPurchaseProviderEl.value,
+      periodStartsAt: subscriptionPurchasePeriodStartEl.value,
+      periodEndsAt: subscriptionPurchasePeriodEndEl.value,
+      dueAt: subscriptionPurchaseDueAtEl.value,
+      amount: Number(subscriptionPurchaseAmountEl.value || 0),
+    }),
+  });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data?.invoice) {
+    setAdminStatus(subscriptionPurchaseStatusEl, text || "Không tạo được checkout", "error");
+    subscriptionCheckoutResultEl.innerHTML = `<div class="reconciliation-error">${escapeHtml(text || "Không tạo được checkout")}</div>`;
+    return;
+  }
+  subscriptionPurchaseData.checkout = data;
+  subscriptionBillingLoaded = false;
+  await loadSubscriptionBilling(true);
+  renderSubscriptionPurchase(subscriptionPurchaseData);
+  setAdminStatus(subscriptionPurchaseStatusEl, "Đã tạo checkout", "ready");
 }
 
 function populateSubscriptionBillingConfig(config) {
@@ -4036,10 +4469,11 @@ function populateSubscriptionBillingConfig(config) {
 
 function renderSubscriptionBilling(data) {
   if (!subscriptionBillingSummaryEl || !subscriptionBillingListEl) return;
+  const hasActiveTenant = Boolean(activeTenantSummary().id);
   const summary = data?.summary || {};
   const suggested = data?.suggestedPeriod || {};
   const invoices = data?.invoices || [];
-  subscriptionBillingSummaryEl.innerHTML = activeTenantSummary().id
+  subscriptionBillingSummaryEl.innerHTML = hasActiveTenant
     ? `
       <div class="tenant-summary-item">
         <span>${muiIcon("receipt_long")}Latest invoice</span>
@@ -4062,7 +4496,18 @@ function renderSubscriptionBilling(data) {
         <strong>${formatMoney(Number(suggested.amount || 0))}</strong>
       </div>
     `
-    : "";
+    : isPlatformOnlySession()
+      ? `
+        <div class="tenant-summary-item">
+          <span>${muiIcon("admin_panel_settings")}Platform session</span>
+          <strong>Billing lane đang ở control plane</strong>
+        </div>
+        <div class="tenant-summary-item">
+          <span>${muiIcon("info")}Tenant billing</span>
+          <strong>Chọn tenant để xem invoice chi tiết</strong>
+        </div>
+      `
+      : "";
   subscriptionBillingListEl.innerHTML = invoices.length
     ? invoices
         .map(
@@ -4085,7 +4530,11 @@ function renderSubscriptionBilling(data) {
           `,
         )
         .join("")
-    : `<tr><td colspan="9">Chưa có subscription invoice</td></tr>`;
+    : `<tr><td colspan="9">${hasActiveTenant ? "Chưa có subscription invoice" : "Chưa có tenant active để hiển thị invoice subscription."}</td></tr>`;
+  [editActiveTenantSubscriptionBtn, generateSubscriptionInvoiceBtn, runSubscriptionDunningBtn, saveSubscriptionBillingConfigBtn]
+    .forEach((el) => {
+      if (el) el.disabled = !hasActiveTenant;
+    });
   subscriptionBillingListEl.querySelectorAll("[data-mark-subscription-paid]").forEach((button) => {
     button.addEventListener("click", () => openSubscriptionBillingPaidDialog(button.dataset.markSubscriptionPaid || ""));
   });
@@ -4420,7 +4869,7 @@ function exportSubscriptionBillingCSV(dataset) {
 
 function subscriptionAutomationStatusQuery() {
   const params = new URLSearchParams();
-  const scopeValue = subscriptionFinanceScopeEl?.value || "active";
+  const scopeValue = subscriptionFinanceScopeEl?.value || preferredPlatformScope();
   params.set("scope", scopeValue === "all" ? "all" : "active");
   return params.toString();
 }
@@ -4435,6 +4884,9 @@ async function loadSubscriptionAutomationStatus(force = false) {
   if (!force && subscriptionAutomationLoaded) {
     renderSubscriptionAutomationStatus(subscriptionAutomationData);
     return;
+  }
+  if (subscriptionFinanceScopeEl && !subscriptionFinanceScopeEl.value) {
+    subscriptionFinanceScopeEl.value = preferredPlatformScope();
   }
   const res = await fetch(`/api/v1/subscriptions/automation?${subscriptionAutomationStatusQuery()}`);
   const text = await res.text();
@@ -4467,7 +4919,7 @@ function renderSubscriptionAutomationStatus(data) {
 
 function subscriptionFinanceConsoleQuery() {
   const params = new URLSearchParams();
-  const scopeValue = subscriptionFinanceScopeEl?.value || "active";
+  const scopeValue = subscriptionFinanceScopeEl?.value || preferredPlatformScope();
   params.set("scope", scopeValue === "all" ? "all" : "active");
   if (subscriptionFinanceQueryEl?.value) params.set("q", subscriptionFinanceQueryEl.value);
   if (subscriptionFinanceSubscriptionStatusEl?.value) params.set("subscriptionStatus", subscriptionFinanceSubscriptionStatusEl.value);
@@ -4489,6 +4941,9 @@ async function loadSubscriptionFinanceConsole(force = false) {
   if (!force && subscriptionFinanceConsoleLoaded) {
     renderSubscriptionFinanceConsole(subscriptionFinanceConsoleData);
     return;
+  }
+  if (subscriptionFinanceScopeEl && !subscriptionFinanceScopeEl.value) {
+    subscriptionFinanceScopeEl.value = preferredPlatformScope();
   }
   const res = await fetch(`/api/v1/subscriptions/finance-console?${subscriptionFinanceConsoleQuery()}`);
   const text = await res.text();
@@ -4624,6 +5079,8 @@ function resetTenantScopedState() {
   subscriptionPlansData = [];
   subscriptionBillingLoaded = false;
   subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
+  subscriptionPurchaseLoaded = false;
+  subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
   subscriptionFinanceConsoleLoaded = false;
   subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
   subscriptionAutomationLoaded = false;
@@ -4665,29 +5122,31 @@ function resetTenantScopedState() {
   selectedOperationLog = { type: "", id: "" };
   adminUsersLoaded = false;
   adminUsersData = { users: [], roles: [], permissions: [] };
+  platformUsersLoaded = false;
+  platformUsersData = { users: [], roles: [], permissions: [] };
 }
 
-function renderAdminUsers(data) {
+function renderUserDirectory(data, config) {
   const users = data?.users || [];
   const roles = data?.roles || [];
-  renderAdminUserRoleSelect(roles);
-  renderAdminUserRows(users);
-  renderAdminRoleList(roles);
+  renderUserRoleSelect(config, roles);
+  renderUserRows(config, users);
+  renderRoleList(config, roles);
 }
 
-function renderAdminUserRoleSelect(roles) {
-  const selected = selectedOptionValues(adminUserRolesEl);
-  adminUserRolesEl.innerHTML = roles
+function renderUserRoleSelect(config, roles) {
+  const selected = selectedOptionValues(config.rolesEl);
+  config.rolesEl.innerHTML = roles
     .map((role) => `<option value="${escapeAttr(role.code || "")}">${escapeHtml(role.name || role.code || "")}</option>`)
     .join("");
-  [...adminUserRolesEl.options].forEach((option) => {
+  [...config.rolesEl.options].forEach((option) => {
     option.selected = selected.includes(option.value);
   });
 }
 
-function renderAdminUserRows(users) {
-  adminUserCountEl.textContent = `${users.length} user`;
-  adminUserRowsEl.innerHTML = users
+function renderUserRows(config, users) {
+  config.countEl.textContent = `${users.length} user`;
+  config.rowsEl.innerHTML = users
     .map((user) => {
       const roleText = (user.roles || []).map((role) => role.name || role.code).join(", ");
       return `
@@ -4703,19 +5162,19 @@ function renderAdminUserRows(users) {
     })
     .join("");
   if (!users.length) {
-    adminUserRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có user</td></tr>`;
+    config.rowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có user</td></tr>`;
   }
-  adminUserRowsEl.querySelectorAll("[data-admin-user-id]").forEach((row) => {
+  config.rowsEl.querySelectorAll("[data-admin-user-id]").forEach((row) => {
     row.addEventListener("click", () => {
-      selectAdminUser(row.dataset.adminUserId);
-      openAdminUserDialog();
+      selectDirectoryUser(config, row.dataset.adminUserId);
+      openUserDialog(config);
     });
   });
 }
 
-function renderAdminRoleList(roles) {
-  adminRoleCountEl.textContent = `${roles.length} role`;
-  adminRoleListEl.innerHTML = roles
+function renderRoleList(config, roles) {
+  config.roleCountEl.textContent = `${roles.length} role`;
+  config.roleListEl.innerHTML = roles
     .map((role) => {
       const summaries = rolePermissionSummaries(role.permissions || []);
       return `
@@ -4724,7 +5183,7 @@ function renderAdminRoleList(roles) {
             <strong>${escapeHtml(role.name || role.code || "")}</strong>
             <small>${escapeHtml(role.code || "")}${role.isSystem ? " · system" : ""}</small>
             <p>${escapeHtml(role.description || "")}</p>
-            <p>${escapeHtml(roleTemplateSummary(role.code))}</p>
+            <p>${escapeHtml(config.roleSummary(role.code))}</p>
           </div>
           <div class="admin-permission-summary">
             ${summaries.map(renderPermissionSummaryGroup).join("") || `<span class="tag">no permissions</span>`}
@@ -4734,20 +5193,31 @@ function renderAdminRoleList(roles) {
     })
     .join("");
   if (!roles.length) {
-    adminRoleListEl.textContent = "Chưa có role";
+    config.roleListEl.textContent = "Chưa có role";
   }
 }
 
 function roleTemplateSummary(code = "") {
   switch (code) {
-    case "admin":
-      return "Admin: cấu hình hệ thống, user/role, tất cả workflow học phí và vận hành.";
-    case "staff":
-      return "Staff: quản lý học sinh/phụ huynh, lớp, thông báo và các bước chăm sóc vận hành.";
-    case "accountant":
-      return "Accountant: lập phí, hóa đơn, thu tiền, đối soát, báo cáo, email/cron và audit.";
+    case "tenant_owner":
+      return "Tenant Owner: sở hữu workspace, subscription và toàn bộ operator trong tenant.";
+    case "tenant_admin":
+      return "Tenant Admin: quản lý operator và workflow vận hành hằng ngày trong tenant.";
+    case "tenant_staff":
+      return "Tenant Staff: quản lý master data, lớp và thông báo trong tenant.";
+    case "tenant_accountant":
+      return "Tenant Accountant: quản lý phí, hóa đơn, thu tiền, báo cáo và email vận hành.";
     default:
       return "Custom role: kiểm tra nhóm permission trước khi gán cho operator.";
+  }
+}
+
+function platformRoleTemplateSummary(code = "") {
+  switch (code) {
+    case "platform_admin":
+      return "Platform Admin: quản trị control plane hệ thống, tenant, entitlement, finance console và platform operators.";
+    default:
+      return "System role: chỉ dùng cho control plane nội bộ.";
   }
 }
 
@@ -4802,45 +5272,45 @@ function renderPermissionSummaryGroup(group) {
   `;
 }
 
-function selectAdminUser(userId) {
-  const user = (adminUsersData.users || []).find((item) => item.id === userId);
+function selectDirectoryUser(config, userId) {
+  const user = (config.data().users || []).find((item) => item.id === userId);
   if (!user) return;
-  adminUserIdEl.value = user.id || "";
-  adminUserEmailEl.value = user.email || "";
-  adminUserPhoneEl.value = user.phone || "";
-  adminUserDisplayNameEl.value = user.displayName || "";
-  adminUserStatusEl.value = optionValueOrEmpty(adminUserStatusEl, user.status || "active") || "active";
-  adminUserPasswordEl.value = "";
+  config.idEl.value = user.id || "";
+  config.emailEl.value = user.email || "";
+  config.phoneEl.value = user.phone || "";
+  config.displayNameEl.value = user.displayName || "";
+  config.statusEl.value = optionValueOrEmpty(config.statusEl, user.status || "active") || "active";
+  config.passwordEl.value = "";
   const roleCodes = (user.roles || []).map((role) => role.code);
-  [...adminUserRolesEl.options].forEach((option) => {
+  [...config.rolesEl.options].forEach((option) => {
     option.selected = roleCodes.includes(option.value);
   });
 }
 
-function openAdminUserDialog() {
+function openUserDialog(config) {
   openAppDialog({
-    title: adminUserIdEl.value ? "Sửa user" : "Tạo user",
-    kicker: "User and role admin",
+    title: config.idEl.value ? "Sửa user" : "Tạo user",
+    kicker: config.dialogKicker,
     icon: "admin_panel_settings",
-    nodes: [document.querySelector(".admin-user-form")],
+    nodes: [config.formEl],
     size: "lg",
     actions: [
       { label: "Đóng", icon: "close", onClick: closeAppDialog },
-      { label: "Clear", icon: "backspace", onClick: clearAdminUserForm },
-      { label: "Lưu roles", icon: "assignment_ind", onClick: assignAdminUserRoles },
-      { label: "Lưu user", icon: "save", variant: "primary", onClick: saveAdminUser, closeOnSuccess: true },
+      { label: "Clear", icon: "backspace", onClick: () => clearUserForm(config) },
+      { label: "Lưu roles", icon: "assignment_ind", onClick: () => assignUserDirectoryRoles(config) },
+      { label: "Lưu user", icon: "save", variant: "primary", onClick: () => saveUserDirectoryUser(config), closeOnSuccess: true },
     ],
   });
 }
 
-function clearAdminUserForm() {
-  adminUserIdEl.value = "";
-  adminUserEmailEl.value = "";
-  adminUserPhoneEl.value = "";
-  adminUserDisplayNameEl.value = "";
-  adminUserStatusEl.value = "active";
-  adminUserPasswordEl.value = "";
-  [...adminUserRolesEl.options].forEach((option) => {
+function clearUserForm(config) {
+  config.idEl.value = "";
+  config.emailEl.value = "";
+  config.phoneEl.value = "";
+  config.displayNameEl.value = "";
+  config.statusEl.value = "active";
+  config.passwordEl.value = "";
+  [...config.rolesEl.options].forEach((option) => {
     option.selected = false;
   });
 }
@@ -4849,63 +5319,119 @@ function selectedOptionValues(selectEl) {
   return [...selectEl.selectedOptions].map((option) => option.value).filter(Boolean);
 }
 
-async function saveAdminUser() {
-  setAdminStatus(adminUsersStatusEl, "Đang lưu", "busy");
-  const res = await fetch("/api/v1/admin/users/save", {
+async function saveUserDirectoryUser(config) {
+  setAdminStatus(config.statusBadgeEl, "Đang lưu", "busy");
+  const res = await fetch(config.saveURL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      id: adminUserIdEl.value,
-      email: adminUserEmailEl.value,
-      phone: adminUserPhoneEl.value,
-      displayName: adminUserDisplayNameEl.value,
-      status: adminUserStatusEl.value,
-      password: adminUserPasswordEl.value,
+      id: config.idEl.value,
+      email: config.emailEl.value,
+      phone: config.phoneEl.value,
+      displayName: config.displayNameEl.value,
+      status: config.statusEl.value,
+      password: config.passwordEl.value,
     }),
   });
   const text = await res.text();
   if (!res.ok) {
-    setAdminStatus(adminUsersStatusEl, text || "Không lưu được user", "error");
+    setAdminStatus(config.statusBadgeEl, text || "Không lưu được user", "error");
     return false;
   }
   const data = JSON.parse(text);
   if (data.user?.id) {
-    adminUserIdEl.value = data.user.id;
+    config.idEl.value = data.user.id;
   }
-  adminUserPasswordEl.value = "";
-  adminUsersLoaded = false;
-  await loadAdminUsers(true);
+  config.passwordEl.value = "";
+  config.resetLoaded();
+  await config.load(true);
   if (data.user?.id) {
-    selectAdminUser(data.user.id);
+    selectDirectoryUser(config, data.user.id);
   }
-  setAdminStatus(adminUsersStatusEl, "Đã lưu user", "ready");
+  setAdminStatus(config.statusBadgeEl, "Đã lưu user", "ready");
   return true;
 }
 
-async function assignAdminUserRoles() {
-  if (!adminUserIdEl.value) {
-    setAdminStatus(adminUsersStatusEl, "Chọn hoặc lưu user trước", "error");
+async function assignUserDirectoryRoles(config) {
+  if (!config.idEl.value) {
+    setAdminStatus(config.statusBadgeEl, "Chọn hoặc lưu user trước", "error");
     return false;
   }
-  setAdminStatus(adminUsersStatusEl, "Đang lưu roles", "busy");
-  const res = await fetch("/api/v1/admin/users/roles", {
+  setAdminStatus(config.statusBadgeEl, "Đang lưu roles", "busy");
+  const res = await fetch(config.rolesURL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      userId: adminUserIdEl.value,
-      roleCodes: selectedOptionValues(adminUserRolesEl),
+      userId: config.idEl.value,
+      roleCodes: selectedOptionValues(config.rolesEl),
     }),
   });
   const text = await res.text();
   if (!res.ok) {
-    setAdminStatus(adminUsersStatusEl, text || "Không lưu được roles", "error");
+    setAdminStatus(config.statusBadgeEl, text || "Không lưu được roles", "error");
     return false;
   }
-  adminUsersLoaded = false;
-  await loadAdminUsers(true);
-  selectAdminUser(adminUserIdEl.value);
-  setAdminStatus(adminUsersStatusEl, "Đã lưu roles", "ready");
+  config.resetLoaded();
+  await config.load(true);
+  selectDirectoryUser(config, config.idEl.value);
+  setAdminStatus(config.statusBadgeEl, "Đã lưu roles", "ready");
   return true;
+}
+
+function tenantUserDirectoryConfig() {
+  return {
+    formEl: document.querySelector(".admin-user-form"),
+    dialogKicker: "Tenant access",
+    statusBadgeEl: adminUsersStatusEl,
+    idEl: adminUserIdEl,
+    emailEl: adminUserEmailEl,
+    phoneEl: adminUserPhoneEl,
+    displayNameEl: adminUserDisplayNameEl,
+    statusEl: adminUserStatusEl,
+    passwordEl: adminUserPasswordEl,
+    rolesEl: adminUserRolesEl,
+    countEl: adminUserCountEl,
+    rowsEl: adminUserRowsEl,
+    roleCountEl: adminRoleCountEl,
+    roleListEl: adminRoleListEl,
+    roleSummary: roleTemplateSummary,
+    saveURL: "/api/v1/admin/users/save",
+    rolesURL: "/api/v1/admin/users/roles",
+    load: loadAdminUsers,
+    resetLoaded: () => {
+      adminUsersLoaded = false;
+      adminUsersData = { users: [], roles: [], permissions: [] };
+    },
+    data: () => adminUsersData,
+  };
+}
+
+function platformUserDirectoryConfig() {
+  return {
+    formEl: document.querySelector(".platform-user-form"),
+    dialogKicker: "Platform access",
+    statusBadgeEl: platformUsersStatusEl,
+    idEl: platformUserIdEl,
+    emailEl: platformUserEmailEl,
+    phoneEl: platformUserPhoneEl,
+    displayNameEl: platformUserDisplayNameEl,
+    statusEl: platformUserStatusEl,
+    passwordEl: platformUserPasswordEl,
+    rolesEl: platformUserRolesEl,
+    countEl: platformUserCountEl,
+    rowsEl: platformUserRowsEl,
+    roleCountEl: platformRoleCountEl,
+    roleListEl: platformRoleListEl,
+    roleSummary: platformRoleTemplateSummary,
+    saveURL: "/api/v1/platform/users/save",
+    rolesURL: "/api/v1/platform/users/roles",
+    load: loadPlatformUsers,
+    resetLoaded: () => {
+      platformUsersLoaded = false;
+      platformUsersData = { users: [], roles: [], permissions: [] };
+    },
+    data: () => platformUsersData,
+  };
 }
 
 async function loadMasterStudents() {
@@ -8651,8 +9177,21 @@ function escapeAttr(value) {
 
 loginFormEl.addEventListener("submit", submitLogin);
 bootstrapFormEl.addEventListener("submit", submitBootstrap);
+signupFormEl.addEventListener("submit", submitSignup);
 logoutButton.addEventListener("click", logout);
+showLoginModeBtn?.addEventListener("click", () => showLogin(loginStatusEl.textContent || "Vui lòng đăng nhập"));
+showSignupModeBtn?.addEventListener("click", () => showSignup("Tạo tenant và owner đầu tiên để bắt đầu"));
 tenantSwitcherEl?.addEventListener("change", () => switchTenant(tenantSwitcherEl.value));
+signupTenantNameEl?.addEventListener("input", () => {
+  if (!signupSchoolNameEl.value.trim()) {
+    signupSchoolNameEl.value = signupTenantNameEl.value;
+  }
+});
+signupTenantCodeEl?.addEventListener("input", () => {
+  if (!signupSchoolCodeEl.value.trim()) {
+    signupSchoolCodeEl.value = signupTenantCodeEl.value;
+  }
+});
 tenantCodeEl?.addEventListener("input", () => {
   if (!tenantIdEl.value && !tenantInitialSchoolCodeEl.value.trim()) {
     tenantInitialSchoolCodeEl.value = tenantCodeEl.value;
@@ -8869,12 +9408,22 @@ subscriptionFinanceOverdueOnlyEl?.addEventListener("change", () => loadSubscript
 subscriptionFinanceMissingConfigOnlyEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
 subscriptionFinanceQueryEl?.addEventListener("change", () => loadSubscriptionFinanceConsole(true));
 newAdminUserBtn.addEventListener("click", () => {
-  clearAdminUserForm();
-  openAdminUserDialog();
+  const config = tenantUserDirectoryConfig();
+  clearUserForm(config);
+  openUserDialog(config);
 });
-clearAdminUserBtn.addEventListener("click", clearAdminUserForm);
-saveAdminUserBtn.addEventListener("click", saveAdminUser);
-assignAdminUserRolesBtn.addEventListener("click", assignAdminUserRoles);
+clearAdminUserBtn.addEventListener("click", () => clearUserForm(tenantUserDirectoryConfig()));
+saveAdminUserBtn.addEventListener("click", () => saveUserDirectoryUser(tenantUserDirectoryConfig()));
+assignAdminUserRolesBtn.addEventListener("click", () => assignUserDirectoryRoles(tenantUserDirectoryConfig()));
+refreshPlatformUsersBtn?.addEventListener("click", () => loadPlatformUsers(true));
+newPlatformUserBtn?.addEventListener("click", () => {
+  const config = platformUserDirectoryConfig();
+  clearUserForm(config);
+  openUserDialog(config);
+});
+clearPlatformUserBtn?.addEventListener("click", () => clearUserForm(platformUserDirectoryConfig()));
+savePlatformUserBtn?.addEventListener("click", () => saveUserDirectoryUser(platformUserDirectoryConfig()));
+assignPlatformUserRolesBtn?.addEventListener("click", () => assignUserDirectoryRoles(platformUserDirectoryConfig()));
 
 masterSchoolFilterEl.addEventListener("change", async () => {
   renderMasterFilters();
@@ -9020,6 +9569,11 @@ openNotificationCronConfigBtn.addEventListener("click", openCronConfigDialog);
 previewEmailBtn.addEventListener("click", previewEmail);
 dryRunEmailBtn.addEventListener("click", () => sendEmails(true));
 sendEmailBtn.addEventListener("click", () => sendEmails(false));
+refreshSubscriptionPurchaseBtn?.addEventListener("click", async () => {
+  await loadSubscriptionPurchase(true);
+  await loadSubscriptionBilling(true);
+});
+startSubscriptionCheckoutBtn?.addEventListener("click", startSubscriptionCheckout);
 emailProviderEl.addEventListener("change", () => {
   updateEmailProviderFields();
   renderEmailConfigStatus(currentEmailConfigStatusData());

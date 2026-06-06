@@ -18,6 +18,7 @@ type appAPIRoute struct {
 	Public             bool
 	Permission         string
 	PermissionResolver routePermissionResolver
+	AllowPlatformOnly  bool
 	Handler            http.HandlerFunc
 }
 
@@ -31,15 +32,18 @@ func appAPIRoutes() []appAPIRoute {
 	return []appAPIRoute{
 		{Method: http.MethodPost, Path: "/api/v1/auth/login", Public: true, Handler: handleAuthLogin},
 		{Path: "/api/v1/auth/bootstrap", Public: true, Handler: handleAuthBootstrap},
+		{Method: http.MethodPost, Path: "/api/v1/auth/tenant-signup", Public: true, Handler: handleAuthTenantSignup},
 		{Method: http.MethodPost, Path: "/api/v1/auth/refresh", Public: true, Handler: handleAuthRefresh},
 		{Method: http.MethodPost, Path: "/api/v1/auth/tenant/switch", Permission: "tenant.switch", Handler: handleAuthTenantSwitch},
 		{Method: http.MethodPost, Path: "/api/v1/auth/logout", Public: true, Handler: handleAuthLogout},
 		{Method: http.MethodGet, Path: "/api/v1/auth/session", Public: true, Handler: handleAuthSession},
 		{Method: http.MethodGet, Path: "/api/v1/healthz", Public: true, Handler: handleHealthz},
 		{Method: http.MethodGet, Path: "/api/v1/readyz", Public: true, Handler: handleReadyz},
-		{Method: http.MethodGet, Path: "/api/v1/tenants", Permission: "tenant.view", Handler: handleTenants},
-		{Method: http.MethodPost, Path: "/api/v1/tenants/save", PermissionResolver: tenantSavePermission, Handler: handleTenantSave},
+		{Method: http.MethodGet, Path: "/api/v1/tenants", Permission: "tenant.view", AllowPlatformOnly: true, Handler: handleTenants},
+		{Method: http.MethodPost, Path: "/api/v1/tenants/save", PermissionResolver: tenantSavePermission, AllowPlatformOnly: true, Handler: handleTenantSave},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/plans", Permission: "subscription.view", Handler: handleSubscriptionPlans},
+		{Method: http.MethodGet, Path: "/api/v1/subscriptions/purchase", Permission: "subscription.view", Handler: handleSubscriptionPurchase},
+		{Method: http.MethodPost, Path: "/api/v1/subscriptions/purchase/checkout", Permission: "subscription.update", Handler: handleSubscriptionPurchaseCheckout},
 		{Method: http.MethodPost, Path: "/api/v1/tenants/subscription/save", Permission: "subscription.update", Handler: handleTenantSubscriptionSave},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/invoices", Permission: "subscription.view", Handler: handleSubscriptionInvoices},
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/invoices/generate", Permission: "subscription.update", Handler: handleSubscriptionInvoiceGenerate},
@@ -100,6 +104,10 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodPost, Path: "/api/v1/admin/users/save", PermissionResolver: adminUserSavePermission, Handler: handleAdminUserSave},
 		{Method: http.MethodPost, Path: "/api/v1/admin/users/roles", Permission: "user.assign_role", Handler: handleAdminUserRoles},
 		{Method: http.MethodGet, Path: "/api/v1/admin/roles", Permission: "role.view", Handler: handleAdminRoles},
+		{Method: http.MethodGet, Path: "/api/v1/platform/users", Permission: "user.view", AllowPlatformOnly: true, Handler: handlePlatformUsers},
+		{Method: http.MethodPost, Path: "/api/v1/platform/users/save", PermissionResolver: adminUserSavePermission, AllowPlatformOnly: true, Handler: handlePlatformUserSave},
+		{Method: http.MethodPost, Path: "/api/v1/platform/users/roles", Permission: "user.assign_role", AllowPlatformOnly: true, Handler: handlePlatformUserRoles},
+		{Method: http.MethodGet, Path: "/api/v1/platform/roles", Permission: "role.view", AllowPlatformOnly: true, Handler: handlePlatformRoles},
 		{Method: http.MethodGet, Path: "/api/v1/qr.png", Public: true, Handler: handleQRPNG},
 		{Method: http.MethodPost, Path: "/api/v1/vietqr/batch", Permission: "payment.create", Handler: handleBatch},
 		{Path: "/api/v1/email/config", PermissionResolver: emailConfigPermission, Handler: handleEmailConfig},
@@ -114,9 +122,9 @@ func (route appAPIRoute) wrap() http.HandlerFunc {
 	next := route.Handler
 	if !route.Public {
 		if route.PermissionResolver != nil {
-			next = requireResolvedPermission(route.PermissionResolver, next)
+			next = requireResolvedPermission(route.PermissionResolver, route.AllowPlatformOnly, next)
 		} else {
-			next = requirePermission(route.Permission, next)
+			next = requirePermission(route.Permission, route.AllowPlatformOnly, next)
 		}
 	}
 	if route.Method != "" {
@@ -125,29 +133,29 @@ func (route appAPIRoute) wrap() http.HandlerFunc {
 	return next
 }
 
-func requirePermission(permission string, next http.HandlerFunc) http.HandlerFunc {
-	return requireAuthenticated(requirePermissionForAuthenticated(permission, next))
+func requirePermission(permission string, allowPlatformOnly bool, next http.HandlerFunc) http.HandlerFunc {
+	return requireAuthenticated(requirePermissionForAuthenticated(permission, allowPlatformOnly, next))
 }
 
-func requireResolvedPermission(resolve routePermissionResolver, next http.HandlerFunc) http.HandlerFunc {
+func requireResolvedPermission(resolve routePermissionResolver, allowPlatformOnly bool, next http.HandlerFunc) http.HandlerFunc {
 	return requireAuthenticated(func(w http.ResponseWriter, r *http.Request) {
 		permission, err := resolve(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		requirePermissionForAuthenticated(permission, next)(w, r)
+		requirePermissionForAuthenticated(permission, allowPlatformOnly, next)(w, r)
 	})
 }
 
-func requirePermissionForAuthenticated(permission string, next http.HandlerFunc) http.HandlerFunc {
+func requirePermissionForAuthenticated(permission string, allowPlatformOnly bool, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := authenticatedUserFromRequest(r)
 		if !ok {
 			http.Error(w, "not authenticated", http.StatusUnauthorized)
 			return
 		}
-		if !authenticatedUserHasActiveTenant(user) {
+		if !authenticatedUserHasActiveTenant(user) && !(allowPlatformOnly && authenticatedUserCanUsePlatformSurface(user, permission)) {
 			http.Error(w, "active tenant required", http.StatusForbidden)
 			return
 		}
@@ -164,6 +172,33 @@ func requirePermissionForAuthenticated(permission string, next http.HandlerFunc)
 			return
 		}
 		next(w, r)
+	}
+}
+
+func authenticatedUserCanUsePlatformSurface(user authenticatedUser, permission string) bool {
+	if !user.IsPlatformAdmin {
+		return false
+	}
+	if permission == permissionAuthenticated {
+		return true
+	}
+	switch permission {
+	case "user.view",
+		"user.create",
+		"user.update",
+		"user.assign_role",
+		"role.view",
+		"tenant.view",
+		"tenant.create",
+		"tenant.update",
+		"subscription.view",
+		"subscription.update",
+		"report.export",
+		"operation_log.cross_tenant_view",
+		"audit_log.cross_tenant_view":
+		return authenticatedUserHasPermission(user, permission)
+	default:
+		return false
 	}
 }
 

@@ -498,6 +498,93 @@ func TestLoadEmbeddedMigrationsIncludesTenantAwareAuthRBAC(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesActorModelRoleSplit(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actorModel migration
+	for _, item := range migrations {
+		if item.Version == "0024" {
+			actorModel = item
+			break
+		}
+	}
+	if actorModel.Name != "actor_model_role_split" {
+		t.Fatalf("expected actor model role split migration 0024, got %+v", actorModel)
+	}
+
+	for _, want := range []string{
+		"platform_admin",
+		"tenant_owner",
+		"tenant_admin",
+		"tenant_staff",
+		"tenant_accountant",
+		"INSERT INTO app_user_roles",
+		"INSERT INTO tenant_user_roles",
+		"DELETE FROM tenant_user_roles",
+	} {
+		if !strings.Contains(actorModel.SQL, want) {
+			t.Fatalf("expected actor model role split migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesSubscriptionPaymentConfirmationLink(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var item migration
+	for _, current := range migrations {
+		if current.Version == "0025" {
+			item = current
+			break
+		}
+	}
+	if item.Name != "subscription_payment_confirmation_link" {
+		t.Fatalf("expected subscription payment confirmation link migration 0025, got %+v", item)
+	}
+	for _, want := range []string{
+		"ALTER TABLE payment_transactions",
+		"subscription_invoice_id",
+		"payment_transactions_subscription_invoice_idx",
+		"payment_transactions_subscription_invoice_id_fkey",
+	} {
+		if !strings.Contains(item.SQL, want) {
+			t.Fatalf("expected subscription payment confirmation link migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesPlatformAuthSessionsNullableTenant(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var item migration
+	for _, current := range migrations {
+		if current.Version == "0026" {
+			item = current
+			break
+		}
+	}
+	if item.Name != "platform_auth_sessions_nullable_tenant" {
+		t.Fatalf("expected platform auth sessions nullable tenant migration 0026, got %+v", item)
+	}
+	for _, want := range []string{
+		"ALTER TABLE app_auth_sessions",
+		"ALTER COLUMN tenant_id DROP NOT NULL",
+	} {
+		if !strings.Contains(item.SQL, want) {
+			t.Fatalf("expected platform auth sessions nullable tenant migration to contain %q", want)
+		}
+	}
+}
+
 func TestLoadEmbeddedMigrationsIncludesTenantDataIsolation(t *testing.T) {
 	migrations, err := loadEmbeddedMigrations()
 	if err != nil {

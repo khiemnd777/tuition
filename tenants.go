@@ -53,10 +53,7 @@ func handleTenants(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	tenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	tenantID := activeTenantIDFromRequest(r)
 	db, err := openMasterDataDatabase(r.Context())
 	if err != nil {
 		writeMasterDataDBError(w, err)
@@ -65,7 +62,7 @@ func handleTenants(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	tenants, err := listUserTenants(r.Context(), db, user.ID, tenantID)
-	if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+	if user.IsPlatformAdmin && (authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") || authenticatedUserHasPermission(user, "tenant.view")) {
 		tenants, err = listAllTenants(r.Context(), db, tenantID)
 	}
 	if err != nil {
@@ -81,10 +78,7 @@ func handleTenantSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input tenantSaveInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -106,8 +100,21 @@ func handleTenantSave(w http.ResponseWriter, r *http.Request) {
 
 	var tenant tenantSummary
 	if input.ID == "" {
-		tenant, err = createTenantWithInitialSchool(r.Context(), db, input, user, auditContextFromRequest(r))
+		tx, txErr := db.BeginTx(r.Context(), nil)
+		if txErr != nil {
+			http.Error(w, "cannot start tenant save", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+		tenant, err = createTenantWithInitialSchool(r.Context(), tx, input, user, auditContextFromRequest(r))
+		if err == nil {
+			err = tx.Commit()
+		}
 	} else {
+		if activeTenantID == "" {
+			http.Error(w, "active tenant required for tenant update", http.StatusForbidden)
+			return
+		}
 		if input.ID != activeTenantID {
 			http.Error(w, "tenant update is limited to the active tenant", http.StatusForbidden)
 			return
@@ -119,7 +126,7 @@ func handleTenantSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenants, err := listUserTenants(r.Context(), db, user.ID, firstNonEmpty(tenant.ID, activeTenantID))
-	if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+	if user.IsPlatformAdmin && (authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") || authenticatedUserHasPermission(user, "tenant.view")) {
 		tenants, err = listAllTenants(r.Context(), db, firstNonEmpty(tenant.ID, activeTenantID))
 	}
 	if err != nil {
@@ -407,15 +414,9 @@ ORDER BY CASE WHEN tenant.id::text = $1 THEN 0 WHEN tenant.code = $2 THEN 1 ELSE
 	return tenants, rows.Err()
 }
 
-func createTenantWithInitialSchool(ctx context.Context, db *sql.DB, input tenantSaveInput, user authenticatedUser, auditCtx requestAuditContext) (tenantSummary, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return tenantSummary{}, err
-	}
-	defer tx.Rollback()
-
+func createTenantWithInitialSchool(ctx context.Context, exec masterDataExecutor, input tenantSaveInput, user authenticatedUser, auditCtx requestAuditContext) (tenantSummary, error) {
 	var tenant tenantSummary
-	err = tx.QueryRowContext(ctx, `
+	err := exec.QueryRowContext(ctx, `
 INSERT INTO tenants (code, name, status, created_by_user_id, updated_by_user_id)
 VALUES ($1, $2, $3, nullif($4, '')::uuid, nullif($4, '')::uuid)
 ON CONFLICT (code) DO NOTHING
@@ -431,23 +432,23 @@ RETURNING id::text, code, name, status`, input.Code, input.Name, input.Status, u
 	if err != nil {
 		return tenantSummary{}, err
 	}
-	if err := ensureTenantMembership(ctx, tx, tenant.ID, user.ID, true); err != nil {
+	if err := ensureTenantMembership(ctx, exec, tenant.ID, user.ID, true); err != nil {
 		return tenantSummary{}, err
 	}
-	if err := ensureTenantSubscription(ctx, tx, tenant.ID, tenant.Status, user.ID); err != nil {
+	if err := ensureTenantSubscription(ctx, exec, tenant.ID, tenant.Status, user.ID); err != nil {
 		return tenantSummary{}, err
 	}
-	if err := ensureTenantUserRole(ctx, tx, tenant.ID, user.ID, "admin", user.ID); err != nil {
+	if err := ensureTenantUserRole(ctx, exec, tenant.ID, user.ID, "tenant_owner", user.ID); err != nil {
 		return tenantSummary{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `
+	if _, err := exec.ExecContext(ctx, `
 INSERT INTO schools (tenant_id, code, name, status, created_by_user_id, updated_by_user_id)
 VALUES ($1::uuid, $2, $3, 'active', nullif($4, '')::uuid, nullif($4, '')::uuid)
 ON CONFLICT (tenant_id, code) DO NOTHING`, tenant.ID, input.InitialSchoolCode, input.InitialSchoolName, user.ID); err != nil {
 		return tenantSummary{}, err
 	}
 	auditCtx.TenantID = tenant.ID
-	_ = insertAuditLog(ctx, tx, auditLogInput{
+	_ = insertAuditLog(ctx, exec, auditLogInput{
 		Context:    auditCtx,
 		Action:     "tenant.create",
 		EntityType: "tenant",
@@ -458,9 +459,6 @@ ON CONFLICT (tenant_id, code) DO NOTHING`, tenant.ID, input.InitialSchoolCode, i
 			"initialSchoolCode": input.InitialSchoolCode,
 		},
 	})
-	if err := tx.Commit(); err != nil {
-		return tenantSummary{}, err
-	}
 	tenant.MembershipStatus = "active"
 	tenant.IsOwner = true
 	tenant.SchoolCount = 1

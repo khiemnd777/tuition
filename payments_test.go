@@ -93,6 +93,43 @@ func TestMatchPaymentTransactionToInvoicesSupportsPartialAndOverpayment(t *testi
 	}
 }
 
+func TestMatchPaymentTransactionToSubscriptionInvoicesMatchesByInvoiceCodeAndAmount(t *testing.T) {
+	transaction := paymentTransactionSummary{
+		ProviderCode:          paymentProviderSePay,
+		ProviderTransactionID: "txn-1",
+		Direction:             paymentDirectionIn,
+		Amount:                250000,
+		Description:           "Thanh toan SUB-SCHOOL_B-202606",
+		ReferenceCode:         "SUB-SCHOOL_B-202606",
+	}
+	candidates := []subscriptionPaymentCandidate{
+		{ID: "sub-1", InvoiceCode: "SUB-SCHOOL_B-202606", Amount: 250000},
+		{ID: "sub-2", InvoiceCode: "SUB-SCHOOL_B-202607", Amount: 250000},
+	}
+	match, ok := matchPaymentTransactionToSubscriptionInvoices(transaction, candidates)
+	if !ok {
+		t.Fatal("expected subscription invoice match")
+	}
+	if match.ID != "sub-1" {
+		t.Fatalf("expected sub-1 match, got %+v", match)
+	}
+}
+
+func TestMatchPaymentTransactionToSubscriptionInvoicesRejectsAmountMismatch(t *testing.T) {
+	transaction := paymentTransactionSummary{
+		ProviderCode: paymentProviderSePay,
+		Direction:    paymentDirectionIn,
+		Amount:       150000,
+		Description:  "SUB-SCHOOL_B-202606",
+	}
+	candidates := []subscriptionPaymentCandidate{
+		{ID: "sub-1", InvoiceCode: "SUB-SCHOOL_B-202606", Amount: 250000},
+	}
+	if _, ok := matchPaymentTransactionToSubscriptionInvoices(transaction, candidates); ok {
+		t.Fatal("expected amount mismatch to reject subscription auto-confirm")
+	}
+}
+
 func TestSummarizePaymentReconciliationTracksCollectionQueues(t *testing.T) {
 	invoices := []invoiceSummary{
 		{ID: "invoice-1", Status: invoiceStatusUnpaid, TotalAmount: 1000, PaidAmount: 0},

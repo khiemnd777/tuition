@@ -152,8 +152,8 @@ func TestValidateAdminUserSaveInputRequiresEmailOrPhone(t *testing.T) {
 }
 
 func TestNormalizeAdminRoleCodesDeduplicatesAndSorts(t *testing.T) {
-	got := normalizeAdminRoleCodes([]string{"Admin", "staff", "accountant", "viewer", "ADMIN", ""})
-	want := []string{"accountant", "admin", "staff"}
+	got := normalizeAdminRoleCodes([]string{"Tenant_Admin", "tenant_staff", "tenant_accountant", "viewer", "TENANT_OWNER", ""})
+	want := []string{"tenant_accountant", "tenant_admin", "tenant_owner", "tenant_staff"}
 	if len(got) != len(want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}

@@ -20,6 +20,10 @@
             <p>Đăng nhập quản trị học phí</p>
           </div>
         </div>
+        <div class="login-mode-switch" aria-label="Chọn luồng truy cập">
+          <button id="showLoginMode" type="button" class="primary"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
+          <button id="showSignupMode" type="button"><span class="mui-icon" aria-hidden="true">storefront</span><span>Đăng ký trường</span></button>
+        </div>
         <form id="loginForm" class="login-form">
           <label>
             <span>Email hoặc SĐT</span>
@@ -60,6 +64,50 @@
           <button id="bootstrapSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Tạo Admin</span></button>
           <div id="bootstrapStatus" class="login-status"></div>
         </form>
+        <form id="signupForm" class="login-form" hidden>
+          <div class="login-mode-head">
+            <p class="section-kicker">Tenant onboarding</p>
+            <h2>Đăng ký trường mới</h2>
+          </div>
+          <label>
+            <span>Tên trường / tổ chức</span>
+            <input id="signupTenantName" autocomplete="organization" />
+          </label>
+          <label>
+            <span>Tenant code</span>
+            <input id="signupTenantCode" placeholder="SCHOOL_B" />
+          </label>
+          <label>
+            <span>Tên trường khởi tạo</span>
+            <input id="signupSchoolName" />
+          </label>
+          <label>
+            <span>Code trường khởi tạo</span>
+            <input id="signupSchoolCode" placeholder="SCHOOL_B" />
+          </label>
+          <label>
+            <span>Tên người phụ trách</span>
+            <input id="signupOwnerDisplayName" autocomplete="name" />
+          </label>
+          <label>
+            <span>Email owner</span>
+            <input id="signupOwnerEmail" type="email" autocomplete="username" />
+          </label>
+          <label>
+            <span>SĐT owner</span>
+            <input id="signupOwnerPhone" type="tel" autocomplete="tel" />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="signupPassword" type="password" autocomplete="new-password" required />
+          </label>
+          <label>
+            <span>Xác nhận password</span>
+            <input id="signupPasswordConfirm" type="password" autocomplete="new-password" required />
+          </label>
+          <button id="signupSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">storefront</span><span>Tạo tenant</span></button>
+          <div id="signupStatus" class="login-status"></div>
+        </form>
       </section>
     </div>
 
@@ -82,7 +130,6 @@
           <div class="menu-group">
             <p class="menu-group-title">Thiết lập</p>
             <button class="tab-button" type="button" data-tab-target="masterDataTab" aria-controls="masterDataTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_tree</span><span>Học sinh & phụ huynh</span></button>
-            <button class="tab-button" type="button" data-tab-target="usersTab" aria-controls="usersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng & quyền</span></button>
           </div>
           <div class="menu-group">
             <p class="menu-group-title">Học phí</p>
@@ -100,9 +147,18 @@
             <button class="tab-button" type="button" data-tab-target="emailTab" aria-controls="emailTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">mark_email_read</span><span>Email & Cron</span></button>
           </div>
           <div class="menu-group">
+            <p class="menu-group-title">Subscription</p>
+            <button class="tab-button" type="button" data-tab-target="subscriptionTab" aria-controls="subscriptionTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Gói & Thanh toán</span></button>
+          </div>
+          <div class="menu-group">
             <p class="menu-group-title">Báo cáo & vận hành</p>
             <button class="tab-button" type="button" data-tab-target="reportsTab" aria-controls="reportsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">summarize</span><span>Báo cáo</span></button>
             <button class="tab-button" type="button" data-tab-target="operationsTab" aria-controls="operationsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Vận hành</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Platform Admin</p>
+            <button class="tab-button" type="button" data-tab-target="tenantUsersTab" aria-controls="tenantUsersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">group</span><span>Tenant Access</span></button>
+            <button class="tab-button" type="button" data-tab-target="platformAdminTab" aria-controls="platformAdminTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Platform Admin</span></button>
           </div>
         </nav>
       </aside>
@@ -148,6 +204,7 @@
         </header>
 
         <div class="content-shell">
+    <section id="tenantOnboardingBanner" class="panel tenant-onboarding-banner" hidden></section>
     <main id="dashboardTab" class="tab-panel active" role="tabpanel">
       <div class="admin-workspace">
         <section class="panel admin-control-panel">
@@ -1427,13 +1484,13 @@
       </div>
     </section>
 
-    <section id="usersTab" class="tab-panel" role="tabpanel" hidden>
+    <section id="platformAdminTab" class="tab-panel" role="tabpanel" hidden>
       <div class="admin-workspace users-workspace">
         <section class="panel tenant-admin-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">Tenant subscription</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant và trường</span></h2>
+              <p class="section-kicker">Platform tenants</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant management</span></h2>
             </div>
             <div class="panel-actions">
               <button id="refreshTenants" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
@@ -1805,11 +1862,137 @@
           </div>
         </section>
 
+        <section class="panel tenant-admin-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Platform entitlements</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">monitoring</span><span>Entitlements và usage</span></h2>
+            </div>
+          </div>
+          <div id="platformEntitlementSummary" class="tenant-summary"></div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Platform entitlement usage">
+              <thead>
+                <tr>
+                  <th>Tenant</th>
+                  <th>Subscription</th>
+                  <th>Schools</th>
+                  <th>Operators</th>
+                  <th>Students</th>
+                  <th>Notifications</th>
+                </tr>
+              </thead>
+              <tbody id="platformEntitlementRows">
+                <tr><td colspan="6">Chưa tải entitlement</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel admin-user-editor-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">User and role admin</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng và quyền</span></h2>
+              <p class="section-kicker">Platform operators</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">shield_person</span><span>Platform users và quyền hệ thống</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshPlatformUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <button id="newPlatformUser" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>User mới</span></button>
+              <span id="platformUsersStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div class="platform-user-form" hidden>
+            <input id="platformUserId" type="hidden" />
+            <label>
+              <span>Email</span>
+              <input id="platformUserEmail" type="email" placeholder="ops@example.edu.vn" />
+            </label>
+            <label>
+              <span>SĐT</span>
+              <input id="platformUserPhone" type="tel" placeholder="0901234567" />
+            </label>
+            <label>
+              <span>Tên hiển thị</span>
+              <input id="platformUserDisplayName" />
+            </label>
+            <label>
+              <span>Trạng thái</span>
+              <select id="platformUserStatus">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="platformUserPassword" type="password" autocomplete="new-password" placeholder="Để trống nếu không đổi" />
+            </label>
+            <label class="admin-user-roles-field">
+              <span>Roles</span>
+              <select id="platformUserRoles" multiple></select>
+            </label>
+            <div class="admin-user-actions">
+              <button id="clearPlatformUser" type="button"><span class="mui-icon" aria-hidden="true">backspace</span><span>Clear</span></button>
+              <button id="savePlatformUser" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu user</span></button>
+              <button id="assignPlatformUserRoles" type="button"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Lưu roles</span></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel admin-users-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Platform operators</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">groups</span><span>Danh sách platform users</span></h2>
+            </div>
+            <span id="platformUserCount" class="count-badge">0 user</span>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Danh sách platform users">
+              <colgroup>
+                <col class="admin-student-col" />
+                <col class="admin-class-col" />
+                <col class="admin-class-col" />
+                <col class="admin-status-col" />
+                <col class="admin-status-col" />
+                <col class="admin-class-col" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Tên</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">SĐT</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Password</th>
+                  <th scope="col">Roles</th>
+                </tr>
+              </thead>
+              <tbody id="platformUserRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel admin-roles-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Platform roles and permissions</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Platform role matrix</span></h2>
+            </div>
+            <span id="platformRoleCount" class="count-badge">0 role</span>
+          </div>
+          <div id="platformRoleList" class="admin-role-list">Chưa có role</div>
+        </section>
+
+      </div>
+    </section>
+
+    <section id="tenantUsersTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace users-workspace">
+        <section class="panel admin-user-editor-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Tenant operators</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Người dùng và quyền tenant</span></h2>
             </div>
             <div class="panel-actions">
               <button id="refreshAdminUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
@@ -1858,8 +2041,8 @@
         <section class="panel admin-users-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">Users</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">group</span><span>Danh sách người dùng</span></h2>
+              <p class="section-kicker">Tenant operators</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">group</span><span>Danh sách người dùng tenant</span></h2>
             </div>
             <span id="adminUserCount" class="count-badge">0 user</span>
           </div>
@@ -1891,12 +2074,95 @@
         <section class="panel admin-roles-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">Roles and permissions</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Role matrix</span></h2>
+              <p class="section-kicker">Tenant roles and permissions</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Tenant role matrix</span></h2>
             </div>
             <span id="adminRoleCount" class="count-badge">0 role</span>
           </div>
           <div id="adminRoleList" class="admin-role-list">Chưa có role</div>
+        </section>
+      </div>
+    </section>
+
+    <section id="subscriptionTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace users-workspace">
+        <section class="panel tenant-admin-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Tenant subscription</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Gói hiện tại và checkout</span></h2>
+            </div>
+            <div class="panel-actions">
+              <button id="refreshSubscriptionPurchase" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+              <span id="subscriptionPurchaseStatus" class="status-pill">Chưa tải</span>
+            </div>
+          </div>
+          <div id="subscriptionPurchaseSummary" class="tenant-summary"></div>
+          <div class="tenant-form">
+            <label>
+              <span>Plan</span>
+              <select id="subscriptionPurchasePlan"></select>
+            </label>
+            <label>
+              <span>Provider</span>
+              <select id="subscriptionPurchaseProvider"></select>
+            </label>
+            <label>
+              <span>Period start</span>
+              <input id="subscriptionPurchasePeriodStart" type="date" />
+            </label>
+            <label>
+              <span>Period end</span>
+              <input id="subscriptionPurchasePeriodEnd" type="date" />
+            </label>
+            <label>
+              <span>Due date</span>
+              <input id="subscriptionPurchaseDueAt" type="date" />
+            </label>
+            <label>
+              <span>Amount</span>
+              <input id="subscriptionPurchaseAmount" type="number" min="0" step="1000" />
+            </label>
+            <div class="admin-user-actions">
+              <button id="startSubscriptionCheckout" class="primary" type="button"><span class="mui-icon" aria-hidden="true">payments</span><span>Tạo thanh toán</span></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel tenant-admin-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Checkout result</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">qr_code_2</span><span>QR / Payment link</span></h2>
+            </div>
+          </div>
+          <div id="subscriptionCheckoutResult" class="operation-log-detail">Chưa tạo checkout</div>
+        </section>
+
+        <section class="panel tenant-admin-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Subscription invoices</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Lịch sử invoice</span></h2>
+            </div>
+          </div>
+          <div class="table-wrap admin-table-wrap">
+            <table class="admin-table" aria-label="Subscription purchase invoices">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Plan</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Due</th>
+                  <th>Paid</th>
+                </tr>
+              </thead>
+              <tbody id="subscriptionPurchaseInvoices">
+                <tr><td colspan="6">Chưa tải invoice</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </section>

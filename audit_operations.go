@@ -315,18 +315,21 @@ func handleAdminOperationLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func resolveOperationsTenantScope(w http.ResponseWriter, r *http.Request, crossTenantPermission string) (string, bool) {
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return "", false
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	requestedTenantID := strings.TrimSpace(r.URL.Query().Get("tenantId"))
-	if requestedTenantID == "" || requestedTenantID == activeTenantID {
+	if requestedTenantID == "" && activeTenantID != "" {
+		return activeTenantID, true
+	}
+	if requestedTenantID != "" && requestedTenantID == activeTenantID {
 		return activeTenantID, true
 	}
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok || !authenticatedUserHasPermission(user, crossTenantPermission) {
 		http.Error(w, "missing required API permission: "+crossTenantPermission, http.StatusForbidden)
 		return "", false
+	}
+	if requestedTenantID == "" && user.IsPlatformAdmin {
+		return "", true
 	}
 	if requestedTenantID == "all" {
 		return "", true

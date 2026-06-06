@@ -19,7 +19,7 @@ func TestRequirePermissionRejectsHeaderSpoofing(t *testing.T) {
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("system.users.write", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("system.users.write", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)
@@ -39,7 +39,7 @@ func TestRequirePermissionAllowsAuthenticatedUserPermission(t *testing.T) {
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("admin.reports.read", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("admin.reports.read", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)
@@ -58,13 +58,33 @@ func TestRequirePermissionRejectsMissingActiveTenant(t *testing.T) {
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("admin.reports.read", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("admin.reports.read", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected missing active tenant to be forbidden, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequirePermissionAllowsPlatformOnlyWithoutActiveTenant(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/platform/users", nil)
+	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
+		ID:              "user-1",
+		Email:           "platform@example.edu.vn",
+		IsPlatformAdmin: true,
+		PermissionSet:   map[string]bool{"user.view": true},
+	}))
+	rec := httptest.NewRecorder()
+
+	handler := requirePermissionForAuthenticated("user.view", true, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected platform-only permission to pass without active tenant, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -102,6 +122,8 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		"POST /api/v1/auth/tenant/switch":                     "tenant.switch",
 		"GET /api/v1/tenants":                                 "tenant.view",
 		"GET /api/v1/subscriptions/plans":                     "subscription.view",
+		"GET /api/v1/subscriptions/purchase":                  "subscription.view",
+		"POST /api/v1/subscriptions/purchase/checkout":        "subscription.update",
 		"GET /api/v1/subscriptions/invoices":                  "subscription.view",
 		"POST /api/v1/tenants/subscription/save":              "subscription.update",
 		"POST /api/v1/subscriptions/invoices/generate":        "subscription.update",
@@ -142,6 +164,15 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	}
 	if routes["POST /api/v1/admin/users/save"].PermissionResolver == nil {
 		t.Fatal("admin user save must resolve create/update permission from request body")
+	}
+	if !routes["GET /api/v1/platform/users"].AllowPlatformOnly {
+		t.Fatal("platform users endpoint must allow platform-only authenticated access")
+	}
+	if !routes["POST /api/v1/platform/users/save"].AllowPlatformOnly {
+		t.Fatal("platform user save endpoint must allow platform-only authenticated access")
+	}
+	if !routes["POST /api/v1/platform/users/roles"].AllowPlatformOnly {
+		t.Fatal("platform user role endpoint must allow platform-only authenticated access")
 	}
 	if routes["POST /api/v1/tenants/save"].PermissionResolver == nil {
 		t.Fatal("tenant save must resolve create/update permission from request body")
@@ -217,7 +248,7 @@ func TestRequirePermissionAllowsCrossTenantOperationAlias(t *testing.T) {
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("operation_log.cross_tenant_view", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("operation_log.cross_tenant_view", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)
@@ -242,7 +273,7 @@ func TestRequirePermissionBlocksWriteWhenTenantSubscriptionIsSuspended(t *testin
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("invoice.create", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("invoice.create", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)
@@ -267,7 +298,7 @@ func TestRequirePermissionAllowsReadWhenTenantSubscriptionIsSuspended(t *testing
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("invoice.view", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("invoice.view", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)
@@ -292,7 +323,7 @@ func TestRequirePermissionAllowsSubscriptionUpdateWhenTenantSubscriptionIsSuspen
 	}))
 	rec := httptest.NewRecorder()
 
-	handler := requirePermissionForAuthenticated("subscription.update", func(w http.ResponseWriter, r *http.Request) {
+	handler := requirePermissionForAuthenticated("subscription.update", false, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	handler(rec, req)

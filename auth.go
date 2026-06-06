@@ -59,22 +59,29 @@ type authTenantSummary struct {
 }
 
 type authenticatedUser struct {
-	ID            string                   `json:"id"`
-	Email         string                   `json:"email"`
-	Phone         string                   `json:"phone"`
-	DisplayName   string                   `json:"displayName"`
-	Status        string                   `json:"status"`
-	Tenants       []authTenantSummary      `json:"tenants"`
-	ActiveTenant  authTenantSummary        `json:"activeTenant"`
-	Roles         []adminRoleSummary       `json:"roles"`
-	Permissions   []adminPermissionSummary `json:"permissions"`
-	PermissionSet map[string]bool          `json:"-"`
+	ID                    string                   `json:"id"`
+	Email                 string                   `json:"email"`
+	Phone                 string                   `json:"phone"`
+	DisplayName           string                   `json:"displayName"`
+	Status                string                   `json:"status"`
+	Tenants               []authTenantSummary      `json:"tenants"`
+	ActiveTenant          authTenantSummary        `json:"activeTenant"`
+	Roles                 []adminRoleSummary       `json:"roles"`
+	ActiveTenantRoles     []adminRoleSummary       `json:"activeTenantRoles"`
+	PlatformRoles         []adminRoleSummary       `json:"platformRoles"`
+	Permissions           []adminPermissionSummary `json:"permissions"`
+	PlatformRoleCodes     []string                 `json:"platformRoleCodes"`
+	ActiveTenantRoleCodes []string                 `json:"activeTenantRoleCodes"`
+	IsPlatformAdmin       bool                     `json:"isPlatformAdmin"`
+	IsTenantOwner         bool                     `json:"isTenantOwner"`
+	PermissionSet         map[string]bool          `json:"-"`
 }
 
 type authSessionResponse struct {
-	User             authenticatedUser `json:"user"`
-	AccessExpiresAt  time.Time         `json:"accessExpiresAt"`
-	RefreshExpiresAt time.Time         `json:"refreshExpiresAt"`
+	User             authenticatedUser     `json:"user"`
+	Onboarding       authOnboardingSummary `json:"onboarding"`
+	AccessExpiresAt  time.Time             `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time             `json:"refreshExpiresAt"`
 }
 
 type authBootstrapRequest struct {
@@ -86,6 +93,27 @@ type authBootstrapRequest struct {
 
 type authBootstrapStatusResponse struct {
 	NeedsBootstrap bool `json:"needsBootstrap"`
+	SignupEnabled  bool `json:"signupEnabled"`
+}
+
+type authTenantSignupRequest struct {
+	TenantName        string `json:"tenantName"`
+	TenantCode        string `json:"tenantCode"`
+	InitialSchoolName string `json:"initialSchoolName"`
+	InitialSchoolCode string `json:"initialSchoolCode"`
+	OwnerEmail        string `json:"ownerEmail"`
+	OwnerPhone        string `json:"ownerPhone"`
+	OwnerDisplayName  string `json:"ownerDisplayName"`
+	Password          string `json:"password"`
+}
+
+type authOnboardingSummary struct {
+	IsNewTenantOwner      bool   `json:"isNewTenantOwner"`
+	NeedsInitialSchool    bool   `json:"needsInitialSchool"`
+	HasMultipleSchools    bool   `json:"hasMultipleSchools"`
+	ActiveTenantPlanCode  string `json:"activeTenantPlanCode,omitempty"`
+	ActiveTenantPlanName  string `json:"activeTenantPlanName,omitempty"`
+	ActiveTenantTrialEnds string `json:"activeTenantTrialEnds,omitempty"`
 }
 
 type authTokenRecord struct {
@@ -115,6 +143,7 @@ type authTokenRecord struct {
 	PlanName            string
 	TrialEndsAt         sql.NullTime
 	CurrentPeriodEndsAt sql.NullTime
+	IsPlatformAdmin     bool
 	RefreshExpiresAt    time.Time
 	AccessExpiresAt     time.Time
 	RefreshTokenID      string
@@ -197,13 +226,14 @@ func handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid email/phone or password", http.StatusUnauthorized)
 		return
 	}
-	if !authenticatedUserHasActiveTenant(user) {
-		http.Error(w, "active tenant membership required", http.StatusForbidden)
+	sessionTenantID, err := preferredAuthSessionTenantID(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
 	now := time.Now().UTC()
-	tokens, err := issueAuthSession(r.Context(), db, user.ID, user.ActiveTenant.ID, now, loadAuthConfig(), auditContextFromRequest(r))
+	tokens, err := issueAuthSession(r.Context(), db, user.ID, sessionTenantID, now, loadAuthConfig(), auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, "cannot create session", http.StatusInternalServerError)
 		return
@@ -214,7 +244,16 @@ func handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setAuthCookies(w, r, tokens, loadAuthConfig())
-	writeJSON(w, http.StatusOK, authSessionResponse{User: user, AccessExpiresAt: tokens.AccessExpiresAt, RefreshExpiresAt: tokens.RefreshExpiresAt})
+	schoolCount := -1
+	if sessionTenantID != "" {
+		schoolCount = 0
+	}
+	writeJSON(w, http.StatusOK, authSessionResponse{
+		User:             user,
+		Onboarding:       buildAuthOnboardingSummary(user, schoolCount),
+		AccessExpiresAt:  tokens.AccessExpiresAt,
+		RefreshExpiresAt: tokens.RefreshExpiresAt,
+	})
 }
 
 func handleAuthBootstrap(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +280,10 @@ func handleAuthBootstrapStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot inspect users", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, authBootstrapStatusResponse{NeedsBootstrap: count == 0})
+	writeJSON(w, http.StatusOK, authBootstrapStatusResponse{
+		NeedsBootstrap: count == 0,
+		SignupEnabled:  count > 0,
+	})
 }
 
 func handleAuthBootstrapCreate(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +322,64 @@ func handleAuthBootstrapCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot load admin permissions", http.StatusInternalServerError)
 		return
 	}
+	sessionTenantID, err := preferredAuthSessionTenantID(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	now := time.Now().UTC()
+	tokens, err := issueAuthSession(r.Context(), db, user.ID, sessionTenantID, now, loadAuthConfig(), auditContextFromRequest(r))
+	if err != nil {
+		http.Error(w, "cannot create session", http.StatusInternalServerError)
+		return
+	}
+	if err := recordAuthLastLogin(r.Context(), db, user.ID, now); err != nil {
+		http.Error(w, "cannot update last login", http.StatusInternalServerError)
+		return
+	}
+	setAuthCookies(w, r, tokens, loadAuthConfig())
+	schoolCount := -1
+	if sessionTenantID != "" {
+		schoolCount = 1
+	}
+	writeJSON(w, http.StatusCreated, authSessionResponse{
+		User:             user,
+		Onboarding:       buildAuthOnboardingSummary(user, schoolCount),
+		AccessExpiresAt:  tokens.AccessExpiresAt,
+		RefreshExpiresAt: tokens.RefreshExpiresAt,
+	})
+}
+
+func handleAuthTenantSignup(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input authTenantSignupRequest
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input = normalizeAuthTenantSignupInput(input)
+	if err := validateAuthTenantSignupInput(input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	user, schoolCount, err := createTenantOwnerSignup(r.Context(), db, input, auditContextFromRequest(r))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := enrichAuthenticatedUser(r.Context(), db, &user); err != nil {
+		http.Error(w, "cannot load owner session", http.StatusInternalServerError)
+		return
+	}
 	if !authenticatedUserHasActiveTenant(user) {
 		http.Error(w, "active tenant membership required", http.StatusForbidden)
 		return
@@ -296,7 +396,12 @@ func handleAuthBootstrapCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setAuthCookies(w, r, tokens, loadAuthConfig())
-	writeJSON(w, http.StatusCreated, authSessionResponse{User: user, AccessExpiresAt: tokens.AccessExpiresAt, RefreshExpiresAt: tokens.RefreshExpiresAt})
+	writeJSON(w, http.StatusCreated, authSessionResponse{
+		User:             user,
+		Onboarding:       buildAuthOnboardingSummary(user, schoolCount),
+		AccessExpiresAt:  tokens.AccessExpiresAt,
+		RefreshExpiresAt: tokens.RefreshExpiresAt,
+	})
 }
 
 func handleAuthSession(w http.ResponseWriter, r *http.Request) {
@@ -504,6 +609,9 @@ func validateRefreshTokenRecord(record authTokenRecord, now time.Time) error {
 		return errors.New("user is not active")
 	}
 	if record.TenantID == "" {
+		if record.IsPlatformAdmin {
+			return nil
+		}
 		return errors.New("active tenant not found")
 	}
 	if !tenantStatusAllowsAuth(record.TenantStatus) {
@@ -623,23 +731,23 @@ WHERE id = $1::uuid`, userID, email, phone, displayName, passwordHash)
 INSERT INTO app_user_roles (user_id, role_id)
 SELECT $1::uuid, id
 FROM app_roles
-WHERE code = 'admin'
+WHERE code = 'platform_admin'
 ON CONFLICT (user_id, role_id) DO NOTHING`, userID)
 	if err != nil {
 		return err
 	}
-	hasRole, err := userHasRole(ctx, tx, userID, "admin")
+	hasRole, err := userHasRole(ctx, tx, userID, "platform_admin")
 	if err != nil {
 		return err
 	}
 	if !hasRole {
-		return fmt.Errorf("admin role is not available; run migrations first")
+		return fmt.Errorf("platform_admin role is not available; run migrations first")
 	}
 	tenantID, err := ensureDefaultTenantMembership(ctx, tx, userID, true)
 	if err != nil {
 		return err
 	}
-	if err := ensureTenantUserRole(ctx, tx, tenantID, userID, "admin", userID); err != nil {
+	if err := ensureTenantUserRole(ctx, tx, tenantID, userID, "tenant_owner", userID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -678,25 +786,134 @@ RETURNING id::text`, input.Email, input.Phone, input.DisplayName, passwordHash).
 INSERT INTO app_user_roles (user_id, role_id)
 SELECT $1::uuid, id
 FROM app_roles
-WHERE code = 'admin'
+WHERE code = 'platform_admin'
 ON CONFLICT (user_id, role_id) DO NOTHING`, userID); err != nil {
 		return "", err
 	}
-	hasRole, err := userHasRole(ctx, tx, userID, "admin")
+	hasRole, err := userHasRole(ctx, tx, userID, "platform_admin")
 	if err != nil {
 		return "", err
 	}
 	if !hasRole {
-		return "", fmt.Errorf("admin role is not available; run migrations first")
+		return "", fmt.Errorf("platform_admin role is not available; run migrations first")
 	}
 	tenantID, err := ensureDefaultTenantMembership(ctx, tx, userID, true)
 	if err != nil {
 		return "", err
 	}
-	if err := ensureTenantUserRole(ctx, tx, tenantID, userID, "admin", userID); err != nil {
+	if err := ensureTenantUserRole(ctx, tx, tenantID, userID, "tenant_owner", userID); err != nil {
 		return "", err
 	}
 	return userID, tx.Commit()
+}
+
+func normalizeAuthTenantSignupInput(input authTenantSignupRequest) authTenantSignupRequest {
+	input.TenantName = strings.TrimSpace(input.TenantName)
+	input.TenantCode = normalizeSchoolCode(input.TenantCode)
+	input.InitialSchoolName = strings.TrimSpace(input.InitialSchoolName)
+	input.InitialSchoolCode = normalizeSchoolCode(input.InitialSchoolCode)
+	input.OwnerEmail = strings.ToLower(strings.TrimSpace(input.OwnerEmail))
+	input.OwnerPhone = normalizeAdminPhone(input.OwnerPhone)
+	input.OwnerDisplayName = strings.TrimSpace(input.OwnerDisplayName)
+	input.Password = strings.TrimSpace(input.Password)
+	if input.InitialSchoolCode == "" {
+		input.InitialSchoolCode = input.TenantCode
+	}
+	if input.InitialSchoolName == "" {
+		input.InitialSchoolName = input.TenantName
+	}
+	return input
+}
+
+func validateAuthTenantSignupInput(input authTenantSignupRequest) error {
+	if strings.TrimSpace(input.TenantName) == "" {
+		return fmt.Errorf("tenant name is required")
+	}
+	if !isSafeTenantCode(input.TenantCode) {
+		return fmt.Errorf("tenant code may contain only letters, numbers, underscore, or hyphen")
+	}
+	if !isSafeTenantCode(input.InitialSchoolCode) {
+		return fmt.Errorf("initial school code may contain only letters, numbers, underscore, or hyphen")
+	}
+	if strings.TrimSpace(input.InitialSchoolName) == "" {
+		return fmt.Errorf("initial school name is required")
+	}
+	ownerInput := adminUserSaveInput{
+		Email:       input.OwnerEmail,
+		Phone:       input.OwnerPhone,
+		DisplayName: input.OwnerDisplayName,
+		Status:      "active",
+		Password:    input.Password,
+	}
+	return validateAdminUserSaveInput(&ownerInput)
+}
+
+func createTenantOwnerSignup(ctx context.Context, db *sql.DB, input authTenantSignupRequest, auditCtx requestAuditContext) (authenticatedUser, int, error) {
+	passwordHash, err := hashPassword(input.Password)
+	if err != nil {
+		return authenticatedUser{}, 0, err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return authenticatedUser{}, 0, err
+	}
+	defer tx.Rollback()
+
+	var existingUserID string
+	err = tx.QueryRowContext(ctx, `
+SELECT id::text
+FROM app_users
+WHERE ($1 <> '' AND lower(COALESCE(email, '')) = lower($1))
+	OR ($2 <> '' AND phone = $2)
+LIMIT 1`, input.OwnerEmail, input.OwnerPhone).Scan(&existingUserID)
+	if err == nil && existingUserID != "" {
+		return authenticatedUser{}, 0, fmt.Errorf("owner email or phone already exists")
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return authenticatedUser{}, 0, err
+	}
+
+	var user authenticatedUser
+	if err := tx.QueryRowContext(ctx, `
+INSERT INTO app_users (email, phone, display_name, status, password_hash, password_updated_at)
+VALUES ($1, $2, $3, 'active', $4, now())
+RETURNING id::text, COALESCE(email, ''), phone, display_name, status`,
+		input.OwnerEmail,
+		input.OwnerPhone,
+		input.OwnerDisplayName,
+		passwordHash,
+	).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayName, &user.Status); err != nil {
+		return authenticatedUser{}, 0, err
+	}
+
+	tenantInput := tenantSaveInput{
+		Code:              input.TenantCode,
+		Name:              input.TenantName,
+		Status:            "trial",
+		InitialSchoolCode: input.InitialSchoolCode,
+		InitialSchoolName: input.InitialSchoolName,
+	}
+	tenant, err := createTenantWithInitialSchool(ctx, tx, tenantInput, user, auditCtx)
+	if err != nil {
+		return authenticatedUser{}, 0, err
+	}
+	user.ActiveTenant = authTenantSummary{
+		ID:                  tenant.ID,
+		Code:                tenant.Code,
+		Name:                tenant.Name,
+		Status:              tenant.Status,
+		MembershipStatus:    "active",
+		IsOwner:             true,
+		SubscriptionStatus:  tenant.SubscriptionStatus,
+		PlanCode:            tenant.PlanCode,
+		PlanName:            tenant.PlanName,
+		TrialEndsAt:         tenant.TrialEndsAt,
+		CurrentPeriodEndsAt: tenant.CurrentPeriodEndsAt,
+	}
+	if err := tx.Commit(); err != nil {
+		return authenticatedUser{}, 0, err
+	}
+	return user, tenant.SchoolCount, nil
 }
 
 func userHasRole(ctx context.Context, tx *sql.Tx, userID string, roleCode string) (bool, error) {
@@ -798,13 +1015,43 @@ func enrichAuthenticatedUser(ctx context.Context, db *sql.DB, user *authenticate
 	user.Tenants = tenants
 	user.ActiveTenant = activeTenant
 	user.Roles = []adminRoleSummary{}
+	user.ActiveTenantRoles = []adminRoleSummary{}
+	user.PlatformRoles = []adminRoleSummary{}
 	user.Permissions = []adminPermissionSummary{}
+	user.PlatformRoleCodes = []string{}
+	user.ActiveTenantRoleCodes = []string{}
+	user.IsPlatformAdmin = false
+	user.IsTenantOwner = false
 	user.PermissionSet = map[string]bool{}
-	if user.ActiveTenant.ID == "" {
-		return nil
-	}
 
-	rows, err := db.QueryContext(ctx, `
+	platformRoles, platformPermissions, platformRoleCodes, err := loadUserRolesAndPermissions(ctx, db, `
+SELECT r.id::text,
+	r.code,
+	r.name,
+	r.description,
+	r.is_system,
+	COALESCE(p.id::text, ''),
+	COALESCE(p.code, ''),
+	COALESCE(p.description, '')
+FROM app_user_roles ur
+JOIN app_roles r ON r.id = ur.role_id
+LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
+LEFT JOIN app_permissions p ON p.id = rp.permission_id
+WHERE ur.user_id = $1::uuid
+	AND r.code IN ('platform_admin')
+ORDER BY r.code, p.code`, user.ID)
+	if err != nil {
+		return err
+	}
+	user.PlatformRoles = platformRoles
+	user.PlatformRoleCodes = platformRoleCodes
+	user.IsPlatformAdmin = stringSliceContains(platformRoleCodes, "platform_admin")
+
+	tenantRoles := []adminRoleSummary{}
+	tenantPermissions := []adminPermissionSummary{}
+	tenantRoleCodes := []string{}
+	if user.ActiveTenant.ID != "" {
+		tenantRoles, tenantPermissions, tenantRoleCodes, err = loadUserRolesAndPermissions(ctx, db, `
 SELECT r.id::text,
 	r.code,
 	r.name,
@@ -819,9 +1066,28 @@ LEFT JOIN app_role_permissions rp ON rp.role_id = r.id
 LEFT JOIN app_permissions p ON p.id = rp.permission_id
 WHERE ur.user_id = $1::uuid
 	AND ur.tenant_id = $2::uuid
+	AND r.code IN ('tenant_owner', 'tenant_admin', 'tenant_staff', 'tenant_accountant')
 ORDER BY r.code, p.code`, user.ID, user.ActiveTenant.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	user.Roles = tenantRoles
+	user.ActiveTenantRoles = tenantRoles
+	user.ActiveTenantRoleCodes = tenantRoleCodes
+	user.IsTenantOwner = user.ActiveTenant.IsOwner || stringSliceContains(tenantRoleCodes, "tenant_owner")
+	user.Permissions = mergeAdminPermissions(platformPermissions, tenantPermissions)
+	for _, permission := range user.Permissions {
+		user.PermissionSet[permission.Code] = true
+	}
+	return nil
+}
+
+func loadUserRolesAndPermissions(ctx context.Context, db *sql.DB, query string, args ...any) ([]adminRoleSummary, []adminPermissionSummary, []string, error) {
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 	defer rows.Close()
 
@@ -842,7 +1108,7 @@ ORDER BY r.code, p.code`, user.ID, user.ActiveTenant.ID)
 			&permission.Code,
 			&permission.Description,
 		); err != nil {
-			return err
+			return nil, nil, nil, err
 		}
 		existing := roleByID[roleID]
 		if existing == nil {
@@ -858,30 +1124,86 @@ ORDER BY r.code, p.code`, user.ID, user.ActiveTenant.ID)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
-	user.Roles = make([]adminRoleSummary, 0, len(roleOrder))
+	roles := make([]adminRoleSummary, 0, len(roleOrder))
+	roleCodes := make([]string, 0, len(roleOrder))
 	for _, roleID := range roleOrder {
-		user.Roles = append(user.Roles, *roleByID[roleID])
+		role := *roleByID[roleID]
+		sortAdminPermissions(role.Permissions)
+		roles = append(roles, role)
+		roleCodes = append(roleCodes, role.Code)
 	}
-	user.Permissions = make([]adminPermissionSummary, 0, len(permissionByCode))
+	permissions := make([]adminPermissionSummary, 0, len(permissionByCode))
 	for _, permission := range permissionByCode {
-		user.Permissions = append(user.Permissions, permission)
+		permissions = append(permissions, permission)
 	}
-	sortAdminPermissions(user.Permissions)
-	user.PermissionSet = map[string]bool{}
-	for _, permission := range user.Permissions {
-		user.PermissionSet[permission.Code] = true
+	sortAdminPermissions(permissions)
+	sort.Strings(roleCodes)
+	return roles, permissions, roleCodes, nil
+}
+
+func mergeAdminPermissions(groups ...[]adminPermissionSummary) []adminPermissionSummary {
+	permissionByCode := map[string]adminPermissionSummary{}
+	for _, group := range groups {
+		for _, permission := range group {
+			if permission.Code == "" {
+				continue
+			}
+			permissionByCode[permission.Code] = permission
+		}
 	}
-	return nil
+	permissions := make([]adminPermissionSummary, 0, len(permissionByCode))
+	for _, permission := range permissionByCode {
+		permissions = append(permissions, permission)
+	}
+	sortAdminPermissions(permissions)
+	return permissions
+}
+
+func stringSliceContains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func buildAuthOnboardingSummary(user authenticatedUser, schoolCount int) authOnboardingSummary {
+	summary := authOnboardingSummary{
+		IsNewTenantOwner:      user.IsTenantOwner,
+		NeedsInitialSchool:    schoolCount == 0,
+		HasMultipleSchools:    schoolCount > 1,
+		ActiveTenantPlanCode:  user.ActiveTenant.PlanCode,
+		ActiveTenantPlanName:  user.ActiveTenant.PlanName,
+		ActiveTenantTrialEnds: user.ActiveTenant.TrialEndsAt,
+	}
+	if schoolCount < 0 {
+		summary.NeedsInitialSchool = false
+		summary.HasMultipleSchools = false
+	}
+	return summary
+}
+
+func loadTenantSchoolCount(ctx context.Context, exec masterDataExecutor, tenantID string) (int, error) {
+	if strings.TrimSpace(tenantID) == "" {
+		return 0, nil
+	}
+	var count int
+	err := exec.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM schools
+WHERE tenant_id = $1::uuid`, tenantID).Scan(&count)
+	return count, err
 }
 
 func loadAuthenticatedUserTenants(ctx context.Context, db *sql.DB, userID string, preferredTenantID string) ([]authTenantSummary, authTenantSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT tenant.id::text,
-	tenant.code,
-	tenant.name,
+	COALESCE(tenant.code, ''),
+	COALESCE(tenant.name, ''),
 	tenant.status,
 	membership.status,
 	membership.is_owner,
@@ -935,11 +1257,18 @@ func sortAdminPermissions(permissions []adminPermissionSummary) {
 	})
 }
 
+func preferredAuthSessionTenantID(user authenticatedUser) (string, error) {
+	if authenticatedUserHasActiveTenant(user) {
+		return strings.TrimSpace(user.ActiveTenant.ID), nil
+	}
+	if user.IsPlatformAdmin {
+		return "", nil
+	}
+	return "", errors.New("active tenant membership required")
+}
+
 func issueAuthSession(ctx context.Context, db *sql.DB, userID string, tenantID string, now time.Time, cfg authConfig, auditCtx requestAuditContext) (authIssuedTokens, error) {
 	tenantID = strings.TrimSpace(tenantID)
-	if tenantID == "" {
-		return authIssuedTokens{}, errors.New("active tenant is required")
-	}
 	tokens, err := issueRawTokens(now, cfg)
 	if err != nil {
 		return authIssuedTokens{}, err
@@ -949,7 +1278,7 @@ func issueAuthSession(ctx context.Context, db *sql.DB, userID string, tenantID s
 	err = db.QueryRowContext(ctx, `
 WITH new_session AS (
 	INSERT INTO app_auth_sessions (user_id, tenant_id, expires_at, last_used_at, ip_address, user_agent)
-	VALUES ($1::uuid, $2::uuid, $3, $4, nullif($5, '')::inet, $6)
+	VALUES ($1::uuid, nullif($2, '')::uuid, $3, $4, nullif($5, '')::inet, $6)
 	RETURNING id, user_id
 ), new_access AS (
 	INSERT INTO app_auth_access_tokens (session_id, user_id, token_hash, issued_at, expires_at)
@@ -997,12 +1326,12 @@ SELECT at.id::text,
 	u.phone,
 	u.display_name,
 	u.status,
-	tenant.id::text,
+	COALESCE(tenant.id::text, ''),
 	tenant.code,
 	tenant.name,
-	tenant.status,
-	membership.status,
-	membership.is_owner,
+	COALESCE(tenant.status, ''),
+	COALESCE(membership.status, ''),
+	COALESCE(membership.is_owner, false),
 	COALESCE(ts.status, ''),
 	COALESCE(plan.code, ''),
 	COALESCE(plan.name, ''),
@@ -1012,8 +1341,8 @@ FROM app_auth_access_tokens at
 JOIN app_auth_sessions s ON s.id = at.session_id
 JOIN app_auth_refresh_tokens rt ON rt.session_id = s.id AND rt.used_at IS NULL AND rt.revoked_at IS NULL
 JOIN app_users u ON u.id = at.user_id
-JOIN tenants tenant ON tenant.id = s.tenant_id AND tenant.status IN ('active', 'trial')
-JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
+LEFT JOIN tenants tenant ON tenant.id = s.tenant_id
+LEFT JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
 	AND membership.user_id = u.id
 	AND membership.status = 'active'
 LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
@@ -1025,6 +1354,13 @@ WHERE at.token_hash = $1
 	AND s.expires_at > $2
 	AND rt.expires_at > $2
 	AND u.status = 'active'
+	AND (
+		s.tenant_id IS NULL
+		OR (
+			tenant.status IN ('active', 'trial')
+			AND membership.status = 'active'
+		)
+	)
 ORDER BY rt.issued_at DESC
 LIMIT 1`, accessTokenHash, now).Scan(
 		&accessTokenID,
@@ -1054,6 +1390,9 @@ LIMIT 1`, accessTokenHash, now).Scan(
 	session.User.ActiveTenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
 	if err := enrichAuthenticatedUser(ctx, db, &session.User); err != nil {
 		return authSessionResponse{}, err
+	}
+	if session.User.ActiveTenant.ID == "" && !session.User.IsPlatformAdmin {
+		return authSessionResponse{}, sql.ErrNoRows
 	}
 	_, _ = db.ExecContext(ctx, `
 UPDATE app_auth_access_tokens
@@ -1155,6 +1494,14 @@ WHERE id = $1::uuid`, record.SessionID, now, auditCtx.IPAddress, auditCtx.UserAg
 	if err := enrichAuthenticatedUser(ctx, db, &session.User); err != nil {
 		return authSessionResponse{}, authIssuedTokens{}, err
 	}
+	schoolCount := -1
+	if record.TenantID != "" {
+		schoolCount, err = loadTenantSchoolCount(ctx, tx, record.TenantID)
+		if err != nil {
+			return authSessionResponse{}, authIssuedTokens{}, err
+		}
+	}
+	session.Onboarding = buildAuthOnboardingSummary(session.User, schoolCount)
 	if err := tx.Commit(); err != nil {
 		return authSessionResponse{}, authIssuedTokens{}, err
 	}
@@ -1176,22 +1523,29 @@ SELECT rt.id::text,
 	u.phone,
 	u.display_name,
 	u.status,
-	s.tenant_id::text,
-	tenant.code,
-	tenant.name,
-	tenant.status,
-	membership.status,
-	membership.is_owner,
+	COALESCE(s.tenant_id::text, ''),
+	COALESCE(tenant.code, ''),
+	COALESCE(tenant.name, ''),
+	COALESCE(tenant.status, ''),
+	COALESCE(membership.status, ''),
+	COALESCE(membership.is_owner, false),
 	COALESCE(ts.status, ''),
 	COALESCE(plan.code, ''),
 	COALESCE(plan.name, ''),
 	ts.trial_ends_at,
-	ts.current_period_ends_at
+	ts.current_period_ends_at,
+	EXISTS (
+		SELECT 1
+		FROM app_user_roles ur
+		JOIN app_roles r ON r.id = ur.role_id
+		WHERE ur.user_id = u.id
+			AND r.code = 'platform_admin'
+	)
 FROM app_auth_refresh_tokens rt
 JOIN app_auth_sessions s ON s.id = rt.session_id
 JOIN app_users u ON u.id = rt.user_id
-JOIN tenants tenant ON tenant.id = s.tenant_id
-JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
+LEFT JOIN tenants tenant ON tenant.id = s.tenant_id
+LEFT JOIN tenant_memberships membership ON membership.tenant_id = s.tenant_id
 	AND membership.user_id = u.id
 LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
 LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
@@ -1220,6 +1574,7 @@ FOR UPDATE OF rt`, refreshTokenHash).Scan(
 		&record.PlanName,
 		&record.TrialEndsAt,
 		&record.CurrentPeriodEndsAt,
+		&record.IsPlatformAdmin,
 	)
 	return record, err
 }

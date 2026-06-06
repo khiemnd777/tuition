@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -126,5 +128,39 @@ func TestNormalizeSubscriptionBatchRunInput(t *testing.T) {
 	got := normalizeSubscriptionBatchRunInput(subscriptionBatchRunInput{Scope: "ALL", DryRun: false, ConfirmRun: false})
 	if got.Scope != "all" || !got.DryRun {
 		t.Fatalf("unexpected normalized batch input %+v", got)
+	}
+}
+
+func TestResolveSubscriptionFinanceScopeDefaultsToAllForPlatformOnlySession(t *testing.T) {
+	rec := httptest.NewRecorder()
+	user := authenticatedUser{
+		IsPlatformAdmin: true,
+		PermissionSet: map[string]bool{
+			"tenant.view": true,
+		},
+	}
+	got, ok := resolveSubscriptionFinanceScopeFromValue(rec, user, "", "")
+	if !ok {
+		t.Fatalf("expected platform-only scope resolution to pass, got %d %s", rec.Code, rec.Body.String())
+	}
+	if got != "all" {
+		t.Fatalf("expected all scope, got %q", got)
+	}
+}
+
+func TestResolveSubscriptionFinanceScopeRejectsActiveWithoutTenant(t *testing.T) {
+	rec := httptest.NewRecorder()
+	user := authenticatedUser{
+		IsPlatformAdmin: true,
+		PermissionSet: map[string]bool{
+			"tenant.view": true,
+		},
+	}
+	_, ok := resolveSubscriptionFinanceScopeFromValue(rec, user, "", "active")
+	if ok {
+		t.Fatal("expected active scope without tenant to be rejected")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden, got %d", rec.Code)
 	}
 }

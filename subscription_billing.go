@@ -67,6 +67,33 @@ type subscriptionBillingResponse struct {
 	DunningResults  []subscriptionDunningResult         `json:"dunningResults,omitempty"`
 }
 
+type subscriptionPurchaseResponse struct {
+	Tenant      tenantSummary                       `json:"tenant"`
+	Plans       []subscriptionPlanSummary           `json:"plans"`
+	Providers   []paymentProvider                   `json:"providers"`
+	Suggested   subscriptionBillingPeriodSuggestion `json:"suggested"`
+	CurrentPlan tenantSubscriptionSummary           `json:"currentPlan"`
+	OpenInvoice *subscriptionInvoiceSummary         `json:"openInvoice,omitempty"`
+	Checkout    *subscriptionCheckoutResult         `json:"checkout,omitempty"`
+}
+
+type subscriptionPurchaseCheckoutInput struct {
+	TenantID       string `json:"tenantId"`
+	PlanCode       string `json:"planCode"`
+	Provider       string `json:"provider"`
+	PeriodStartsAt string `json:"periodStartsAt"`
+	PeriodEndsAt   string `json:"periodEndsAt"`
+	DueAt          string `json:"dueAt"`
+	Amount         int    `json:"amount"`
+}
+
+type subscriptionCheckoutResult struct {
+	Invoice  subscriptionInvoiceSummary `json:"invoice"`
+	Intent   paymentIntentSummary       `json:"intent"`
+	QR       *qrItem                    `json:"qr,omitempty"`
+	Provider paymentProvider            `json:"provider"`
+}
+
 type subscriptionInvoiceGenerateInput struct {
 	TenantID       string `json:"tenantId"`
 	PeriodStartsAt string `json:"periodStartsAt"`
@@ -430,7 +457,32 @@ func handleSubscriptionBillingExport(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func handleSubscriptionFinanceConsole(w http.ResponseWriter, r *http.Request) {
+func handleSubscriptionPurchase(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	tenantID, ok := requireActiveTenantID(w, r)
+	if !ok {
+		return
+	}
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	payload, err := loadSubscriptionPurchaseResponse(r.Context(), db, user, tenantID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func handleSubscriptionPurchaseCheckout(w http.ResponseWriter, r *http.Request) {
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
@@ -440,6 +492,40 @@ func handleSubscriptionFinanceConsole(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var input subscriptionPurchaseCheckoutInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+	input = normalizeSubscriptionPurchaseCheckoutInput(input, activeTenantID)
+	if err := validateSubscriptionPurchaseCheckoutInput(input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	db, err := openMasterDataDatabase(r.Context())
+	if err != nil {
+		writeMasterDataDBError(w, err)
+		return
+	}
+	defer db.Close()
+
+	result, err := createSubscriptionCheckout(r.Context(), db, user, input, auditContextFromRequest(r))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func handleSubscriptionFinanceConsole(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUserFromRequest(r)
+	if !ok {
+		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	scope, ok := resolveSubscriptionFinanceScope(w, r, user, activeTenantID)
 	if !ok {
 		return
@@ -465,10 +551,7 @@ func handleSubscriptionFinanceRenewals(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input subscriptionBatchRunInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -506,10 +589,7 @@ func handleSubscriptionFinanceDunning(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input subscriptionBatchRunInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -547,10 +627,7 @@ func handleSubscriptionFinanceExport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
-	activeTenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
-		return
-	}
+	activeTenantID := activeTenantIDFromRequest(r)
 	scope, ok := resolveSubscriptionFinanceScope(w, r, user, activeTenantID)
 	if !ok {
 		return
@@ -606,12 +683,96 @@ func loadSubscriptionBillingResponse(ctx context.Context, db *sql.DB, user authe
 	}, nil
 }
 
+func loadSubscriptionPurchaseResponse(ctx context.Context, db *sql.DB, user authenticatedUser, tenantID string) (subscriptionPurchaseResponse, error) {
+	if err := syncSubscriptionInvoicePastDueState(ctx, db, tenantID, time.Now()); err != nil {
+		return subscriptionPurchaseResponse{}, err
+	}
+	tenant, err := loadTenantSummaryByID(ctx, db, tenantID)
+	if err != nil {
+		return subscriptionPurchaseResponse{}, err
+	}
+	plans, err := listSubscriptionPlans(ctx, db)
+	if err != nil {
+		return subscriptionPurchaseResponse{}, err
+	}
+	providers, err := listPaymentProviders(ctx, db, tenantID)
+	if err != nil {
+		return subscriptionPurchaseResponse{}, err
+	}
+	providers = filterSubscriptionCheckoutProviders(providers)
+	profile, err := loadTenantSubscriptionBillingProfile(ctx, db, tenantID)
+	if err != nil {
+		return subscriptionPurchaseResponse{}, err
+	}
+	suggested := suggestSubscriptionBillingPeriod(profile, time.Now())
+	invoices, err := listSubscriptionInvoices(ctx, db, tenantID)
+	if err != nil {
+		return subscriptionPurchaseResponse{}, err
+	}
+	var openInvoice *subscriptionInvoiceSummary
+	for idx := range invoices {
+		if invoices[idx].Status == subscriptionInvoiceStatusOpen || invoices[idx].Status == subscriptionInvoiceStatusPastDue {
+			openInvoice = &invoices[idx]
+			break
+		}
+	}
+	return subscriptionPurchaseResponse{
+		Tenant:    tenant,
+		Plans:     plans,
+		Providers: providers,
+		Suggested: suggested,
+		CurrentPlan: tenantSubscriptionSummary{
+			ID:                  profile.SubscriptionID,
+			Status:              profile.SubscriptionStatus,
+			PlanCode:            profile.PlanCode,
+			PlanName:            profile.PlanName,
+			CurrentPeriodEndsAt: formatNullDate(profile.CurrentPeriodEndsAt),
+		},
+		OpenInvoice: openInvoice,
+	}, nil
+}
+
 func normalizeSubscriptionInvoiceGenerateInput(input subscriptionInvoiceGenerateInput, activeTenantID string) subscriptionInvoiceGenerateInput {
 	input.TenantID = firstNonEmpty(strings.TrimSpace(input.TenantID), strings.TrimSpace(activeTenantID))
 	input.PeriodStartsAt = strings.TrimSpace(input.PeriodStartsAt)
 	input.PeriodEndsAt = strings.TrimSpace(input.PeriodEndsAt)
 	input.DueAt = strings.TrimSpace(input.DueAt)
 	return input
+}
+
+func normalizeSubscriptionPurchaseCheckoutInput(input subscriptionPurchaseCheckoutInput, activeTenantID string) subscriptionPurchaseCheckoutInput {
+	input.TenantID = firstNonEmpty(strings.TrimSpace(input.TenantID), strings.TrimSpace(activeTenantID))
+	input.PlanCode = headerKey(input.PlanCode)
+	input.Provider = headerKey(input.Provider)
+	if input.Provider == "" {
+		input.Provider = paymentProviderManualVietQR
+	}
+	input.PeriodStartsAt = strings.TrimSpace(input.PeriodStartsAt)
+	input.PeriodEndsAt = strings.TrimSpace(input.PeriodEndsAt)
+	input.DueAt = strings.TrimSpace(input.DueAt)
+	return input
+}
+
+func validateSubscriptionPurchaseCheckoutInput(input subscriptionPurchaseCheckoutInput) error {
+	if strings.TrimSpace(input.TenantID) == "" {
+		return fmt.Errorf("tenantId is required")
+	}
+	if strings.TrimSpace(input.PlanCode) == "" {
+		return fmt.Errorf("planCode is required")
+	}
+	if input.Provider != paymentProviderManualVietQR && input.Provider != paymentProviderPayOS && input.Provider != paymentProviderSePay {
+		return fmt.Errorf("provider must be manual_vietqr, sepay, or payos")
+	}
+	if strings.TrimSpace(input.PeriodStartsAt) == "" {
+		return fmt.Errorf("periodStartsAt is required")
+	}
+	if strings.TrimSpace(input.PeriodEndsAt) == "" {
+		return fmt.Errorf("periodEndsAt is required")
+	}
+	if strings.TrimSpace(input.DueAt) == "" {
+		return fmt.Errorf("dueAt is required")
+	}
+	return nil
 }
 
 func normalizeSubscriptionInvoiceMarkPaidInput(input subscriptionInvoiceMarkPaidInput, activeTenantID string) subscriptionInvoiceMarkPaidInput {
@@ -704,6 +865,20 @@ WHERE tenant.id = $1::uuid`, tenantID).Scan(
 	return profile, nil
 }
 
+func filterSubscriptionCheckoutProviders(providers []paymentProvider) []paymentProvider {
+	filtered := make([]paymentProvider, 0, len(providers))
+	for _, provider := range providers {
+		if !provider.Configured {
+			continue
+		}
+		switch provider.Code {
+		case paymentProviderManualVietQR, paymentProviderSePay, paymentProviderPayOS:
+			filtered = append(filtered, provider)
+		}
+	}
+	return filtered
+}
+
 func subscriptionBillingConfigFromProfile(profile tenantSubscriptionBillingProfile) subscriptionBillingConfig {
 	cfg := subscriptionBillingConfig{
 		Amount:              parseSubscriptionLimitValue(profile.BillingMetadata["amount"]),
@@ -794,18 +969,30 @@ func resolveSubscriptionFinanceScope(w http.ResponseWriter, r *http.Request, use
 }
 
 func resolveSubscriptionFinanceScopeFromValue(w http.ResponseWriter, user authenticatedUser, activeTenantID string, scope string) (string, bool) {
-	scope = headerKey(firstNonEmpty(scope, activeTenantID))
+	scope = headerKey(scope)
 	if scope == "" {
-		scope = headerKey(activeTenantID)
+		if strings.TrimSpace(activeTenantID) != "" {
+			scope = "active"
+		} else if authenticatedUserCanUsePlatformFinance(user) {
+			scope = "all"
+		}
 	}
 	if scope == "all" {
-		if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+		if authenticatedUserCanUsePlatformFinance(user) {
 			return "all", true
 		}
 		http.Error(w, "cross-tenant finance scope requires cross-tenant permission", http.StatusForbidden)
 		return "", false
 	}
+	if strings.TrimSpace(activeTenantID) == "" {
+		http.Error(w, "active tenant required for active finance scope", http.StatusForbidden)
+		return "", false
+	}
 	return strings.TrimSpace(activeTenantID), true
+}
+
+func authenticatedUserCanUsePlatformFinance(user authenticatedUser) bool {
+	return user.IsPlatformAdmin && (authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") || authenticatedUserHasPermission(user, "tenant.view"))
 }
 
 func parseSubscriptionFinanceConsoleFilters(r *http.Request, scope string) subscriptionFinanceConsoleFilters {
@@ -1164,6 +1351,110 @@ RETURNING id::text`,
 	return loadSubscriptionInvoiceByID(ctx, db, invoiceID, input.TenantID)
 }
 
+func createSubscriptionCheckout(ctx context.Context, db *sql.DB, user authenticatedUser, input subscriptionPurchaseCheckoutInput, auditCtx requestAuditContext) (subscriptionCheckoutResult, error) {
+	provider, err := loadPaymentProviderByCode(ctx, db, input.TenantID, input.Provider)
+	if err != nil {
+		return subscriptionCheckoutResult{}, err
+	}
+	if !provider.Configured {
+		return subscriptionCheckoutResult{}, fmt.Errorf("payment provider %q is not configured", provider.Code)
+	}
+	invoice, err := generateSubscriptionInvoice(ctx, db, subscriptionInvoiceGenerateInput{
+		TenantID:       input.TenantID,
+		PeriodStartsAt: input.PeriodStartsAt,
+		PeriodEndsAt:   input.PeriodEndsAt,
+		DueAt:          input.DueAt,
+		Amount:         input.Amount,
+	}, user, auditCtx)
+	if err != nil {
+		return subscriptionCheckoutResult{}, err
+	}
+	checkout, err := buildSubscriptionCheckout(ctx, db, provider, invoice)
+	if err != nil {
+		return subscriptionCheckoutResult{}, err
+	}
+	if err := saveSubscriptionCheckoutMetadata(ctx, db, invoice.ID, provider, checkout.Intent); err != nil {
+		return subscriptionCheckoutResult{}, err
+	}
+	return checkout, nil
+}
+
+func buildSubscriptionCheckout(ctx context.Context, db *sql.DB, provider paymentProvider, invoice subscriptionInvoiceSummary) (subscriptionCheckoutResult, error) {
+	switch provider.Code {
+	case paymentProviderManualVietQR, paymentProviderSePay:
+		row, err := subscriptionPaymentRow(provider, invoice)
+		if err != nil {
+			return subscriptionCheckoutResult{}, err
+		}
+		qr := buildQRItem(row, 360)
+		if len(qr.Errors) > 0 {
+			return subscriptionCheckoutResult{}, errors.New(strings.Join(qr.Errors, "; "))
+		}
+		intent := paymentIntentSummary{
+			InvoiceID:         invoice.ID,
+			InvoiceCode:       invoice.InvoiceCode,
+			ProviderCode:      provider.Code,
+			IntentCode:        stablePaymentIntentCode(invoice.ID, provider.Code),
+			Status:            paymentIntentStatusActive,
+			Amount:            invoice.Amount,
+			Currency:          paymentCurrencyVND,
+			ProviderReference: invoice.InvoiceCode,
+			QRPayload:         qr.VietQR,
+			CreatedAt:         time.Now().UTC(),
+		}
+		return subscriptionCheckoutResult{Invoice: invoice, Intent: intent, QR: &qr, Provider: provider}, nil
+	case paymentProviderPayOS:
+		doc, err := subscriptionInvoiceDocument(provider, invoice)
+		if err != nil {
+			return subscriptionCheckoutResult{}, err
+		}
+		result, err := createPayOSPaymentLink(ctx, provider, doc)
+		if err != nil {
+			return subscriptionCheckoutResult{}, err
+		}
+		intent := paymentIntentSummary{
+			InvoiceID:         invoice.ID,
+			InvoiceCode:       invoice.InvoiceCode,
+			ProviderCode:      provider.Code,
+			IntentCode:        stablePaymentIntentCode(invoice.ID, provider.Code),
+			Status:            paymentIntentStatusActive,
+			Amount:            invoice.Amount,
+			Currency:          paymentCurrencyVND,
+			ProviderReference: strconv.FormatInt(result.OrderCode, 10),
+			PaymentURL:        result.CheckoutURL,
+			QRPayload:         result.QRCode,
+			CreatedAt:         time.Now().UTC(),
+		}
+		qr := &qrItem{}
+		if intent.QRPayload != "" {
+			qr = buildSubscriptionQRFromPayload(invoice, intent.QRPayload)
+		} else {
+			qr = nil
+		}
+		return subscriptionCheckoutResult{Invoice: invoice, Intent: intent, QR: qr, Provider: provider}, nil
+	default:
+		return subscriptionCheckoutResult{}, fmt.Errorf("unsupported payment provider %q", provider.Code)
+	}
+}
+
+func saveSubscriptionCheckoutMetadata(ctx context.Context, db *sql.DB, invoiceID string, provider paymentProvider, intent paymentIntentSummary) error {
+	metadataBytes, err := json.Marshal(map[string]any{
+		"checkout_provider":    provider.Code,
+		"provider_reference":   firstNonEmpty(intent.ProviderReference, intent.InvoiceCode),
+		"payment_url":          intent.PaymentURL,
+		"checkout_intent_code": intent.IntentCode,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `
+UPDATE subscription_invoices
+SET metadata = metadata || $2::jsonb,
+	updated_at = now()
+WHERE id = $1::uuid`, invoiceID, string(metadataBytes))
+	return err
+}
+
 func markSubscriptionInvoicePaid(ctx context.Context, db *sql.DB, input subscriptionInvoiceMarkPaidInput, user authenticatedUser, auditCtx requestAuditContext) (subscriptionInvoiceSummary, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1185,22 +1476,7 @@ func markSubscriptionInvoicePaid(ctx context.Context, db *sql.DB, input subscrip
 	if err != nil {
 		return subscriptionInvoiceSummary{}, err
 	}
-	_, err = tx.ExecContext(ctx, `
-UPDATE subscription_invoices
-SET status = 'paid',
-	paid_at = $2,
-	updated_by_user_id = nullif($3, '')::uuid,
-	updated_at = now()
-WHERE id = $1::uuid`, input.InvoiceID, paidAt, user.ID)
-	if err != nil {
-		return subscriptionInvoiceSummary{}, err
-	}
-	if err := insertSubscriptionInvoiceStatusHistory(ctx, tx, input.InvoiceID, invoice.Status, subscriptionInvoiceStatusPaid, firstNonEmpty(input.PaymentNote, "marked paid"), user.ID); err != nil {
-		return subscriptionInvoiceSummary{}, err
-	}
-	startAt, _ := time.Parse("2006-01-02", invoice.PeriodStartsAt)
-	endAt, _ := time.Parse("2006-01-02", invoice.PeriodEndsAt)
-	if err := updateTenantSubscriptionLifecycleStatus(ctx, tx, input.TenantID, subscriptionStatusActive, user.ID, startAt, endAt); err != nil {
+	if err := confirmSubscriptionInvoicePaid(ctx, tx, invoice, input.TenantID, paidAt, user.ID, firstNonEmpty(input.PaymentNote, "marked paid")); err != nil {
 		return subscriptionInvoiceSummary{}, err
 	}
 	auditCtx.TenantID = input.TenantID
@@ -1219,6 +1495,44 @@ WHERE id = $1::uuid`, input.InvoiceID, paidAt, user.ID)
 		return subscriptionInvoiceSummary{}, err
 	}
 	return loadSubscriptionInvoiceByID(ctx, db, input.InvoiceID, input.TenantID)
+}
+
+func autoConfirmSubscriptionInvoicePaid(ctx context.Context, exec masterDataExecutor, invoiceID string, transaction paymentTransactionSummary, note string) error {
+	tenantID, err := tenantIDForSubscriptionInvoice(ctx, exec, invoiceID)
+	if err != nil {
+		return err
+	}
+	invoice, err := loadSubscriptionInvoiceByID(ctx, exec, invoiceID, tenantID)
+	if err != nil {
+		return err
+	}
+	if invoice.Status == subscriptionInvoiceStatusPaid {
+		return nil
+	}
+	paidAt := transaction.TransactionTime.UTC()
+	if paidAt.IsZero() {
+		paidAt = time.Now().UTC()
+	}
+	return confirmSubscriptionInvoicePaid(ctx, exec, invoice, tenantID, paidAt, "", firstNonEmpty(note, "provider webhook auto-confirm"))
+}
+
+func confirmSubscriptionInvoicePaid(ctx context.Context, exec masterDataExecutor, invoice subscriptionInvoiceSummary, tenantID string, paidAt time.Time, userID string, note string) error {
+	_, err := exec.ExecContext(ctx, `
+UPDATE subscription_invoices
+SET status = 'paid',
+	paid_at = $2,
+	updated_by_user_id = nullif($3, '')::uuid,
+	updated_at = now()
+WHERE id = $1::uuid`, invoice.ID, paidAt, userID)
+	if err != nil {
+		return err
+	}
+	if err := insertSubscriptionInvoiceStatusHistory(ctx, exec, invoice.ID, invoice.Status, subscriptionInvoiceStatusPaid, note, userID); err != nil {
+		return err
+	}
+	startAt, _ := time.Parse("2006-01-02", invoice.PeriodStartsAt)
+	endAt, _ := time.Parse("2006-01-02", invoice.PeriodEndsAt)
+	return updateTenantSubscriptionLifecycleStatus(ctx, exec, tenantID, subscriptionStatusActive, userID, startAt, endAt)
 }
 
 func runSubscriptionDunning(ctx context.Context, db *sql.DB, user authenticatedUser, input subscriptionDunningRunInput, auditCtx requestAuditContext, baseURL string) ([]subscriptionDunningResult, error) {
@@ -1604,6 +1918,77 @@ func loadSubscriptionInvoiceByID(ctx context.Context, exec masterDataExecutor, i
 		}
 	}
 	return subscriptionInvoiceSummary{}, fmt.Errorf("subscription invoice not found")
+}
+
+func subscriptionPaymentRow(provider paymentProvider, invoice subscriptionInvoiceSummary) (paymentRow, error) {
+	bankBIN := firstNonEmpty(
+		providerConfigString(provider.config, "bankBin", "bank_bin", "bin"),
+		providerNestedConfigString(provider.config, "collection", "bankBin", "bank_bin", "bin"),
+	)
+	account := firstNonEmpty(
+		providerConfigString(provider.config, "accountNumber", "account_number", "account"),
+		providerNestedConfigString(provider.config, "collection", "accountNumber", "account_number", "account"),
+	)
+	if bankBIN == "" || account == "" {
+		return paymentRow{}, fmt.Errorf("provider %q is missing collection bank config for subscription checkout", provider.Code)
+	}
+	return paymentRow{
+		StudentName: "Subscription " + invoice.PlanName,
+		ParentName:  "",
+		ClassName:   "Tenant subscription",
+		BankBIN:     bankBIN,
+		BankAccount: account,
+		Amount:      invoice.Amount,
+		BillNumber:  invoice.InvoiceCode,
+		Note:        "Subscription " + invoice.PlanCode,
+		PaymentItems: []paymentItem{{
+			Label:   "Subscription " + invoice.PlanName,
+			LabelEN: "Subscription " + invoice.PlanCode,
+			Amount:  invoice.Amount,
+		}},
+	}, nil
+}
+
+func subscriptionInvoiceDocument(provider paymentProvider, invoice subscriptionInvoiceSummary) (invoiceDocument, error) {
+	row, err := subscriptionPaymentRow(provider, invoice)
+	if err != nil && provider.Code != paymentProviderPayOS {
+		return invoiceDocument{}, err
+	}
+	doc := invoiceDocument{
+		invoiceSummary: invoiceSummary{
+			ID:                    invoice.ID,
+			InvoiceCode:           invoice.InvoiceCode,
+			StudentName:           "Subscription " + invoice.PlanName,
+			ClassName:             "Tenant subscription",
+			Status:                invoiceStatusUnpaid,
+			TotalAmount:           invoice.Amount,
+			CollectionBankBIN:     row.BankBIN,
+			CollectionBankAccount: row.BankAccount,
+			QRBillNumber:          invoice.InvoiceCode,
+			QRNote:                "Subscription " + invoice.PlanCode,
+		},
+		Items: []invoiceDocumentItem{{
+			FeeTypeCode:  "subscription",
+			LabelVI:      "Subscription " + invoice.PlanName,
+			LabelEN:      "Subscription " + invoice.PlanCode,
+			Amount:       invoice.Amount,
+			DisplayOrder: 1,
+		}},
+	}
+	return doc, nil
+}
+
+func buildSubscriptionQRFromPayload(invoice subscriptionInvoiceSummary, payload string) *qrItem {
+	return &qrItem{
+		paymentRow: paymentRow{
+			StudentName: "Subscription " + invoice.PlanName,
+			ClassName:   "Tenant subscription",
+			Amount:      invoice.Amount,
+			BillNumber:  invoice.InvoiceCode,
+			Note:        "Subscription " + invoice.PlanCode,
+		},
+		VietQR: payload,
+	}
 }
 
 func listSubscriptionDunningCandidates(ctx context.Context, exec masterDataExecutor, tenantID string, now time.Time) ([]subscriptionInvoiceSummary, error) {

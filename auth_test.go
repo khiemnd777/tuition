@@ -66,6 +66,19 @@ func TestValidateRefreshTokenRecordRejectsInvalidStates(t *testing.T) {
 			t.Fatalf("expected %s refresh token to be rejected", name)
 		}
 	}
+
+	platformOnly := authTokenRecord{
+		ID:               "refresh-token-id",
+		SessionID:        "session-id",
+		UserID:           "user-id",
+		ExpiresAt:        now.Add(time.Hour),
+		SessionExpiresAt: now.Add(24 * time.Hour),
+		UserStatus:       "active",
+		IsPlatformAdmin:  true,
+	}
+	if err := validateRefreshTokenRecord(platformOnly, now); err != nil {
+		t.Fatalf("expected platform-only refresh token record to be valid, got %v", err)
+	}
 }
 
 func TestAuthenticatedUserHasActiveTenantAllowsActiveOrTrialTenants(t *testing.T) {
@@ -104,5 +117,72 @@ func TestAuthCookieIsHttpOnlySameSiteAndSecureOnTLS(t *testing.T) {
 	}
 	if cookie.Path != "/" {
 		t.Fatalf("expected cookie path /, got %q", cookie.Path)
+	}
+}
+
+func TestValidateAuthTenantSignupInputRequiresTenantAndOwnerContact(t *testing.T) {
+	valid := authTenantSignupRequest{
+		TenantName:        "School B",
+		TenantCode:        "SCHOOL_B",
+		InitialSchoolName: "School B",
+		InitialSchoolCode: "SCHOOL_B",
+		OwnerEmail:        "owner@example.edu.vn",
+		OwnerDisplayName:  "Owner",
+		Password:          "very-secure-password",
+	}
+	if err := validateAuthTenantSignupInput(valid); err != nil {
+		t.Fatalf("expected valid signup payload, got %v", err)
+	}
+
+	invalid := valid
+	invalid.OwnerEmail = ""
+	if err := validateAuthTenantSignupInput(invalid); err == nil {
+		t.Fatal("expected missing owner contact to be rejected")
+	}
+}
+
+func TestBuildAuthOnboardingSummaryReflectsTenantOwnerState(t *testing.T) {
+	user := authenticatedUser{
+		IsTenantOwner: true,
+		ActiveTenant: authTenantSummary{
+			PlanCode:    "free_trial",
+			PlanName:    "Free Trial",
+			TrialEndsAt: "2026-07-01",
+		},
+	}
+	got := buildAuthOnboardingSummary(user, 1)
+	if !got.IsNewTenantOwner {
+		t.Fatal("expected tenant owner onboarding flag")
+	}
+	if got.NeedsInitialSchool {
+		t.Fatal("expected tenant with one school to not need initial school")
+	}
+	if got.ActiveTenantPlanCode != "free_trial" || got.ActiveTenantTrialEnds != "2026-07-01" {
+		t.Fatalf("unexpected onboarding summary: %+v", got)
+	}
+}
+
+func TestPreferredAuthSessionTenantIDSupportsPlatformOnly(t *testing.T) {
+	user := authenticatedUser{IsPlatformAdmin: true}
+	got, err := preferredAuthSessionTenantID(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "" {
+		t.Fatalf("expected empty tenant id for platform-only session, got %q", got)
+	}
+}
+
+func TestPreferredAuthSessionTenantIDUsesActiveTenantWhenPresent(t *testing.T) {
+	user := authenticatedUser{
+		IsPlatformAdmin: true,
+		ActiveTenant:    authTenantSummary{ID: "tenant-1", Status: "active", MembershipStatus: "active"},
+	}
+	got, err := preferredAuthSessionTenantID(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "tenant-1" {
+		t.Fatalf("expected tenant-1, got %q", got)
 	}
 }

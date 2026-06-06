@@ -8,11 +8,11 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, cross-tenant finance operations, and subscription background automation complete.
 
-Current phase: `subscription_phase_12_complete`
+Current phase: `platform_admin_platform_only_ux_hardening_complete`
 
-Current initiative: Subscription Phase 12 - Background scheduler for renewals/dunning and subscription suspension policy automation is complete.
+Current initiative: Platform-only UX hardening is complete, clarifying control-plane session state versus tenant workspace state in Web Admin.
 
-Next recommended initiative: No additional subscription phase is currently queued in `docs/initiatives/production-module-roadmap.md`; the subscription conversion roadmap is complete from Phase 1 through Phase 12.
+Next recommended initiative: No additional subscription/platform split phase is currently queued; the remaining follow-up is optional browser verification of the new platform-only UX.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -118,6 +118,15 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added background scheduler startup controlled by `ABC_SUBSCRIPTION_AUTOMATION_ENABLED` and `ABC_SUBSCRIPTION_AUTOMATION_INTERVAL`.
   - Reused the existing renewal invoice and dunning send flows, while adding cooldown-aware candidate selection for automated dunning and automatic suspension after overdue grace periods.
   - Added Web Admin automation panel in the subscription finance console to show scheduler state, latest run summary, and manual preview/run actions.
+- Platform/Admin auth-session decoupling is complete:
+  - Added migration `0026_platform_auth_sessions_nullable_tenant` so `app_auth_sessions.tenant_id` can be null for platform-only sessions.
+  - Allowed `platform_admin` users to login and refresh without forcing an active tenant binding, while keeping tenant-required validation for non-platform users.
+  - Kept finance and operations control-plane defaults on `all` scope when the session has no active tenant.
+- Platform-only Web Admin UX hardening is complete:
+  - Updated the auth badge to identify platform-only sessions explicitly as `Platform admin`.
+  - Hid the tenant switcher cleanly when a platform-only session has no tenant memberships to switch into.
+  - Replaced tenant-scoped empty states in tenant admin and subscription panels with control-plane copy that explains a tenant must be selected for tenant billing actions.
+  - Disabled tenant-scoped subscription actions in platform-only mode until an active tenant is selected.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.
@@ -803,6 +812,40 @@ Add user management with Name, Phone, Email where Phone or Email is required, ro
 
 Completed:
 
+- Phase B tenant signup and owner onboarding is complete:
+  - Added public tenant signup API for creating a tenant, first school, and first `tenant_owner` account without platform-admin intervention.
+  - Preserved first-user platform bootstrap separately for `platform_admin`, so system bootstrap and tenant self-serve signup are no longer conflated.
+  - Extended auth session responses with `onboarding` metadata for newly created tenant-owner sessions.
+  - Added public login-screen flow for `Đăng ký trường`, auto-login after signup, and tenant onboarding banner after first session.
+- Phase C self-serve subscription purchase is complete:
+  - Added tenant-facing `Gói & Thanh toán` workspace for `subscription.view|subscription.update` actors, independent from platform control-plane tabs.
+  - Added self-serve purchase API for owner checkout discovery and checkout execution over the existing subscription invoice lane.
+  - Reused tenant payment providers for checkout generation: `manual_vietqr` / `sepay` return VietQR payloads, while `payOS` returns checkout link data when configured.
+  - Reused existing subscription invoice generation so checkout stays aligned with subscription billing, lifecycle status, and finance visibility already built in earlier phases.
+- Phase D subscription payment confirmation automation is complete:
+  - Added migration `0025_subscription_payment_confirmation_link` so `payment_transactions` can link directly to `subscription_invoices`.
+  - Extended webhook/payment reconciliation to try tuition invoice matching first, then subscription invoice matching by invoice code / stored provider reference and exact amount.
+  - Added automatic subscription invoice confirmation so matched checkout payments move the subscription invoice to `paid` and reactivate/update the tenant subscription period without requiring manual mark-paid fallback.
+  - Updated tenant-facing subscription refresh flow so owners can reload checkout/billing state and see the paid transition after provider events are processed.
+- Phase A actor-model correction is complete:
+  - Added migration `0024_actor_model_role_split` to seed `platform_admin`, `tenant_owner`, `tenant_admin`, `tenant_staff`, `tenant_accountant`, backfill legacy role assignments, and remove legacy tenant-scoped `admin|staff|accountant` rows.
+  - Updated auth session enrichment to expose `platformRoles`, `activeTenantRoles`, `platformRoleCodes`, `activeTenantRoleCodes`, `isPlatformAdmin`, and `isTenantOwner`, while merging platform + tenant permission sets at runtime.
+  - Moved tenant user/role management out of `Platform Admin` UI into a dedicated `Tenant Access` workspace so platform control plane is no longer sharing the tenant admin surface.
+- Platform/Admin split cleanup continuation is complete:
+  - Added dedicated platform user management APIs for listing, saving, and assigning `platform_admin` roles independently from tenant role assignment.
+  - Added a separate `Platform users` panel under `Platform Admin`, while keeping `Tenant Access` scoped to tenant operator roles only.
+  - Extended RBAC route metadata so platform-only control-plane endpoints can be authorized without reusing the tenant-scoped active-tenant gate.
+  - Kept tenant onboarding, tenant subscription management, and tenant operator management logically separated in the UI and API surface.
+- Platform/Admin split hardening follow-up is complete:
+  - Removed the early active-tenant requirement from cross-tenant finance console, finance batch, automation status/run, and audit/operation scope resolution.
+  - Defaulted platform control-plane finance and automation queries to `scope=all` when the current session has no active tenant context.
+  - Updated operations filtering so `platform_admin` can inspect all-tenant logs without being forced through the active-tenant fallback first.
+  - Kept tenant-scoped billing, checkout, invoice, and operator workflows unchanged so tenant-owned write paths still require a concrete active tenant.
+- Platform/Admin auth-session decoupling is complete:
+  - Added migration `0026_platform_auth_sessions_nullable_tenant` so `app_auth_sessions.tenant_id` is no longer mandatory for platform-only sessions.
+  - Updated login and session issuance to prefer the active tenant when present, but allow `platform_admin` to create a valid session with no tenant binding.
+  - Updated access-token and refresh-token session loading/validation so platform-only sessions remain refreshable and authenticated without a synthetic tenant membership.
+  - Kept tenant-owner and tenant-admin sessions backward compatible by preserving tenant-bound session creation when an active tenant exists.
 - Added migration `0012_user_contacts_and_roles` to add `app_users.phone`, relax email-only identity, enforce Email-or-SĐT contact, seed roles `admin`, `staff`, `accountant`, and seed canonical `{module}.{action}` permissions.
 - Added public auth bootstrap status/create API at `/api/v1/auth/bootstrap`; when no users exist, the UI shows the first Admin creation form before login.
 - Updated login to accept Email or SĐT, while preserving HttpOnly access/refresh token behavior.
