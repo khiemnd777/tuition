@@ -155,6 +155,9 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	if !routes["GET /api/v1/healthz"].Public {
 		t.Fatal("health endpoint must remain public for Docker healthchecks")
 	}
+	if !routes["GET /api/v1/readyz"].Public {
+		t.Fatal("ready endpoint must remain public for Docker and local readiness checks")
+	}
 }
 
 func TestDynamicPermissionResolvers(t *testing.T) {

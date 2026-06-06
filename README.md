@@ -18,13 +18,24 @@ Stack Docker local dùng project name `finance_hub` và gồm 4 service: `api`, 
 
 ```sh
 cp .env.example .env
-docker compose up --build
+make restart
 ```
+
+`make restart` là local entrypoint chuẩn. Pipeline này sẽ:
+
+- `docker compose down --remove-orphans`
+- build lại `api` và `admin`
+- khởi động `postgres` và `redis`, chờ health
+- chạy `migrate up` bắt buộc
+- khởi động `api` và `admin`
+- chờ `api` qua `GET /api/v1/readyz`, chờ `auth/bootstrap` usable, và chờ Admin UI sẵn sàng
+
+Chỉ khi pipeline hoàn tất thì mở browser tại `http://localhost:18181`.
 
 Nếu máy đang có service khác ở các cổng mặc định của stack này, override host ports:
 
 ```sh
-API_PORT=18182 ADMIN_PORT=18183 POSTGRES_PORT=15437 REDIS_PORT=16382 docker compose up --build
+API_PORT=18182 ADMIN_PORT=18183 POSTGRES_PORT=15437 REDIS_PORT=16382 make restart
 ```
 
 Mặc định:
@@ -54,8 +65,8 @@ docker build -f docker/admin.Dockerfile --target production -t finance_hub-admin
 Chạy migration trong Docker:
 
 ```sh
-docker compose run --rm api migrate up
-docker compose run --rm api migrate status
+make migrate
+make migrate-status
 ```
 
 Kiểm tra cấu hình DB trong container mà không in secret:
@@ -69,16 +80,16 @@ Runtime state local của API, như email config JSON đã ignore khỏi git, n�
 Dừng stack:
 
 ```sh
-docker compose down
+make down
 ```
 
 Reset toàn bộ dữ liệu local Docker:
 
 ```sh
-docker compose down -v
+make reset
 ```
 
-Lưu ý: `docker compose down -v` chỉ xóa Docker named volumes như `api_data` và `admin_node_modules`. Vì PostgreSQL và Redis đang dùng bind mount local, muốn reset sạch thì xóa thêm các thư mục được cấu hình bởi `POSTGRES_DATA_DIR` và `REDIS_DATA_DIR`.
+Lưu ý: `make reset` chỉ xóa Docker named volumes như `api_data` và `admin_node_modules`. Vì PostgreSQL và Redis đang dùng bind mount local, muốn reset sạch thì xóa thêm các thư mục được cấu hình bởi `POSTGRES_DATA_DIR` và `REDIS_DATA_DIR`.
 
 ## Codex agents/skills local
 
@@ -352,6 +363,7 @@ Subscription automation scheduler Phase 12:
 - `POST /api/v1/notifications/paid-confirmation/send`: gửi hoặc gửi lại confirmation cho một invoice `paid`; yêu cầu `confirmSend=true`.
 - `GET /api/v1/notifications/logs`: log gửi theo campaign hoặc gần nhất, hỗ trợ `campaignId`, `limit`.
 - `GET /api/v1/healthz`: healthcheck public cho Docker/API liveness.
+- `GET /api/v1/readyz`: readiness public cho Docker/local pipeline; chỉ `200` khi DB đã reachable và tất cả embedded migrations đã được apply sạch.
 - `GET /api/v1/admin/dashboard`: dashboard công nợ và readiness center, hỗ trợ `schoolId`, `schoolYearId`, `classId`, `grade`, `periodCode`, `month`, `status`.
 - `GET /api/v1/admin/reports`: báo cáo theo lớp, hóa đơn và giao dịch thanh toán, hỗ trợ cùng bộ lọc dashboard và `provider`.
 - `GET /api/v1/admin/reports/export?dataset=classes|invoices|transactions`: export CSV theo bộ lọc báo cáo.

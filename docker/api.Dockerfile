@@ -28,6 +28,6 @@ ENV PORT=18080
 EXPOSE 18080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-	CMD wget -qO- http://127.0.0.1:18080/api/v1/healthz >/dev/null || exit 1
+	CMD wget -qO- http://127.0.0.1:18080/api/v1/readyz >/dev/null || exit 1
 
 ENTRYPOINT ["abcsun-qr"]

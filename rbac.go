@@ -36,6 +36,7 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodPost, Path: "/api/v1/auth/logout", Public: true, Handler: handleAuthLogout},
 		{Method: http.MethodGet, Path: "/api/v1/auth/session", Public: true, Handler: handleAuthSession},
 		{Method: http.MethodGet, Path: "/api/v1/healthz", Public: true, Handler: handleHealthz},
+		{Method: http.MethodGet, Path: "/api/v1/readyz", Public: true, Handler: handleReadyz},
 		{Method: http.MethodGet, Path: "/api/v1/tenants", Permission: "tenant.view", Handler: handleTenants},
 		{Method: http.MethodPost, Path: "/api/v1/tenants/save", PermissionResolver: tenantSavePermission, Handler: handleTenantSave},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/plans", Permission: "subscription.view", Handler: handleSubscriptionPlans},

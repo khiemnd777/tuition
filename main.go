@@ -169,6 +169,39 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func handleReadyz(w http.ResponseWriter, r *http.Request) {
+	if err := checkApplicationReadiness(r.Context()); err != nil {
+		http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func checkApplicationReadiness(ctx context.Context) error {
+	cfg, err := loadDatabaseConfig()
+	if err != nil {
+		return err
+	}
+	if err := cfg.requireURL(); err != nil {
+		return err
+	}
+
+	commandCtx, cancel := context.WithTimeout(ctx, databaseCommandTimeout)
+	defer cancel()
+
+	db, err := openConfiguredDatabase(commandCtx, cfg)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		return err
+	}
+	return databaseMigrationsReady(commandCtx, db, cfg.MigrationsTable, migrations)
+}
+
 func handleBanks(w http.ResponseWriter, r *http.Request) {
 	banks := make([]bankOption, 0, len(vietqr.VNBankM))
 	for _, bank := range vietqr.VNBankM {

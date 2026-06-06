@@ -8,6 +8,8 @@ services:
       dockerfile: docker/api.Dockerfile
     image: finance_hub-api:local
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       ABC_ENV: ${ABC_ENV:-local}
       ABC_DATABASE_URL_LOCAL: ${ABC_DATABASE_URL_LOCAL:-postgres://abcsun:abcsun_local_password@postgres:5432/abcsun?sslmode=disable}

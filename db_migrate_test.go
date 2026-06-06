@@ -660,6 +660,61 @@ func TestLoadEmbeddedMigrationsIncludesTenantSubscriptionBilling(t *testing.T) {
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesSetUpdatedAtAliasCompatibility(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var migrationItem migration
+	for _, item := range migrations {
+		if item.Version == "00195" {
+			migrationItem = item
+			break
+		}
+	}
+	if migrationItem.Name != "set_updated_at_alias" {
+		t.Fatalf("expected compatibility migration 00195, got %+v", migrationItem)
+	}
+
+	for _, want := range []string{
+		"CREATE OR REPLACE FUNCTION set_updated_at()",
+		"RETURN abc_set_updated_at();",
+	} {
+		if !strings.Contains(migrationItem.SQL, want) {
+			t.Fatalf("expected compatibility migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesSetUpdatedAtAliasFix(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var migrationItem migration
+	for _, item := range migrations {
+		if item.Version == "00196" {
+			migrationItem = item
+			break
+		}
+	}
+	if migrationItem.Name != "fix_set_updated_at_alias" {
+		t.Fatalf("expected compatibility fix migration 00196, got %+v", migrationItem)
+	}
+
+	for _, want := range []string{
+		"CREATE OR REPLACE FUNCTION set_updated_at()",
+		"NEW.updated_at = now();",
+		"RETURN NEW;",
+	} {
+		if !strings.Contains(migrationItem.SQL, want) {
+			t.Fatalf("expected compatibility fix migration to contain %q", want)
+		}
+	}
+}
+
 func TestLoadEmbeddedMigrationsIncludesTenantUsageEntitlements(t *testing.T) {
 	migrations, err := loadEmbeddedMigrations()
 	if err != nil {
@@ -782,6 +837,44 @@ func TestRunMigrationsDetectsChecksumDrift(t *testing.T) {
 	if !strings.Contains(err.Error(), "different checksum") {
 		t.Fatalf("expected checksum drift error, got %v", err)
 	}
+}
+
+func TestDatabaseMigrationsReadyRejectsPendingAndDriftedMigrations(t *testing.T) {
+	migrations := []migration{
+		{Version: "0001", Name: "foundation", FileName: "0001_foundation.sql", Checksum: "checksum-1"},
+		{Version: "0002", Name: "students", FileName: "0002_students.sql", Checksum: "checksum-2"},
+	}
+
+	t.Run("ready", func(t *testing.T) {
+		db, _ := openFakeMigrationDB(t, "ready", map[string]appliedMigration{
+			"0001": {Version: "0001", Name: "foundation", Checksum: "checksum-1", AppliedAt: time.Now()},
+			"0002": {Version: "0002", Name: "students", Checksum: "checksum-2", AppliedAt: time.Now()},
+		})
+		if err := databaseMigrationsReady(context.Background(), db, defaultMigrationTable, migrations); err != nil {
+			t.Fatalf("expected database readiness, got %v", err)
+		}
+	})
+
+	t.Run("pending", func(t *testing.T) {
+		db, _ := openFakeMigrationDB(t, "pending", map[string]appliedMigration{
+			"0001": {Version: "0001", Name: "foundation", Checksum: "checksum-1", AppliedAt: time.Now()},
+		})
+		err := databaseMigrationsReady(context.Background(), db, defaultMigrationTable, migrations)
+		if err == nil || !strings.Contains(err.Error(), "pending: 0002") {
+			t.Fatalf("expected pending migration error, got %v", err)
+		}
+	})
+
+	t.Run("drifted", func(t *testing.T) {
+		db, _ := openFakeMigrationDB(t, "drifted", map[string]appliedMigration{
+			"0001": {Version: "0001", Name: "foundation", Checksum: "old-checksum", AppliedAt: time.Now()},
+			"0002": {Version: "0002", Name: "students", Checksum: "checksum-2", AppliedAt: time.Now()},
+		})
+		err := databaseMigrationsReady(context.Background(), db, defaultMigrationTable, migrations)
+		if err == nil || !strings.Contains(err.Error(), "drifted: 0001") {
+			t.Fatalf("expected drifted migration error, got %v", err)
+		}
+	})
 }
 
 var registerFakeMigrationDriver sync.Once

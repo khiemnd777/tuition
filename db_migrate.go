@@ -12,6 +12,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -200,6 +201,35 @@ func buildMigrationStatuses(migrations []migration, applied map[string]appliedMi
 		})
 	}
 	return statuses
+}
+
+func databaseMigrationsReady(ctx context.Context, db *sql.DB, table string, migrations []migration) error {
+	if err := validateMigrationTableName(table); err != nil {
+		return err
+	}
+	applied, err := loadAppliedMigrations(ctx, db, table)
+	if err != nil {
+		return err
+	}
+
+	statuses := buildMigrationStatuses(migrations, applied)
+	pending := make([]string, 0)
+	drifted := make([]string, 0)
+	for _, status := range statuses {
+		switch {
+		case status.Drifted:
+			drifted = append(drifted, status.Migration.Version)
+		case !status.Applied:
+			pending = append(pending, status.Migration.Version)
+		}
+	}
+	if len(drifted) > 0 {
+		return fmt.Errorf("database migrations drifted: %s", strings.Join(drifted, ", "))
+	}
+	if len(pending) > 0 {
+		return fmt.Errorf("database migrations pending: %s", strings.Join(pending, ", "))
+	}
+	return nil
 }
 
 func validateMigrationTableName(table string) error {
