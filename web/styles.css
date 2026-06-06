@@ -904,6 +904,133 @@ textarea:focus-visible {
   align-items: start;
 }
 
+.platform-admin-shell {
+  gap: 16px;
+}
+
+.platform-admin-overview-panel {
+  position: sticky;
+  top: 16px;
+  z-index: 2;
+}
+
+.platform-admin-intro {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.platform-admin-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.platform-admin-nav-button {
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  color: var(--ink);
+  text-align: left;
+  box-shadow: none;
+}
+
+.platform-admin-nav-button .mui-icon {
+  grid-row: span 2;
+  color: var(--green);
+  font-size: 20px;
+}
+
+.platform-admin-nav-button span:last-of-type {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.platform-admin-nav-button small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.platform-admin-nav-button:hover,
+.platform-admin-nav-button.active {
+  border-color: var(--green);
+  background: #eef8f2;
+}
+
+.platform-admin-area {
+  display: grid;
+  gap: 16px;
+}
+
+.platform-admin-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+}
+
+.platform-admin-stack > .tenant-admin-panel {
+  width: 100%;
+}
+
+.platform-admin-users-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(340px, 0.95fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.platform-detail-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+  flex-wrap: wrap;
+}
+
+.platform-detail-tab {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #ffffff;
+  color: var(--ink-soft);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.platform-detail-tab:hover,
+.platform-detail-tab.active {
+  border-color: var(--green);
+  background: #eef8f2;
+  color: var(--green);
+}
+
+.platform-detail-panel {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  min-width: 0;
+}
+
+.platform-detail-panel > .tenant-summary,
+.platform-detail-panel > .tenant-form,
+.platform-detail-panel > .table-wrap,
+.platform-detail-tabs {
+  width: 100%;
+}
+
 .tenant-admin-panel {
   grid-column: 1 / -1;
 }
@@ -4533,7 +4660,9 @@ td select:focus,
   .tenant-summary,
   .admin-user-form,
   .operations-workspace,
-  .users-workspace {
+  .users-workspace,
+  .platform-admin-nav,
+  .platform-admin-users-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -4565,7 +4694,8 @@ td select:focus,
   .reconciliation-detail-panel,
   .notification-log-panel,
   .operation-detail-panel,
-  .admin-roles-panel {
+  .admin-roles-panel,
+  .platform-admin-overview-panel {
     position: static;
     grid-column: auto;
     grid-row: auto;
@@ -4667,6 +4797,7 @@ td select:focus,
   }
 
   .app-context,
+  .platform-admin-nav,
   .reconciliation-summary,
   .notification-summary,
   .admin-metrics,

@@ -712,16 +712,6 @@ LIMIT 1`, email, phone).Scan(&userID)
 INSERT INTO app_users (email, phone, display_name, status, password_hash, password_updated_at)
 VALUES ($1, $2, $3, 'active', $4, now())
 RETURNING id::text`, email, phone, displayName, passwordHash).Scan(&userID)
-	} else if err == nil {
-		_, err = tx.ExecContext(ctx, `
-UPDATE app_users
-SET email = CASE WHEN $2 <> '' THEN $2 ELSE email END,
-	phone = CASE WHEN $3 <> '' THEN $3 ELSE phone END,
-	display_name = CASE WHEN btrim(display_name) = '' THEN $4 ELSE display_name END,
-	status = 'active',
-	password_hash = $5,
-	password_updated_at = now()
-WHERE id = $1::uuid`, userID, email, phone, displayName, passwordHash)
 	}
 	if err != nil {
 		return err

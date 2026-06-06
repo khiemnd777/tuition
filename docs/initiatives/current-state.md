@@ -1,6 +1,6 @@
 # ABC SUN Initiative State
 
-Last updated: 2026-06-06
+Last updated: 2026-06-07
 
 ## Current Status
 
@@ -127,6 +127,17 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Hid the tenant switcher cleanly when a platform-only session has no tenant memberships to switch into.
   - Replaced tenant-scoped empty states in tenant admin and subscription panels with control-plane copy that explains a tenant must be selected for tenant billing actions.
   - Disabled tenant-scoped subscription actions in platform-only mode until an active tenant is selected.
+- Platform/Admin workspace menu split hardening is complete:
+  - Locked tenant workspace tabs behind tenant-session gating instead of raw merged permissions, so `platform_admin` no longer sees tenant subscription or operating tabs.
+  - Kept `platformAdminTab` as the only control-plane workspace visible to `platform_admin` sessions.
+  - Split sidebar grouping so `Tenant Access` is no longer visually nested under the `Platform Admin` heading.
+- Platform Admin information architecture refresh is complete:
+  - Rebuilt the `Platform Admin` screen into dedicated internal areas for `Tenants`, `Finance Console`, `Entitlements`, and `Platform Users`.
+  - Split tenant directory and tenant billing detail away from cross-tenant finance operations so control-plane tasks are no longer stacked in one long page.
+  - Hid the tenant-workspace app context bar when the active surface is `Platform Admin`, keeping the control-plane header focused on platform tasks only.
+- Platform sidebar split is complete:
+  - Removed the redundant `Platform Admin` child item and promoted `Tenants`, `Finance Console`, `Entitlements`, and `Platform Users` into first-class left-sidebar destinations.
+  - Replaced the old control-plane parent tab with four standalone platform tabs so each area now has its own page title, route target, and recovery state.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

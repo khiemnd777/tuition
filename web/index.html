@@ -156,9 +156,15 @@
             <button class="tab-button" type="button" data-tab-target="operationsTab" aria-controls="operationsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitor_heart</span><span>Vận hành</span></button>
           </div>
           <div class="menu-group">
-            <p class="menu-group-title">Platform Admin</p>
+            <p class="menu-group-title">Quản trị tenant</p>
             <button class="tab-button" type="button" data-tab-target="tenantUsersTab" aria-controls="tenantUsersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">group</span><span>Tenant Access</span></button>
-            <button class="tab-button" type="button" data-tab-target="platformAdminTab" aria-controls="platformAdminTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Platform Admin</span></button>
+          </div>
+          <div class="menu-group">
+            <p class="menu-group-title">Platform</p>
+            <button class="tab-button" type="button" data-tab-target="platformTenantsTab" aria-controls="platformTenantsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenants</span></button>
+            <button class="tab-button" type="button" data-tab-target="platformFinanceTab" aria-controls="platformFinanceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance</span><span>Finance Console</span></button>
+            <button class="tab-button" type="button" data-tab-target="platformEntitlementsTab" aria-controls="platformEntitlementsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitoring</span><span>Entitlements</span></button>
+            <button class="tab-button" type="button" data-tab-target="platformUsersTab" aria-controls="platformUsersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">shield_person</span><span>Platform Users</span></button>
           </div>
         </nav>
       </aside>
@@ -171,7 +177,7 @@
             <h1 id="currentSectionTitle">Dashboard thu học phí</h1>
             <p id="currentSectionDescription">Theo dõi thu học phí, công nợ và các hóa đơn cần xử lý.</p>
           </div>
-          <div class="app-context" aria-label="Bối cảnh vận hành">
+          <div id="appContextBar" class="app-context" aria-label="Bối cảnh vận hành">
             <label>
               <span>Trường</span>
               <select id="appContextSchool"></select>
@@ -1484,24 +1490,139 @@
       </div>
     </section>
 
-    <section id="platformAdminTab" class="tab-panel" role="tabpanel" hidden>
-      <div class="admin-workspace users-workspace">
-        <section class="panel tenant-admin-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Platform tenants</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant management</span></h2>
-            </div>
-            <div class="panel-actions">
-              <button id="refreshTenants" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
-              <button id="editActiveTenant" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa tenant</span></button>
-              <button id="editActiveTenantSubscription" type="button"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Sửa subscription</span></button>
-              <button id="newTenant" type="button"><span class="mui-icon" aria-hidden="true">add_business</span><span>Tenant mới</span></button>
-              <span id="tenantStatus" class="status-pill">Chưa tải</span>
-            </div>
-          </div>
-          <div id="tenantSummary" class="tenant-summary"></div>
-          <div id="tenantList" class="tenant-list">Chưa tải tenant</div>
+    <section id="platformTenantsTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace platform-admin-shell">
+          <section class="panel tenant-admin-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">Platform tenants</p>
+                  <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant directory</span></h2>
+                  <p class="platform-admin-intro">Chọn tenant để xem trạng thái, subscription và snapshot usage.</p>
+                </div>
+                <div class="panel-actions">
+                  <button id="refreshTenants" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+                  <button id="editActiveTenant" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa tenant</span></button>
+                  <button id="editActiveTenantSubscription" type="button"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Sửa subscription</span></button>
+                  <button id="newTenant" type="button"><span class="mui-icon" aria-hidden="true">add_business</span><span>Tenant mới</span></button>
+                  <span id="tenantStatus" class="status-pill">Chưa tải</span>
+                </div>
+              </div>
+              <div id="tenantSummary" class="tenant-summary"></div>
+              <div id="tenantList" class="tenant-list">Chưa tải tenant</div>
+          </section>
+
+          <section class="panel tenant-admin-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="section-kicker">Tenant detail</p>
+                    <h3 class="section-title"><span class="mui-icon" aria-hidden="true">overview</span><span>Chi tiết tenant</span></h3>
+                    <p class="platform-admin-intro">Mọi nội dung bên phải áp dụng cho tenant đang được chọn ở cột trái.</p>
+                  </div>
+                </div>
+                <div class="platform-detail-tabs" role="tablist" aria-label="Tenant detail sections">
+                  <button class="platform-detail-tab active" type="button" data-tenant-detail-tab="overview" aria-selected="true">Overview</button>
+                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="billing" aria-selected="false">Billing Config</button>
+                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="invoices" aria-selected="false">Invoices & Dunning</button>
+                </div>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="overview">
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Overview</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">fact_check</span><span>Tình trạng subscription</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="editActiveTenantSubscription" type="button"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Sửa subscription</span></button>
+                      <button id="refreshSubscriptionBilling" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại billing</span></button>
+                    </div>
+                  </div>
+                  <div id="subscriptionBillingSummary" class="tenant-summary"></div>
+                </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="billing" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Billing Config</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">settings</span><span>Cấu hình chu kỳ và policy</span></h3>
+                    </div>
+                  </div>
+                  <div id="subscriptionBillingConfigForm" class="tenant-form">
+                    <label><span>Amount</span><input id="subscriptionBillingConfigAmount" type="number" min="0" step="1000" /></label>
+                    <label><span>Interval months</span><input id="subscriptionBillingConfigIntervalMonths" type="number" min="1" max="12" step="1" /></label>
+                    <label><span>Due days</span><input id="subscriptionBillingConfigDueDays" type="number" min="1" max="28" step="1" /></label>
+                    <label><span>Auto renew</span><select id="subscriptionBillingConfigAutoRenew"><option value="false">false</option><option value="true">true</option></select></label>
+                    <label><span>Renewal mode</span><select id="subscriptionBillingConfigRenewalMode"><option value="manual">manual</option><option value="auto_generate">auto_generate</option></select></label>
+                    <label><span>Finance note</span><input id="subscriptionBillingConfigFinanceNote" placeholder="Owner, contract, internal note" /></label>
+                    <label><span>Automation enabled</span><select id="subscriptionBillingConfigAutomationEnabled"><option value="false">false</option><option value="true">true</option></select></label>
+                    <label><span>Renewal lead days</span><input id="subscriptionBillingConfigRenewalLeadDays" type="number" min="0" max="30" step="1" /></label>
+                    <label><span>Dunning enabled</span><select id="subscriptionBillingConfigDunningEnabled"><option value="true">true</option><option value="false">false</option></select></label>
+                    <label><span>Dunning interval days</span><input id="subscriptionBillingConfigDunningIntervalDays" type="number" min="1" max="30" step="1" /></label>
+                    <label><span>Suspend enabled</span><select id="subscriptionBillingConfigSuspendEnabled"><option value="true">true</option><option value="false">false</option></select></label>
+                    <label><span>Suspend after overdue days</span><input id="subscriptionBillingConfigSuspendAfterDays" type="number" min="1" max="90" step="1" /></label>
+                    <div class="admin-user-actions">
+                      <button id="saveSubscriptionBillingConfig" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu billing config</span></button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="invoices" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Invoices & dunning</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Invoice lane của tenant</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="generateSubscriptionInvoice" type="button"><span class="mui-icon" aria-hidden="true">receipt</span><span>Tạo invoice</span></button>
+                      <button id="runSubscriptionDunning" type="button"><span class="mui-icon" aria-hidden="true">mark_email_unread</span><span>Run dunning</span></button>
+                    </div>
+                  </div>
+                  <div id="subscriptionBillingExportForm" class="tenant-form">
+                    <label><span>Status</span><select id="subscriptionBillingExportStatus"><option value="">all</option><option value="open">open</option><option value="past_due">past_due</option><option value="paid">paid</option><option value="sent">sent</option><option value="error">error</option></select></label>
+                    <label><span>Period from</span><input id="subscriptionBillingExportPeriodFrom" type="date" /></label>
+                    <label><span>Period to</span><input id="subscriptionBillingExportPeriodTo" type="date" /></label>
+                    <label><span>Due from</span><input id="subscriptionBillingExportDueFrom" type="date" /></label>
+                    <label><span>Due to</span><input id="subscriptionBillingExportDueTo" type="date" /></label>
+                    <div class="admin-user-actions">
+                      <button id="exportSubscriptionInvoicesCsv" type="button"><span class="mui-icon" aria-hidden="true">table_view</span><span>Export invoices CSV</span></button>
+                      <button id="exportSubscriptionOverdueCsv" type="button"><span class="mui-icon" aria-hidden="true">warning</span><span>Export overdue CSV</span></button>
+                      <button id="exportSubscriptionPaidCsv" type="button"><span class="mui-icon" aria-hidden="true">task_alt</span><span>Export paid CSV</span></button>
+                      <button id="exportSubscriptionDunningCsv" type="button"><span class="mui-icon" aria-hidden="true">mail</span><span>Export dunning CSV</span></button>
+                    </div>
+                  </div>
+                  <div class="table-wrap admin-table-wrap">
+                    <table class="admin-table" aria-label="Subscription invoices">
+                      <colgroup>
+                        <col class="admin-col-code" />
+                        <col class="admin-col-class" />
+                        <col class="admin-col-status" />
+                        <col class="admin-col-money" />
+                        <col class="admin-col-status" />
+                        <col class="admin-col-date" />
+                        <col class="admin-col-date" />
+                        <col class="admin-col-date" />
+                        <col class="admin-col-actions" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Invoice</th>
+                          <th>Plan / period</th>
+                          <th>Billing</th>
+                          <th>Số tiền</th>
+                          <th>Status</th>
+                          <th>Due</th>
+                          <th>Paid</th>
+                          <th>Dunning</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="subscriptionBillingList">
+                        <tr><td colspan="9">Chưa tải subscription billing</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+          </section>
+
           <div id="tenantForm" class="tenant-form" hidden>
             <input id="tenantId" type="hidden" />
             <label>
@@ -1557,158 +1678,6 @@
               <input id="tenantSubscriptionCurrentPeriodEndsAt" type="date" />
             </label>
           </div>
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Subscription billing</p>
-              <h3 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Billing và dunning</span></h3>
-            </div>
-            <div class="panel-actions">
-              <button id="refreshSubscriptionBilling" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại billing</span></button>
-              <button id="generateSubscriptionInvoice" type="button"><span class="mui-icon" aria-hidden="true">receipt</span><span>Tạo invoice</span></button>
-              <button id="runSubscriptionDunning" type="button"><span class="mui-icon" aria-hidden="true">mark_email_unread</span><span>Run dunning</span></button>
-            </div>
-          </div>
-          <div id="subscriptionBillingSummary" class="tenant-summary"></div>
-          <div id="subscriptionBillingConfigForm" class="tenant-form">
-            <label>
-              <span>Amount</span>
-              <input id="subscriptionBillingConfigAmount" type="number" min="0" step="1000" />
-            </label>
-            <label>
-              <span>Interval months</span>
-              <input id="subscriptionBillingConfigIntervalMonths" type="number" min="1" max="12" step="1" />
-            </label>
-            <label>
-              <span>Due days</span>
-              <input id="subscriptionBillingConfigDueDays" type="number" min="1" max="28" step="1" />
-            </label>
-            <label>
-              <span>Auto renew</span>
-              <select id="subscriptionBillingConfigAutoRenew">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
-            </label>
-            <label>
-              <span>Renewal mode</span>
-              <select id="subscriptionBillingConfigRenewalMode">
-                <option value="manual">manual</option>
-                <option value="auto_generate">auto_generate</option>
-              </select>
-            </label>
-            <label>
-              <span>Finance note</span>
-              <input id="subscriptionBillingConfigFinanceNote" placeholder="Owner, contract, internal note" />
-            </label>
-            <label>
-              <span>Automation enabled</span>
-              <select id="subscriptionBillingConfigAutomationEnabled">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
-            </label>
-            <label>
-              <span>Renewal lead days</span>
-              <input id="subscriptionBillingConfigRenewalLeadDays" type="number" min="0" max="30" step="1" />
-            </label>
-            <label>
-              <span>Dunning enabled</span>
-              <select id="subscriptionBillingConfigDunningEnabled">
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </label>
-            <label>
-              <span>Dunning interval days</span>
-              <input id="subscriptionBillingConfigDunningIntervalDays" type="number" min="1" max="30" step="1" />
-            </label>
-            <label>
-              <span>Suspend enabled</span>
-              <select id="subscriptionBillingConfigSuspendEnabled">
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </label>
-            <label>
-              <span>Suspend after overdue days</span>
-              <input id="subscriptionBillingConfigSuspendAfterDays" type="number" min="1" max="90" step="1" />
-            </label>
-            <div class="admin-user-actions">
-              <button id="saveSubscriptionBillingConfig" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu billing config</span></button>
-            </div>
-          </div>
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Finance export</p>
-              <h3 class="section-title"><span class="mui-icon" aria-hidden="true">download</span><span>CSV export</span></h3>
-            </div>
-          </div>
-          <div id="subscriptionBillingExportForm" class="tenant-form">
-            <label>
-              <span>Status</span>
-              <select id="subscriptionBillingExportStatus">
-                <option value="">all</option>
-                <option value="open">open</option>
-                <option value="past_due">past_due</option>
-                <option value="paid">paid</option>
-                <option value="sent">sent</option>
-                <option value="error">error</option>
-              </select>
-            </label>
-            <label>
-              <span>Period from</span>
-              <input id="subscriptionBillingExportPeriodFrom" type="date" />
-            </label>
-            <label>
-              <span>Period to</span>
-              <input id="subscriptionBillingExportPeriodTo" type="date" />
-            </label>
-            <label>
-              <span>Due from</span>
-              <input id="subscriptionBillingExportDueFrom" type="date" />
-            </label>
-            <label>
-              <span>Due to</span>
-              <input id="subscriptionBillingExportDueTo" type="date" />
-            </label>
-            <div class="admin-user-actions">
-              <button id="exportSubscriptionInvoicesCsv" type="button"><span class="mui-icon" aria-hidden="true">table_view</span><span>Export invoices CSV</span></button>
-              <button id="exportSubscriptionOverdueCsv" type="button"><span class="mui-icon" aria-hidden="true">warning</span><span>Export overdue CSV</span></button>
-              <button id="exportSubscriptionPaidCsv" type="button"><span class="mui-icon" aria-hidden="true">task_alt</span><span>Export paid CSV</span></button>
-              <button id="exportSubscriptionDunningCsv" type="button"><span class="mui-icon" aria-hidden="true">mail</span><span>Export dunning CSV</span></button>
-            </div>
-          </div>
-          <div class="table-wrap admin-table-wrap">
-            <table class="admin-table" aria-label="Subscription invoices">
-              <colgroup>
-                <col class="admin-col-code" />
-                <col class="admin-col-class" />
-                <col class="admin-col-status" />
-                <col class="admin-col-money" />
-                <col class="admin-col-status" />
-                <col class="admin-col-date" />
-                <col class="admin-col-date" />
-                <col class="admin-col-date" />
-                <col class="admin-col-actions" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>Invoice</th>
-                  <th>Plan / period</th>
-                  <th>Billing</th>
-                  <th>Số tiền</th>
-                  <th>Status</th>
-                  <th>Due</th>
-                  <th>Paid</th>
-                  <th>Dunning</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="subscriptionBillingList">
-                <tr><td colspan="9">Chưa tải subscription billing</td></tr>
-              </tbody>
-            </table>
-          </div>
           <div id="subscriptionBillingGenerateForm" class="tenant-form" hidden>
             <input id="subscriptionBillingGenerateTenantId" type="hidden" />
             <label>
@@ -1750,239 +1719,261 @@
               </select>
             </label>
           </div>
-        </section>
+      </div>
+    </section>
 
-        <section class="panel tenant-admin-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Cross-tenant finance</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">account_balance</span><span>Subscription finance console</span></h2>
-            </div>
-            <div class="panel-actions">
-              <button id="refreshSubscriptionFinanceConsole" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
-              <button id="previewSubscriptionRenewals" type="button"><span class="mui-icon" aria-hidden="true">preview</span><span>Preview renewals</span></button>
-              <button id="runSubscriptionRenewals" type="button"><span class="mui-icon" aria-hidden="true">autorenew</span><span>Generate renewals</span></button>
-              <button id="previewSubscriptionFinanceDunning" type="button"><span class="mui-icon" aria-hidden="true">drafts</span><span>Preview dunning</span></button>
-              <button id="runSubscriptionFinanceDunning" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Run dunning</span></button>
-              <button id="exportSubscriptionFinanceOverview" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Export overview</span></button>
-            </div>
-          </div>
-          <div id="subscriptionFinanceConsoleSummary" class="tenant-summary"></div>
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Automation</p>
-              <h3 class="section-title"><span class="mui-icon" aria-hidden="true">schedule</span><span>Scheduler và policy run</span></h3>
-            </div>
-            <div class="panel-actions">
-              <button id="previewSubscriptionAutomation" type="button"><span class="mui-icon" aria-hidden="true">preview</span><span>Preview automation</span></button>
-              <button id="runSubscriptionAutomation" type="button"><span class="mui-icon" aria-hidden="true">schedule_send</span><span>Run automation</span></button>
-            </div>
-          </div>
-          <div id="subscriptionAutomationSummary" class="tenant-summary"></div>
-          <div id="subscriptionFinanceConsoleFilters" class="tenant-form">
-            <label>
-              <span>Scope</span>
-              <select id="subscriptionFinanceScope">
-                <option value="active">active_tenant</option>
-                <option value="all">all_tenants</option>
-              </select>
-            </label>
-            <label>
-              <span>Tenant search</span>
-              <input id="subscriptionFinanceQuery" placeholder="ABC_SUN" />
-            </label>
-            <label>
-              <span>Subscription status</span>
-              <select id="subscriptionFinanceSubscriptionStatus">
-                <option value="">all</option>
-                <option value="active">active</option>
-                <option value="past_due">past_due</option>
-                <option value="suspended">suspended</option>
-                <option value="trial">trial</option>
-              </select>
-            </label>
-            <label>
-              <span>Invoice status</span>
-              <select id="subscriptionFinanceInvoiceStatus">
-                <option value="">all</option>
-                <option value="open">open</option>
-                <option value="past_due">past_due</option>
-                <option value="paid">paid</option>
-              </select>
-            </label>
-            <label>
-              <span>Auto renew</span>
-              <select id="subscriptionFinanceAutoRenew">
-                <option value="">all</option>
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </label>
-            <label>
-              <span>Renewal mode</span>
-              <select id="subscriptionFinanceRenewalMode">
-                <option value="">all</option>
-                <option value="manual">manual</option>
-                <option value="auto_generate">auto_generate</option>
-              </select>
-            </label>
-            <label>
-              <span>Overdue only</span>
-              <select id="subscriptionFinanceOverdueOnly">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
-            </label>
-            <label>
-              <span>Missing config</span>
-              <select id="subscriptionFinanceMissingConfigOnly">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
-            </label>
-          </div>
-          <div class="table-wrap admin-table-wrap">
-            <table class="admin-table" aria-label="Cross-tenant subscription finance">
-              <thead>
-                <tr>
-                  <th>Tenant</th>
-                  <th>Plan</th>
-                  <th>Subscription</th>
-                  <th>Latest invoice</th>
-                  <th>Next renewal</th>
-                  <th>Billing</th>
-                  <th>Counts</th>
-                  <th>Dunning</th>
-                </tr>
-              </thead>
-              <tbody id="subscriptionFinanceConsoleList">
-                <tr><td colspan="8">Chưa tải finance console</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+    <section id="platformFinanceTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace platform-admin-shell">
+          <div class="platform-admin-stack">
+            <section class="panel tenant-admin-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">Cross-tenant finance</p>
+                  <h2 class="section-title"><span class="mui-icon" aria-hidden="true">account_balance</span><span>Subscription finance console</span></h2>
+                  <p class="platform-admin-intro">Tập trung mọi thao tác renewal, dunning, export và lọc tenant tài chính ở một nơi.</p>
+                </div>
+                <div class="panel-actions">
+                  <button id="refreshSubscriptionFinanceConsole" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+                  <button id="previewSubscriptionRenewals" type="button"><span class="mui-icon" aria-hidden="true">preview</span><span>Preview renewals</span></button>
+                  <button id="runSubscriptionRenewals" type="button"><span class="mui-icon" aria-hidden="true">autorenew</span><span>Generate renewals</span></button>
+                  <button id="previewSubscriptionFinanceDunning" type="button"><span class="mui-icon" aria-hidden="true">drafts</span><span>Preview dunning</span></button>
+                  <button id="runSubscriptionFinanceDunning" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Run dunning</span></button>
+                  <button id="exportSubscriptionFinanceOverview" type="button"><span class="mui-icon" aria-hidden="true">download</span><span>Export overview</span></button>
+                </div>
+              </div>
+              <div id="subscriptionFinanceConsoleSummary" class="tenant-summary"></div>
+              <div id="subscriptionFinanceConsoleFilters" class="tenant-form">
+                <label>
+                  <span>Scope</span>
+                  <select id="subscriptionFinanceScope">
+                    <option value="active">active_tenant</option>
+                    <option value="all">all_tenants</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Tenant search</span>
+                  <input id="subscriptionFinanceQuery" placeholder="ABC_SUN" />
+                </label>
+                <label>
+                  <span>Subscription status</span>
+                  <select id="subscriptionFinanceSubscriptionStatus">
+                    <option value="">all</option>
+                    <option value="active">active</option>
+                    <option value="past_due">past_due</option>
+                    <option value="suspended">suspended</option>
+                    <option value="trial">trial</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Invoice status</span>
+                  <select id="subscriptionFinanceInvoiceStatus">
+                    <option value="">all</option>
+                    <option value="open">open</option>
+                    <option value="past_due">past_due</option>
+                    <option value="paid">paid</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Auto renew</span>
+                  <select id="subscriptionFinanceAutoRenew">
+                    <option value="">all</option>
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Renewal mode</span>
+                  <select id="subscriptionFinanceRenewalMode">
+                    <option value="">all</option>
+                    <option value="manual">manual</option>
+                    <option value="auto_generate">auto_generate</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Overdue only</span>
+                  <select id="subscriptionFinanceOverdueOnly">
+                    <option value="false">false</option>
+                    <option value="true">true</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Missing config</span>
+                  <select id="subscriptionFinanceMissingConfigOnly">
+                    <option value="false">false</option>
+                    <option value="true">true</option>
+                  </select>
+                </label>
+              </div>
+              <div class="table-wrap admin-table-wrap">
+                <table class="admin-table" aria-label="Cross-tenant subscription finance">
+                  <thead>
+                    <tr>
+                      <th>Tenant</th>
+                      <th>Plan</th>
+                      <th>Subscription</th>
+                      <th>Latest invoice</th>
+                      <th>Next renewal</th>
+                      <th>Billing</th>
+                      <th>Counts</th>
+                      <th>Dunning</th>
+                    </tr>
+                  </thead>
+                  <tbody id="subscriptionFinanceConsoleList">
+                    <tr><td colspan="8">Chưa tải finance console</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-        <section class="panel tenant-admin-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Platform entitlements</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">monitoring</span><span>Entitlements và usage</span></h2>
-            </div>
+            <section class="panel tenant-admin-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">Automation</p>
+                  <h3 class="section-title"><span class="mui-icon" aria-hidden="true">schedule</span><span>Scheduler và policy run</span></h3>
+                </div>
+                <div class="panel-actions">
+                  <button id="previewSubscriptionAutomation" type="button"><span class="mui-icon" aria-hidden="true">preview</span><span>Preview automation</span></button>
+                  <button id="runSubscriptionAutomation" type="button"><span class="mui-icon" aria-hidden="true">schedule_send</span><span>Run automation</span></button>
+                </div>
+              </div>
+              <div id="subscriptionAutomationSummary" class="tenant-summary"></div>
+            </section>
           </div>
-          <div id="platformEntitlementSummary" class="tenant-summary"></div>
-          <div class="table-wrap admin-table-wrap">
-            <table class="admin-table" aria-label="Platform entitlement usage">
-              <thead>
-                <tr>
-                  <th>Tenant</th>
-                  <th>Subscription</th>
-                  <th>Schools</th>
-                  <th>Operators</th>
-                  <th>Students</th>
-                  <th>Notifications</th>
-                </tr>
-              </thead>
-              <tbody id="platformEntitlementRows">
-                <tr><td colspan="6">Chưa tải entitlement</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+      </div>
+    </section>
 
-        <section class="panel admin-user-editor-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Platform operators</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">shield_person</span><span>Platform users và quyền hệ thống</span></h2>
+    <section id="platformEntitlementsTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace platform-admin-shell">
+          <section class="panel tenant-admin-panel">
+            <div class="panel-head">
+              <div>
+                <p class="section-kicker">Platform entitlements</p>
+                <h2 class="section-title"><span class="mui-icon" aria-hidden="true">monitoring</span><span>Entitlements và usage</span></h2>
+                <p class="platform-admin-intro">Tổng hợp usage theo tenant để phát hiện quota pressure và tenant vượt giới hạn.</p>
+              </div>
             </div>
-            <div class="panel-actions">
-              <button id="refreshPlatformUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
-              <button id="newPlatformUser" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>User mới</span></button>
-              <span id="platformUsersStatus" class="status-pill">Chưa tải</span>
+            <div id="platformEntitlementSummary" class="tenant-summary"></div>
+            <div class="table-wrap admin-table-wrap">
+              <table class="admin-table" aria-label="Platform entitlement usage">
+                <thead>
+                  <tr>
+                    <th>Tenant</th>
+                    <th>Subscription</th>
+                    <th>Schools</th>
+                    <th>Operators</th>
+                    <th>Students</th>
+                    <th>Notifications</th>
+                  </tr>
+                </thead>
+                <tbody id="platformEntitlementRows">
+                  <tr><td colspan="6">Chưa tải entitlement</td></tr>
+                </tbody>
+              </table>
             </div>
-          </div>
-          <div class="platform-user-form" hidden>
-            <input id="platformUserId" type="hidden" />
-            <label>
-              <span>Email</span>
-              <input id="platformUserEmail" type="email" placeholder="ops@example.edu.vn" />
-            </label>
-            <label>
-              <span>SĐT</span>
-              <input id="platformUserPhone" type="tel" placeholder="0901234567" />
-            </label>
-            <label>
-              <span>Tên hiển thị</span>
-              <input id="platformUserDisplayName" />
-            </label>
-            <label>
-              <span>Trạng thái</span>
-              <select id="platformUserStatus">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
-              </select>
-            </label>
-            <label>
-              <span>Password</span>
-              <input id="platformUserPassword" type="password" autocomplete="new-password" placeholder="Để trống nếu không đổi" />
-            </label>
-            <label class="admin-user-roles-field">
-              <span>Roles</span>
-              <select id="platformUserRoles" multiple></select>
-            </label>
-            <div class="admin-user-actions">
-              <button id="clearPlatformUser" type="button"><span class="mui-icon" aria-hidden="true">backspace</span><span>Clear</span></button>
-              <button id="savePlatformUser" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu user</span></button>
-              <button id="assignPlatformUserRoles" type="button"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Lưu roles</span></button>
-            </div>
-          </div>
-        </section>
+          </section>
+      </div>
+    </section>
 
-        <section class="panel admin-users-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Platform operators</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">groups</span><span>Danh sách platform users</span></h2>
-            </div>
-            <span id="platformUserCount" class="count-badge">0 user</span>
-          </div>
-          <div class="table-wrap admin-table-wrap">
-            <table class="admin-table" aria-label="Danh sách platform users">
-              <colgroup>
-                <col class="admin-student-col" />
-                <col class="admin-class-col" />
-                <col class="admin-class-col" />
-                <col class="admin-status-col" />
-                <col class="admin-status-col" />
-                <col class="admin-class-col" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col">Tên</th>
-                  <th scope="col">Email</th>
-                  <th scope="col">SĐT</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Password</th>
-                  <th scope="col">Roles</th>
-                </tr>
-              </thead>
-              <tbody id="platformUserRows"></tbody>
-            </table>
-          </div>
-        </section>
+    <section id="platformUsersTab" class="tab-panel" role="tabpanel" hidden>
+      <div class="admin-workspace platform-admin-shell">
+          <div class="platform-admin-users-layout">
+            <div class="platform-admin-stack">
+              <section class="panel admin-user-editor-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="section-kicker">Platform operators</p>
+                    <h2 class="section-title"><span class="mui-icon" aria-hidden="true">shield_person</span><span>Platform users</span></h2>
+                    <p class="platform-admin-intro">Tạo và quản lý operator nội bộ của control plane.</p>
+                  </div>
+                  <div class="panel-actions">
+                    <button id="refreshPlatformUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+                    <button id="newPlatformUser" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>User mới</span></button>
+                    <span id="platformUsersStatus" class="status-pill">Chưa tải</span>
+                  </div>
+                </div>
+                <div class="platform-user-form" hidden>
+                  <input id="platformUserId" type="hidden" />
+                  <label>
+                    <span>Email</span>
+                    <input id="platformUserEmail" type="email" placeholder="ops@example.edu.vn" />
+                  </label>
+                  <label>
+                    <span>SĐT</span>
+                    <input id="platformUserPhone" type="tel" placeholder="0901234567" />
+                  </label>
+                  <label>
+                    <span>Tên hiển thị</span>
+                    <input id="platformUserDisplayName" />
+                  </label>
+                  <label>
+                    <span>Trạng thái</span>
+                    <select id="platformUserStatus">
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="suspended">Suspended</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <input id="platformUserPassword" type="password" autocomplete="new-password" placeholder="Để trống nếu không đổi" />
+                  </label>
+                  <label class="admin-user-roles-field">
+                    <span>Roles</span>
+                    <select id="platformUserRoles" multiple></select>
+                  </label>
+                  <div class="admin-user-actions">
+                    <button id="clearPlatformUser" type="button"><span class="mui-icon" aria-hidden="true">backspace</span><span>Clear</span></button>
+                    <button id="savePlatformUser" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu user</span></button>
+                    <button id="assignPlatformUserRoles" type="button"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Lưu roles</span></button>
+                  </div>
+                </div>
+              </section>
 
-        <section class="panel admin-roles-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-kicker">Platform roles and permissions</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Platform role matrix</span></h2>
+              <section class="panel admin-users-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="section-kicker">Platform operators</p>
+                    <h2 class="section-title"><span class="mui-icon" aria-hidden="true">groups</span><span>Danh sách platform users</span></h2>
+                  </div>
+                  <span id="platformUserCount" class="count-badge">0 user</span>
+                </div>
+                <div class="table-wrap admin-table-wrap">
+                  <table class="admin-table" aria-label="Danh sách platform users">
+                    <colgroup>
+                      <col class="admin-student-col" />
+                      <col class="admin-class-col" />
+                      <col class="admin-class-col" />
+                      <col class="admin-status-col" />
+                      <col class="admin-status-col" />
+                      <col class="admin-class-col" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th scope="col">Tên</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">SĐT</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Password</th>
+                        <th scope="col">Roles</th>
+                      </tr>
+                    </thead>
+                    <tbody id="platformUserRows"></tbody>
+                  </table>
+                </div>
+              </section>
             </div>
-            <span id="platformRoleCount" class="count-badge">0 role</span>
-          </div>
-          <div id="platformRoleList" class="admin-role-list">Chưa có role</div>
-        </section>
 
+            <section class="panel admin-roles-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">Platform roles and permissions</p>
+                  <h2 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Platform role matrix</span></h2>
+                </div>
+                <span id="platformRoleCount" class="count-badge">0 role</span>
+              </div>
+              <div id="platformRoleList" class="admin-role-list">Chưa có role</div>
+            </section>
+          </div>
       </div>
     </section>
 

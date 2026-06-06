@@ -311,6 +311,7 @@ const appBreadcrumbsEl = document.querySelector("#appBreadcrumbs");
 const currentSectionKickerEl = document.querySelector("#currentSectionKicker");
 const currentSectionTitleEl = document.querySelector("#currentSectionTitle");
 const currentSectionDescriptionEl = document.querySelector("#currentSectionDescription");
+const appContextBarEl = document.querySelector("#appContextBar");
 const appContextSchoolEl = document.querySelector("#appContextSchool");
 const appContextYearEl = document.querySelector("#appContextYear");
 const appContextPeriodEl = document.querySelector("#appContextPeriod");
@@ -377,6 +378,8 @@ const editActiveTenantSubscriptionBtn = document.querySelector("#editActiveTenan
 const tenantStatusEl = document.querySelector("#tenantStatus");
 const tenantSummaryEl = document.querySelector("#tenantSummary");
 const tenantListEl = document.querySelector("#tenantList");
+const tenantDetailTabButtons = [...document.querySelectorAll("[data-tenant-detail-tab]")];
+const tenantDetailPanels = [...document.querySelectorAll("[data-tenant-detail-panel]")];
 const tenantFormEl = document.querySelector("#tenantForm");
 const tenantIdEl = document.querySelector("#tenantId");
 const tenantCodeEl = document.querySelector("#tenantCode");
@@ -517,6 +520,7 @@ let subscriptionPurchaseData = { plans: [], providers: [], tenant: null, current
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
 let appContextApplyTimer = 0;
+let tenantDetailActiveTab = "overview";
 let activeDialogRestore = null;
 let activeDialogOnClose = null;
 let lastDialogTrigger = null;
@@ -652,13 +656,31 @@ const tabMetadata = {
     kicker: "Tenant Access",
     title: "Người dùng tenant",
     description: "Quản lý operator, role và permission trong tenant đang active.",
-    breadcrumbs: ["Platform Admin", "Tenant Access"],
+    breadcrumbs: ["Quản trị tenant", "Tenant Access"],
   },
-  platformAdminTab: {
-    kicker: "Platform Admin",
-    title: "Platform control plane",
-    description: "Quản lý tenant, subscription, entitlement, automation và finance console cấp hệ thống.",
-    breadcrumbs: ["Platform Admin", "Control plane"],
+  platformTenantsTab: {
+    kicker: "Platform",
+    title: "Tenants",
+    description: "Quản lý tenant, subscription, billing config và invoice lane của từng tenant.",
+    breadcrumbs: ["Platform", "Tenants"],
+  },
+  platformFinanceTab: {
+    kicker: "Platform",
+    title: "Finance Console",
+    description: "Điều phối renewals, dunning, automation và finance filters trên nhiều tenant.",
+    breadcrumbs: ["Platform", "Finance Console"],
+  },
+  platformEntitlementsTab: {
+    kicker: "Platform",
+    title: "Entitlements",
+    description: "Theo dõi usage, quota và tenant vượt giới hạn theo mặt bằng toàn hệ thống.",
+    breadcrumbs: ["Platform", "Entitlements"],
+  },
+  platformUsersTab: {
+    kicker: "Platform",
+    title: "Platform Users",
+    description: "Quản lý operator nội bộ và role matrix của control plane.",
+    breadcrumbs: ["Platform", "Platform Users"],
   },
 };
 
@@ -675,8 +697,28 @@ const tabAccess = {
   reportsTab: ["report.view"],
   operationsTab: ["operation_log.view"],
   tenantUsersTab: { any: ["user.view", "user.create", "user.update", "user.assign_role", "role.view"] },
-  platformAdminTab: { any: ["tenant.view", "tenant.create", "tenant.update", "operation_log.cross_tenant_view", "audit_log.cross_tenant_view"] },
+  platformTenantsTab: { any: ["tenant.view", "tenant.create", "tenant.update"] },
+  platformFinanceTab: { any: ["subscription.view", "subscription.update", "operation_log.cross_tenant_view", "audit_log.cross_tenant_view"] },
+  platformEntitlementsTab: { any: ["tenant.view", "subscription.view"] },
+  platformUsersTab: { any: ["user.view", "user.create", "user.update", "user.assign_role", "role.view"] },
 };
+
+const tenantWorkspaceTabIds = new Set([
+  "dashboardTab",
+  "masterDataTab",
+  "feeTemplateTab",
+  "invoiceTab",
+  "reconciliationTab",
+  "paymentsTab",
+  "notificationTab",
+  "emailTab",
+  "subscriptionTab",
+  "reportsTab",
+  "operationsTab",
+  "tenantUsersTab",
+]);
+
+const platformControlPlaneTabIds = new Set(["platformTenantsTab", "platformFinanceTab", "platformEntitlementsTab", "platformUsersTab"]);
 
 const permissionAliases = {
   "dashboard.view": ["admin.dashboard.read"],
@@ -1035,19 +1077,21 @@ async function initializeAppData() {
   renderUserDirectory(null, tenantUserDirectoryConfig());
   renderUserDirectory(null, platformUserDirectoryConfig());
   renderFeeTemplate(defaultPaymentItems);
-  renderRows(hasPermission("payment.create") ? sampleRows : []);
-  if (hasPermission("dashboard.view")) {
+  renderRows(isTenantWorkspaceSession() && hasPermission("payment.create") ? sampleRows : []);
+  if (isTenantWorkspaceSession() && hasPermission("dashboard.view")) {
     await loadAdminDashboard();
   }
-  if (hasPermission("student.view")) {
+  if (isTenantWorkspaceSession() && hasPermission("student.view")) {
     await loadMasterData();
   }
-  if (hasPermission("payment.create")) {
+  if (isTenantWorkspaceSession() && hasPermission("payment.create")) {
     await generate();
-  } else {
+  } else if (isTenantWorkspaceSession()) {
     status("Không đủ quyền", "error");
+  } else {
+    status("", "");
   }
-  if (hasPermission("notification.send") && hasPermission("payment.create")) {
+  if (isTenantWorkspaceSession() && hasPermission("notification.send") && hasPermission("payment.create")) {
     await previewEmail();
   }
   await loadActiveTabData(tabPanels.find((panel) => panel.classList.contains("active"))?.id || "");
@@ -1216,6 +1260,18 @@ function isTenantWorkspaceUser() {
   ]);
 }
 
+function isTenantWorkspaceSession() {
+  return !isPlatformAdmin() && isTenantWorkspaceUser();
+}
+
+function isTenantWorkspaceTab(tabId = "") {
+  return tenantWorkspaceTabIds.has(tabId);
+}
+
+function isPlatformControlPlaneTab(tabId = "") {
+  return platformControlPlaneTabIds.has(tabId);
+}
+
 function preferredPlatformScope() {
   return !activeTenantSummary().id && isPlatformAdmin() ? "all" : "active";
 }
@@ -1268,10 +1324,35 @@ function hasAnyPermission(permissions) {
 
 function canUseTab(tabId) {
   const access = tabAccess[tabId];
+  if (isTenantWorkspaceTab(tabId)) {
+    if (isPlatformAdmin()) return false;
+    if (!isTenantWorkspaceUser()) return false;
+  }
+  if (isPlatformControlPlaneTab(tabId) && !isPlatformAdmin()) {
+    return false;
+  }
   if (!access) return true;
   if (Array.isArray(access)) return access.every((permission) => hasPermission(permission));
   if (access.any) return hasAnyPermission(access.any);
   return true;
+}
+
+function updateAppContextVisibility(targetId) {
+  if (!appContextBarEl) return;
+  appContextBarEl.hidden = isPlatformControlPlaneTab(targetId) || !isTenantWorkspaceTab(targetId);
+}
+
+function setTenantDetailTab(tabId = "overview") {
+  const nextTab = ["overview", "billing", "invoices"].includes(tabId) ? tabId : "overview";
+  tenantDetailActiveTab = nextTab;
+  tenantDetailTabButtons.forEach((button) => {
+    const isActive = button.dataset.tenantDetailTab === nextTab;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+  tenantDetailPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.tenantDetailPanel !== nextTab;
+  });
 }
 
 function setElementAllowed(el, allowed) {
@@ -1295,23 +1376,11 @@ function updateLegacyPaymentActions(targetId = activeTabId()) {
 function applyPermissionUI() {
   tabButtons.forEach((button) => {
     const tabId = button.dataset.tabTarget;
-    let allowed = canUseTab(tabId);
-    if (tabId === "platformAdminTab") {
-      allowed = allowed && isPlatformAdmin();
-    }
-    if (tabId === "tenantUsersTab") {
-      allowed = allowed && isTenantWorkspaceUser();
-    }
+    const allowed = canUseTab(tabId);
     button.hidden = !allowed;
   });
   tabPanels.forEach((panel) => {
-    let allowed = canUseTab(panel.id);
-    if (panel.id === "platformAdminTab") {
-      allowed = allowed && isPlatformAdmin();
-    }
-    if (panel.id === "tenantUsersTab") {
-      allowed = allowed && isTenantWorkspaceUser();
-    }
+    const allowed = canUseTab(panel.id);
     if (!allowed) {
       panel.hidden = true;
       panel.classList.remove("active");
@@ -1389,12 +1458,13 @@ function applyPermissionUI() {
   setElementAllowed(runCronNowBtn, hasPermission("email_cron.update"));
   updateVisibleMenuGroups();
   updateLegacyPaymentActions();
+  setTenantDetailTab(tenantDetailActiveTab);
   renderAdminQuickActions();
 }
 
 function activateInitialAllowedTab(preferredTabId = "") {
   const current = tabPanels.find((panel) => panel.classList.contains("active"))?.id || "dashboardTab";
-  const defaultTabId = isPlatformAdmin() ? "platformAdminTab" : "dashboardTab";
+  const defaultTabId = isPlatformAdmin() ? "platformTenantsTab" : "dashboardTab";
   const targetId = canUseTab(preferredTabId)
     ? preferredTabId
     : canUseTab(defaultTabId)
@@ -1651,8 +1721,17 @@ async function loadActiveTabData(targetId) {
   if (targetId === "tenantUsersTab") {
     await loadAdminUsers();
   }
-  if (targetId === "platformAdminTab") {
+  if (targetId === "platformTenantsTab") {
     await loadTenants();
+  }
+  if (targetId === "platformFinanceTab") {
+    await loadSubscriptionFinanceConsole(true);
+    await loadSubscriptionAutomationStatus(true);
+  }
+  if (targetId === "platformEntitlementsTab") {
+    await loadTenants();
+  }
+  if (targetId === "platformUsersTab") {
     await loadPlatformUsers();
   }
   if (targetId === "emailTab") {
@@ -1669,6 +1748,7 @@ function updateCurrentSection(targetId) {
   currentSectionDescriptionEl.textContent = metadata.description;
   renderBreadcrumbs(metadata);
   updateLegacyPaymentActions(targetId);
+  updateAppContextVisibility(targetId);
   renderAppContextControls();
 }
 
@@ -4189,7 +4269,7 @@ function renderTenantAdmin(data) {
   tenantSummaryEl.innerHTML = activeTenant.id
     ? `
       <div class="tenant-summary-item">
-        <span>${muiIcon("verified_user")}Active tenant</span>
+        <span>${muiIcon("verified_user")}Selected tenant</span>
         <strong>${escapeHtml([activeTenant.code, activeTenant.name].filter(Boolean).join(" · ") || activeTenant.id)}</strong>
       </div>
       <div class="tenant-summary-item">
@@ -9283,6 +9363,10 @@ scheduleEnhanceInteractiveRows();
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
+});
+
+tenantDetailTabButtons.forEach((button) => {
+  button.addEventListener("click", () => setTenantDetailTab(button.dataset.tenantDetailTab || "overview"));
 });
 
 appContextSchoolEl.addEventListener("change", applyAppContextToActiveTab);

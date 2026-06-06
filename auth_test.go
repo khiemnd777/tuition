@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestHashAuthTokenDoesNotReturnRawToken(t *testing.T) {
@@ -184,5 +189,94 @@ func TestPreferredAuthSessionTenantIDUsesActiveTenantWhenPresent(t *testing.T) {
 	}
 	if got != "tenant-1" {
 		t.Fatalf("expected tenant-1, got %q", got)
+	}
+}
+
+func TestEnsureBootstrapAdminDoesNotOverwriteExistingPassword(t *testing.T) {
+	dbURL := os.Getenv("ABC_DATABASE_URL_LOCAL")
+	if dbURL == "" {
+		t.Skip("ABC_DATABASE_URL_LOCAL is not set")
+	}
+
+	t.Setenv("ABC_ENV", "local")
+	t.Setenv("ABC_DATABASE_URL_LOCAL", dbURL)
+
+	db, err := openMasterDataDatabase(context.Background())
+	if err != nil {
+		t.Skipf("openMasterDataDatabase unavailable: %v", err)
+	}
+	defer db.Close()
+
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	email := fmt.Sprintf("bootstrap-%s@example.test", suffix)
+	phone := "09" + suffix[len(suffix)-8:]
+	initialPassword := "bootstrap-pass-01"
+	updatedPassword := "bootstrap-pass-02"
+
+	cleanupBootstrapTestUser(t, db, email, phone)
+	defer cleanupBootstrapTestUser(t, db, email, phone)
+
+	t.Setenv("ABC_AUTH_BOOTSTRAP_EMAIL", email)
+	t.Setenv("ABC_AUTH_BOOTSTRAP_PHONE", phone)
+	t.Setenv("ABC_AUTH_BOOTSTRAP_PASSWORD", initialPassword)
+	t.Setenv("ABC_AUTH_BOOTSTRAP_DISPLAY_NAME", "Bootstrap Test")
+
+	if err := ensureBootstrapAdmin(context.Background(), db); err != nil {
+		t.Fatalf("ensureBootstrapAdmin create failed: %v", err)
+	}
+
+	user, passwordHash, err := loadAuthUserForLogin(context.Background(), db, email)
+	if err != nil {
+		t.Fatalf("loadAuthUserForLogin failed after create: %v", err)
+	}
+	if bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(initialPassword)) != nil {
+		t.Fatal("expected bootstrap-created user to accept initial password")
+	}
+
+	t.Setenv("ABC_AUTH_BOOTSTRAP_PASSWORD", updatedPassword)
+	if err := ensureBootstrapAdmin(context.Background(), db); err != nil {
+		t.Fatalf("ensureBootstrapAdmin re-run failed: %v", err)
+	}
+
+	_, passwordHash, err = loadAuthUserForLogin(context.Background(), db, email)
+	if err != nil {
+		t.Fatalf("loadAuthUserForLogin failed after re-run: %v", err)
+	}
+	if bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(initialPassword)) != nil {
+		t.Fatal("expected existing bootstrap user to keep original password")
+	}
+	if bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(updatedPassword)) == nil {
+		t.Fatal("expected bootstrap re-run to not overwrite existing password")
+	}
+	if !user.IsPlatformAdmin {
+		t.Fatal("expected bootstrap user to keep platform_admin role")
+	}
+}
+
+func cleanupBootstrapTestUser(t *testing.T, db *sql.DB, email string, phone string) {
+	t.Helper()
+
+	var userID string
+	err := db.QueryRow(`
+SELECT id::text
+FROM app_users
+WHERE lower(COALESCE(email, '')) = lower($1) OR phone = $2
+LIMIT 1`, email, phone).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return
+	}
+	if err != nil {
+		t.Fatalf("load bootstrap test user: %v", err)
+	}
+
+	for _, stmt := range []string{
+		`DELETE FROM tenant_user_roles WHERE user_id = $1::uuid`,
+		`DELETE FROM tenant_memberships WHERE user_id = $1::uuid`,
+		`DELETE FROM app_user_roles WHERE user_id = $1::uuid`,
+		`DELETE FROM app_users WHERE id = $1::uuid`,
+	} {
+		if _, err := db.Exec(stmt, userID); err != nil {
+			t.Fatalf("cleanup bootstrap test user failed for %q: %v", stmt, err)
+		}
 	}
 }
