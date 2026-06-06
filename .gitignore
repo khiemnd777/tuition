@@ -2,6 +2,7 @@
 .gomodcache/
 node_modules/
 dist/
+.docker/
 *.log
 .env
 .env.local

@@ -1,11 +1,12 @@
-name: abcsun-qr
+name: finance_hub
 
 services:
   api:
+    container_name: finance_hub_api
     build:
       context: .
       dockerfile: docker/api.Dockerfile
-    image: abcsun-qr-api:local
+    image: finance_hub-api:local
     restart: unless-stopped
     environment:
       ABC_ENV: ${ABC_ENV:-local}
@@ -23,11 +24,12 @@ services:
         condition: service_healthy
 
   admin:
+    container_name: finance_hub_admin
     build:
       context: .
       dockerfile: docker/admin.Dockerfile
       target: dev
-    image: abcsun-qr-admin:local
+    image: finance_hub-admin:local
     restart: unless-stopped
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     environment:
@@ -49,6 +51,7 @@ services:
       start_period: 5s
 
   postgres:
+    container_name: finance_hub_postgres
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -58,7 +61,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-15436}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_DIR:-./.docker/postgres_data}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
@@ -67,13 +70,14 @@ services:
       start_period: 10s
 
   redis:
+    container_name: finance_hub_redis
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "${REDIS_PORT:-16381}:6379"
     volumes:
-      - redis_data:/data
+      - ${REDIS_DATA_DIR:-./.docker/redis_data}:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -84,5 +88,3 @@ services:
 volumes:
   api_data:
   admin_node_modules:
-  postgres_data:
-  redis_data:

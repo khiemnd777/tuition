@@ -14,7 +14,7 @@ Nếu cổng mặc định đang bận, có thể chạy bằng `PORT=18081 go r
 
 ## Chạy bằng Docker
 
-Stack Docker local gồm 4 service: `api`, `admin`, `postgres`, và `redis`.
+Stack Docker local dùng project name `finance_hub` và gồm 4 service: `api`, `admin`, `postgres`, và `redis`.
 
 ```sh
 cp .env.example .env
@@ -33,6 +33,8 @@ Mặc định:
 - API trực tiếp: `http://localhost:18180`
 - PostgreSQL: `localhost:15436`
 - Redis: `localhost:16381`
+- PostgreSQL data local: `./.docker/postgres_data`
+- Redis data local: `./.docker/redis_data`
 
 Trong local Docker, Admin container chạy Vite dev server với HMR. Source repo được bind mount vào `/app`, còn `node_modules` nằm trong Docker volume `admin_node_modules`, nên sửa file trong `web/` sẽ tự reload trên trình duyệt ở `http://localhost:18181`. Vite proxy `/api/` sang `api:18080`, nên UI vẫn dùng các URL tương đối như `/api/v1/banks`.
 
@@ -46,7 +48,7 @@ docker compose up -d --build admin
 Admin container cũng chạy `npm install` khi start để đồng bộ `admin_node_modules` theo `package.json`/`package-lock.json`. Docker build production của admin dùng `npm ci` rồi `npm run build`, nên các import từ npm package sẽ được resolve từ `node_modules` trong image:
 
 ```sh
-docker build -f docker/admin.Dockerfile --target production -t abcsun-qr-admin:prod .
+docker build -f docker/admin.Dockerfile --target production -t finance_hub-admin:prod .
 ```
 
 Chạy migration trong Docker:
@@ -62,7 +64,7 @@ Kiểm tra cấu hình DB trong container mà không in secret:
 docker compose run --rm api db config
 ```
 
-Runtime state local của API, như email config JSON đã ignore khỏi git, nằm trong volume `api_data`. PostgreSQL và Redis lần lượt dùng `postgres_data` và `redis_data`.
+Runtime state local của API, như email config JSON đã ignore khỏi git, nằm trong volume `api_data`. PostgreSQL và Redis dùng bind mount local theo `POSTGRES_DATA_DIR` và `REDIS_DATA_DIR` trong `.env`, mặc định là `./.docker/postgres_data` và `./.docker/redis_data`.
 
 Dừng stack:
 
@@ -75,6 +77,8 @@ Reset toàn bộ dữ liệu local Docker:
 ```sh
 docker compose down -v
 ```
+
+Lưu ý: `docker compose down -v` chỉ xóa Docker named volumes như `api_data` và `admin_node_modules`. Vì PostgreSQL và Redis đang dùng bind mount local, muốn reset sạch thì xóa thêm các thư mục được cấu hình bởi `POSTGRES_DATA_DIR` và `REDIS_DATA_DIR`.
 
 ## Codex agents/skills local
 
