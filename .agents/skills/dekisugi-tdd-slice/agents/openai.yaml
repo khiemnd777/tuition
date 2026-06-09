@@ -1,0 +1,4 @@
+interface:
+  display_name: "DEKISUGI TDD Slice"
+  short_description: "Vertical-slice TDD for this Go app"
+  default_prompt: "Use $dekisugi-tdd-slice to add a behavior with one failing test at a time."

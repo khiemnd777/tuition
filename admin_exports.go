@@ -68,7 +68,7 @@ func buildAdminReportCSV(ctx context.Context, db *sql.DB, filters adminFilters, 
 	if err != nil {
 		return "", nil, err
 	}
-	filename := fmt.Sprintf("abcsun-%s-%s.csv", dataset, time.Now().Format("20060102"))
+	filename := fmt.Sprintf("dekisugi-%s-%s.csv", dataset, time.Now().Format("20060102"))
 	return filename, data, nil
 }
 

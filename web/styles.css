@@ -21,6 +21,8 @@
   --control-height: 36px;
   --chip-height: 24px;
   --top-shell-height: 108px;
+  --app-content-gutter: 24px;
+  --app-content-gap: 18px;
   --shadow-panel: 0 12px 30px rgba(26, 38, 32, 0.08);
   --shadow-control: inset 0 -1px 0 rgba(23, 33, 27, 0.08);
   --shadow: var(--shadow-panel);
@@ -371,30 +373,545 @@ textarea:focus-visible {
   min-height: 100vh;
 }
 
-.login-screen {
-  display: grid;
+html {
+  scroll-behavior: smooth;
+}
+
+.landing-screen {
   min-height: 100vh;
-  place-items: center;
-  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(244, 246, 248, 0.98) 42%, #ffffff 100%),
+    var(--bg);
+  color: var(--ink);
+}
+
+.landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 74px;
+  padding: 10px clamp(18px, 4vw, 56px);
+  border-bottom: 1px solid rgba(217, 224, 220, 0.86);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+}
+
+.landing-brand {
+  min-height: 0;
+  border-bottom: 0;
+  color: inherit;
+  padding: 0;
+  text-decoration: none;
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.landing-nav a {
+  border-radius: 6px;
+  color: var(--ink-soft);
+  padding: 9px 11px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.landing-nav a:hover {
+  background: var(--green-soft);
+  color: var(--green);
+  transform: translateY(-1px);
+}
+
+.landing-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.landing-main {
+  display: grid;
+  gap: 0;
+}
+
+.landing-section {
+  width: 100%;
+  padding: clamp(42px, 7vw, 88px) clamp(18px, 5vw, 72px);
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.landing-section:hover {
+  transform: translateY(-2px);
+}
+
+.landing-section-head {
+  display: grid;
+  gap: 8px;
+  max-width: 760px;
+  margin: 0 auto 22px;
+  text-align: center;
+}
+
+.landing-section-head h2,
+.landing-access-copy h2,
+.landing-hero-copy h1 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.landing-section-head h2,
+.landing-access-copy h2 {
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.1;
+}
+
+.landing-section-head p:not(.section-kicker),
+.landing-access-copy p,
+.landing-hero-text {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.landing-hero {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-height: calc(100svh - 74px);
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.88) 44%, rgba(255, 255, 255, 0.62) 72%, rgba(255, 255, 255, 0.78) 100%),
+    url("/api/v1/qr.png?amount=1280000&billNumber=DEKISUGI&note=FinanceHub") right 8% center / min(46vw, 560px) auto no-repeat,
+    #eef5f1;
+  border-bottom: 1px solid var(--line);
+}
+
+.landing-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18px;
+  max-width: 760px;
+}
+
+.landing-hero-copy h1 {
+  max-width: 720px;
+  font-size: clamp(42px, 7vw, 78px);
+  line-height: 0.98;
+}
+
+.landing-hero-text {
+  max-width: 660px;
+  font-size: clamp(16px, 1.7vw, 20px);
+}
+
+.landing-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.landing-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 660px;
+  margin: 8px 0 0;
+}
+
+.landing-proof-grid div {
+  border: 1px solid rgba(197, 208, 202, 0.86);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(26, 38, 32, 0.06);
+}
+
+.landing-proof-grid dt {
+  color: var(--green);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.landing-proof-grid dd {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.landing-hero-board {
+  position: absolute;
+  right: clamp(18px, 5vw, 72px);
+  bottom: clamp(24px, 6vw, 72px);
+  z-index: 1;
+  width: min(420px, 38vw);
+  border: 1px solid rgba(197, 208, 202, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 70px rgba(26, 38, 32, 0.16);
+  padding: 16px;
+}
+
+.landing-board-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.landing-board-top .mui-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.landing-board-top strong,
+.landing-board-top small {
+  display: block;
+}
+
+.landing-board-top small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.landing-board-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.landing-board-metrics div {
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 10px;
+}
+
+.landing-board-metrics span,
+.landing-board-flow span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.landing-board-metrics strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.landing-board-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.landing-board-flow span {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.landing-feature-section,
+.landing-access {
+  background: #ffffff;
+}
+
+.landing-feature-grid,
+.landing-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.landing-feature-card,
+.landing-plan-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 18px;
+  box-shadow: 0 10px 28px rgba(26, 38, 32, 0.07);
+}
+
+.landing-hover-card {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.landing-hover-card:hover {
+  border-color: var(--line-control-hover);
+  box-shadow: 0 22px 48px rgba(26, 38, 32, 0.14);
+  transform: translateY(-6px) scale(1.012);
+}
+
+.landing-feature-card > .mui-icon,
+.landing-plan-card > .mui-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 21px;
+}
+
+.landing-feature-card:nth-child(2) > .mui-icon {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.landing-feature-card:nth-child(3) > .mui-icon {
+  background: #fff7e6;
+  color: var(--amber);
+}
+
+.landing-feature-card:nth-child(4) > .mui-icon {
+  background: #f4f7fb;
+  color: #475569;
+}
+
+.landing-feature-card h3,
+.landing-plan-card h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.landing-feature-card p,
+.landing-plan-card p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.landing-subscriptions {
+  background: var(--surface-muted);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.landing-data-status {
+  max-width: 1180px;
+  min-height: 24px;
+  margin: 0 auto 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.landing-data-status[data-tone="ready"] {
+  color: var(--green);
+}
+
+.landing-data-status[data-tone="error"] {
+  color: var(--red);
+}
+
+.landing-plan-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-plan-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 220px;
+}
+
+.landing-plan-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.landing-plan-card code {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.landing-plan-limits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-plan-limits li {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--ink-soft);
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.landing-access {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 480px);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: start;
+}
+
+.landing-access-copy {
+  display: grid;
+  gap: 14px;
+  max-width: 620px;
+  padding-top: 16px;
+}
+
+.landing-contact-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.landing-contact-strip a,
+.landing-footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing-contact-strip a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 0 12px;
+  color: var(--ink-soft);
+  font-weight: 800;
 }
 
 .login-panel {
   width: min(420px, 100%);
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
-.login-brand {
-  border-bottom: 1px solid var(--line);
+.landing-auth-card {
+  width: 100%;
+  justify-self: end;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.landing-auth-card:hover {
+  border-color: var(--line-control-hover);
+  box-shadow: 0 22px 52px rgba(26, 38, 32, 0.13);
+  transform: translateY(-4px);
+}
+
+.login-form input,
+.login-form select,
+.login-form textarea {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 8px 10px;
+}
+
+.login-form textarea {
+  resize: vertical;
+}
+
+.login-form input:hover,
+.login-form select:hover,
+.login-form textarea:hover {
+  border-color: var(--line-control-hover);
 }
 
 .login-mode-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 18px 18px 0;
+  display: flex;
+  gap: 0;
+  padding: 10px 18px 0;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.login-mode-switch button {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 42px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 10px 10px;
+  box-shadow: none;
+  line-height: 1.15;
+}
+
+.login-mode-switch button:hover {
+  border-color: var(--line-control);
+  background: var(--surface-muted);
+  box-shadow: none;
+}
+
+.login-mode-switch button.primary,
+.login-mode-switch button[aria-selected="true"] {
+  border-color: var(--green);
+  background: transparent;
+  color: var(--green);
+  box-shadow: none;
+}
+
+.login-mode-switch button.primary:hover,
+.login-mode-switch button[aria-selected="true"]:hover {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .login-form {
@@ -406,6 +923,27 @@ textarea:focus-visible {
 .login-form label {
   display: grid;
   gap: 6px;
+}
+
+.login-text-action {
+  justify-self: center;
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  padding: 0 4px;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.login-text-action:hover {
+  border-color: transparent;
+  background: transparent;
+  color: #0f6848;
+  box-shadow: none;
 }
 
 .login-mode-head {
@@ -433,12 +971,87 @@ textarea:focus-visible {
   color: var(--red);
 }
 
-.tenant-onboarding-banner {
-  margin-bottom: 16px;
+.login-legal {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 0;
 }
 
-.tenant-onboarding-banner p {
+.login-legal a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.landing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px clamp(18px, 5vw, 72px);
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--muted);
+}
+
+.landing-footer strong {
+  color: var(--ink);
+}
+
+.landing-footer p {
+  margin: 4px 0 0;
+}
+
+.landing-footer address {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.landing-footer a:hover {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tenant-onboarding-banner {
+  margin-bottom: 0;
+}
+
+.panel-subsection {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.panel-head.compact {
+  margin-bottom: 10px;
+}
+
+.legal-page {
+  background: #f7f8fb;
+  color: #172033;
+}
+
+.legal-document {
+  background: #fff;
+  border: 1px solid #dde3ee;
+  border-radius: 8px;
+  margin: 32px auto;
+  max-width: 860px;
+  padding: 28px;
+}
+
+.legal-document h1,
+.legal-document h2 {
+  letter-spacing: 0;
+}
+
+.tenant-onboarding-banner > p {
   margin: 0;
+  padding: 12px 16px 14px;
   color: var(--ink-soft);
 }
 
@@ -519,7 +1132,11 @@ textarea:focus-visible {
 }
 
 .content-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--app-content-gap);
   min-width: 0;
+  padding: var(--app-content-gap) var(--app-content-gutter) var(--app-content-gutter);
 }
 
 .brand {
@@ -718,14 +1335,14 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 18px;
-  padding: 18px 24px 0;
+  padding: 0;
 }
 
 .output-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 392px;
   gap: 18px;
-  margin: 18px 24px 24px;
+  margin: var(--app-content-gap) 0 0;
 }
 
 .panel,
@@ -850,7 +1467,7 @@ textarea:focus-visible {
 .reconciliation-workspace,
 .notification-workspace,
 .admin-workspace {
-  margin: 18px 24px;
+  margin: 0;
 }
 
 .fee-workspace,
@@ -994,7 +1611,7 @@ textarea:focus-visible {
 .platform-detail-tabs {
   display: flex;
   gap: 8px;
-  padding: 0 16px 16px;
+  padding: 14px 16px 16px;
   flex-wrap: wrap;
 }
 
@@ -1020,7 +1637,7 @@ textarea:focus-visible {
   display: grid;
   gap: 14px;
   border-top: 1px solid var(--line);
-  padding-top: 14px;
+  padding: 20px 16px 16px;
   min-width: 0;
 }
 
@@ -1050,7 +1667,8 @@ textarea:focus-visible {
 
 .admin-filter-grid,
 .tenant-form,
-.admin-user-form {
+.admin-user-form,
+.platform-user-form {
   display: grid;
   gap: 10px;
   padding: 14px 16px;
@@ -1061,7 +1679,8 @@ textarea:focus-visible {
   grid-template-columns: repeat(6, minmax(120px, 1fr));
 }
 
-.admin-user-form {
+.admin-user-form,
+.platform-user-form {
   grid-template-columns: repeat(4, minmax(150px, 1fr));
   align-items: end;
 }
@@ -1077,7 +1696,8 @@ textarea:focus-visible {
 
 .admin-filter-grid label,
 .tenant-form label,
-.admin-user-form label {
+.admin-user-form label,
+.platform-user-form label {
   display: grid;
   gap: 5px;
   min-width: 0;
@@ -1091,7 +1711,9 @@ textarea:focus-visible {
 .tenant-form input,
 .tenant-form select,
 .admin-user-form input,
-.admin-user-form select {
+.admin-user-form select,
+.platform-user-form input,
+.platform-user-form select {
   width: 100%;
   min-height: 36px;
   border: 1px solid var(--line);
@@ -1101,12 +1723,31 @@ textarea:focus-visible {
   color: var(--ink);
 }
 
-.admin-user-form select[multiple] {
+.admin-user-form select[multiple],
+.platform-user-form select[multiple] {
   min-height: 86px;
 }
 
 .admin-user-roles-field {
   grid-column: span 2;
+}
+
+.app-dialog-body .admin-user-form,
+.app-dialog-body .platform-user-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.app-dialog-body .admin-user-form > label:nth-of-type(5),
+.app-dialog-body .platform-user-form > label:nth-of-type(5),
+.app-dialog-body .admin-user-roles-field {
+  grid-column: 1 / -1;
+}
+
+.app-dialog-body .admin-user-actions {
+  display: none;
 }
 
 .admin-user-actions {
@@ -1121,7 +1762,13 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  padding: 14px 16px 0;
+  padding: 14px 16px 16px;
+}
+
+#subscriptionAutomationSummary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 24px 28px 26px;
 }
 
 .tenant-summary-item,
@@ -1134,8 +1781,14 @@ textarea:focus-visible {
 
 .tenant-summary-item {
   display: grid;
-  gap: 4px;
-  padding: 10px;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+#subscriptionAutomationSummary .tenant-summary-item {
+  gap: 8px;
+  min-height: 92px;
+  padding: 16px 18px;
 }
 
 .tenant-summary-item span,
@@ -1174,7 +1827,7 @@ textarea:focus-visible {
   gap: 4px 8px;
   align-items: center;
   width: 100%;
-  padding: 10px;
+  padding: 12px 14px;
   text-align: left;
 }
 
@@ -1207,7 +1860,7 @@ textarea:focus-visible {
   display: grid;
   gap: 3px;
   align-content: center;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: #ffffff;
 }
 
@@ -1273,7 +1926,7 @@ textarea:focus-visible {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 12px;
   background: var(--surface-muted);
 }
 
@@ -1322,7 +1975,7 @@ textarea:focus-visible {
 .quick-action-grid button {
   justify-content: flex-start;
   min-height: 58px;
-  padding: 9px 10px;
+  padding: 12px;
   text-align: left;
   white-space: normal;
 }
@@ -1360,7 +2013,7 @@ textarea:focus-visible {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 12px;
   background: var(--surface-muted);
 }
 
@@ -1451,7 +2104,7 @@ textarea:focus-visible {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: var(--surface-muted);
 }
 
@@ -1507,7 +2160,7 @@ textarea:focus-visible {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 12px;
   background: #ffffff;
 }
 
@@ -1592,7 +2245,7 @@ tr[tabindex="0"]:focus-visible td {
   align-items: center;
   border: 1px dashed var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   color: var(--muted);
   background: var(--surface-muted);
   font-size: 13px;
@@ -1654,7 +2307,7 @@ tr[tabindex="0"]:focus-visible td {
 .admin-role-item {
   display: grid;
   gap: 10px;
-  padding: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #ffffff;
@@ -1719,7 +2372,7 @@ tr[tabindex="0"]:focus-visible td {
   grid-template-columns: minmax(0, 1fr) minmax(400px, clamp(400px, 36vw, 620px));
   align-items: start;
   gap: 18px;
-  margin: 18px 24px 24px;
+  margin: 0;
 }
 
 .master-controls,
@@ -2217,7 +2870,7 @@ tr[tabindex="0"]:focus-visible td {
   gap: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 12px;
   background: #ffffff;
   color: var(--ink-soft);
   font-size: 12px;
@@ -2565,7 +3218,7 @@ tr[tabindex="0"]:focus-visible td {
 
 .import-mapping-toolbar {
   min-height: 48px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2585,7 +3238,7 @@ tr[tabindex="0"]:focus-visible td {
 
 .import-mapping-summary {
   min-height: 40px;
-  padding: 11px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
   font-size: 13px;
@@ -2690,7 +3343,7 @@ tr.is-selected td:first-child {
   gap: 4px;
   border: 1px solid #e4b8b8;
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: #ffffff;
 }
 
@@ -2720,7 +3373,7 @@ tr.is-selected td:first-child {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px 0;
+  padding: 12px 16px;
   background: var(--surface-muted);
   overflow-x: auto;
 }
@@ -2746,7 +3399,7 @@ tr.is-selected td:first-child {
 
 .invoice-workbench-steps,
 .reconciliation-workbench-steps {
-  padding-bottom: 10px;
+  padding-bottom: 12px;
 }
 
 .notification-workbench-steps {
@@ -2816,7 +3469,7 @@ tr.is-selected td:first-child {
 .fee-section-head {
   min-height: 44px;
   border-bottom: 1px solid var(--line);
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2972,7 +3625,7 @@ tr.is-selected td:first-child {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 .fee-schedule-list-item > div {
@@ -3073,7 +3726,7 @@ tr.is-selected td:first-child {
 
 .invoice-issue-empty,
 .invoice-issue-list {
-  padding: 10px 16px;
+  padding: 12px 16px;
 }
 
 .invoice-issue-empty {
@@ -3237,7 +3890,7 @@ tr.is-selected td:first-child {
   display: grid;
   gap: 3px;
   align-content: center;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: #ffffff;
 }
 
@@ -3326,7 +3979,7 @@ tr.is-selected td:first-child {
   min-height: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 10px;
+  padding: 12px 14px;
   background: #ffffff;
   color: var(--ink-soft);
   text-align: left;
@@ -3668,7 +4321,7 @@ tr.is-selected td:first-child {
   display: grid;
   gap: 3px;
   align-content: center;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: #ffffff;
 }
 
@@ -3758,7 +4411,7 @@ tr.is-selected td:first-child {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 9px;
+  padding: 12px;
   background: #ffffff;
 }
 
@@ -3818,7 +4471,7 @@ tr.is-selected td:first-child {
 .notification-log-item {
   display: grid;
   gap: 4px;
-  padding: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #ffffff;
@@ -4039,7 +4692,9 @@ td select:hover,
 .admin-filter-grid input:hover,
 .admin-filter-grid select:hover,
 .admin-user-form input:hover,
-.admin-user-form select:hover {
+.admin-user-form select:hover,
+.platform-user-form input:hover,
+.platform-user-form select:hover {
   border-color: var(--line-strong);
 }
 
@@ -4069,7 +4724,9 @@ td select:focus,
 .admin-filter-grid input:focus,
 .admin-filter-grid select:focus,
 .admin-user-form input:focus,
-.admin-user-form select:focus {
+.admin-user-form select:focus,
+.platform-user-form input:focus,
+.platform-user-form select:focus {
   border-color: var(--focus);
 }
 
@@ -4238,7 +4895,7 @@ td select:focus,
 }
 
 .email-wrap {
-  margin: 18px 24px;
+  margin: 0;
 }
 
 .email-grid {
@@ -4316,7 +4973,7 @@ td select:focus,
 .email-status {
   min-height: 42px;
   border-top: 1px solid var(--line);
-  padding: 10px 16px;
+  padding: 12px 16px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -4465,6 +5122,57 @@ td select:focus,
 }
 
 @media (max-width: 980px) {
+  :root {
+    --app-content-gutter: 14px;
+    --app-content-gap: 14px;
+  }
+
+  .landing-header {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 10px;
+    position: static;
+  }
+
+  .landing-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .landing-header-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .landing-hero {
+    min-height: auto;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.84)),
+      url("/api/v1/qr.png?amount=1280000&billNumber=DEKISUGI&note=FinanceHub") right 18px top 22px / 220px auto no-repeat,
+      #eef5f1;
+  }
+
+  .landing-hero-board {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(100%, 520px);
+    margin-top: 28px;
+  }
+
+  .landing-feature-grid,
+  .landing-plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-access {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-auth-card {
+    justify-self: stretch;
+  }
+
   .app-dialog {
     width: min(760px, calc(100vw - 20px));
     max-height: calc(100dvh - 20px);
@@ -4532,8 +5240,7 @@ td select:focus,
     min-height: 36px;
   }
 
-  .app-bar,
-  .workspace {
+  .app-bar {
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -4622,8 +5329,8 @@ td select:focus,
   }
 
   .output-grid {
-    margin-left: 14px;
-    margin-right: 14px;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .email-grid {
@@ -4640,6 +5347,11 @@ td select:focus,
 
   .dialog-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .app-dialog-body .admin-user-form,
+  .app-dialog-body .platform-user-form {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .fee-schedule-grid,
@@ -4659,11 +5371,23 @@ td select:focus,
   .tenant-form,
   .tenant-summary,
   .admin-user-form,
+  .platform-user-form,
   .operations-workspace,
   .users-workspace,
   .platform-admin-nav,
   .platform-admin-users-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  #subscriptionAutomationSummary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+
+  #subscriptionAutomationSummary .tenant-summary-item {
+    min-height: 0;
+    padding: 14px 16px;
   }
 
   .master-controls,
@@ -4782,12 +5506,70 @@ td select:focus,
   .reconciliation-workspace,
   .notification-workspace,
   .admin-workspace {
-    margin-left: 14px;
-    margin-right: 14px;
+    margin-left: 0;
+    margin-right: 0;
   }
 }
 
 @media (max-width: 560px) {
+  .landing-header,
+  .landing-section,
+  .landing-footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .landing-section:hover {
+    transform: none;
+  }
+
+  .landing-hero {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.9)),
+      url("/api/v1/qr.png?amount=1280000&billNumber=DEKISUGI&note=FinanceHub") right 10px top 20px / 160px auto no-repeat,
+      #eef5f1;
+  }
+
+  .landing-hero-copy h1 {
+    font-size: 40px;
+  }
+
+  .landing-hero-actions,
+  .landing-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .landing-hero-actions button,
+  .landing-header-actions button {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .landing-proof-grid,
+  .landing-feature-grid,
+  .landing-plan-grid,
+  .landing-board-metrics,
+  .landing-board-flow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-feature-card,
+  .landing-plan-card,
+  .landing-hero-board {
+    padding: 14px;
+  }
+
+  .landing-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .landing-footer address {
+    justify-content: flex-start;
+  }
+
   .brand {
     align-items: flex-start;
   }

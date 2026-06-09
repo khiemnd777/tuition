@@ -1,0 +1,4 @@
+interface:
+  display_name: "DEKISUGI Debug Loop"
+  short_description: "Disciplined reproduction-first debugging"
+  default_prompt: "Use $dekisugi-debug-loop to diagnose a failing DEKISUGI VietQR, email, cron, or UI flow."

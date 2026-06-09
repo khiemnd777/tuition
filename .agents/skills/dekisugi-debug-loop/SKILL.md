@@ -1,9 +1,9 @@
 ---
-name: abcsun-debug-loop
-description: Reproduction-first debugging workflow for the ABC SUN VietQR app. Use when a QR payload, CSV import, email preview/send, cron batch, Gmail/Resend provider, or browser UI flow is broken, failing, flaky, slow, or producing unexpected output.
+name: dekisugi-debug-loop
+description: Reproduction-first debugging workflow for the DEKISUGI VietQR app. Use when a QR payload, CSV import, email preview/send, cron batch, Gmail/Resend provider, or browser UI flow is broken, failing, flaky, slow, or producing unexpected output.
 ---
 
-# ABC SUN Debug Loop
+# DEKISUGI Debug Loop
 
 Build a fast, deterministic feedback loop before changing code.
 

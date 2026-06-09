@@ -1,0 +1,4 @@
+interface:
+  display_name: "DEKISUGI Email Delivery"
+  short_description: "Email templates, providers, and cron flow"
+  default_prompt: "Use $dekisugi-email-delivery to update email preview, send, provider, or cron behavior."

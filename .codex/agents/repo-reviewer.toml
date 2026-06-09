@@ -1,4 +1,4 @@
-name = "abcsun_repo_reviewer"
+name = "dekisugi_repo_reviewer"
 description = "Read-only reviewer focused on correctness, security, data-contract regressions, email safety, and missing tests."
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"

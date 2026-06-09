@@ -1,5 +1,5 @@
 -- Tenant foundation for subscription-mode deployments.
--- Keep existing production data under the default ABC_SUN tenant while
+-- Keep existing production data under the default DEKISUGI tenant while
 -- preserving schools as the business-level school/campus entity.
 
 CREATE TABLE IF NOT EXISTS tenants (
@@ -20,7 +20,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS tenants_code_key ON tenants (code);
 CREATE INDEX IF NOT EXISTS tenants_status_idx ON tenants (status);
 
 INSERT INTO tenants (code, name, status)
-VALUES ('ABC_SUN', 'ABC SUN', 'active')
+VALUES ('DEKISUGI', 'DEKISUGI', 'active')
 ON CONFLICT (code) DO UPDATE
 SET name = EXCLUDED.name,
 	status = EXCLUDED.status,
@@ -29,7 +29,7 @@ SET name = EXCLUDED.name,
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS tenant_id uuid;
 
 UPDATE schools
-SET tenant_id = (SELECT id FROM tenants WHERE code = 'ABC_SUN')
+SET tenant_id = (SELECT id FROM tenants WHERE code = 'DEKISUGI')
 WHERE tenant_id IS NULL;
 
 ALTER TABLE schools ALTER COLUMN tenant_id SET NOT NULL;
@@ -58,7 +58,7 @@ INSERT INTO tenant_memberships (tenant_id, user_id, status, is_owner)
 SELECT tenant.id, app_user.id, 'active', true
 FROM tenants tenant
 CROSS JOIN app_users app_user
-WHERE tenant.code = 'ABC_SUN'
+WHERE tenant.code = 'DEKISUGI'
 ON CONFLICT (tenant_id, user_id) DO NOTHING;
 
 DO $$

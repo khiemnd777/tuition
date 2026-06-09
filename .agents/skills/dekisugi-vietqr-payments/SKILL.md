@@ -1,9 +1,9 @@
 ---
-name: abcsun-vietqr-payments
-description: VietQR payment-row and CSV workflow for the ABC SUN app. Use when changing VietQR payload generation, NAPAS TLV fields, CRC, bank BIN validation, payment items, amount calculation, bill numbers, notes, CSV import aliases, QR PNG output, or payment API contracts.
+name: dekisugi-vietqr-payments
+description: VietQR payment-row and CSV workflow for the DEKISUGI app. Use when changing VietQR payload generation, NAPAS TLV fields, CRC, bank BIN validation, payment items, amount calculation, bill numbers, notes, CSV import aliases, QR PNG output, or payment API contracts.
 ---
 
-# ABC SUN VietQR Payments
+# DEKISUGI VietQR Payments
 
 Use this for changes to payment rows, CSV import, VietQR payloads, and generated QR output.
 

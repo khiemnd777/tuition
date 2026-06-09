@@ -1,0 +1,4 @@
+interface:
+  display_name: "DEKISUGI Change Workflow"
+  short_description: "Repo workflow for safe DEKISUGI changes"
+  default_prompt: "Use $dekisugi-change-workflow to make a scoped change in the DEKISUGI VietQR app."

@@ -266,23 +266,10 @@ type payOSCreatePaymentResult struct {
 }
 
 func handlePaymentProviders(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := requireActiveTenantID(w, r)
-	if !ok {
+	if _, ok := requireActiveTenantID(w, r); !ok {
 		return
 	}
-	db, err := openMasterDataDatabase(r.Context())
-	if err != nil {
-		writeMasterDataDBError(w, err)
-		return
-	}
-	defer db.Close()
-
-	providers, err := listPaymentProviders(r.Context(), db, tenantID)
-	if err != nil {
-		http.Error(w, "cannot load payment providers", http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"providers": providers})
+	writeJSON(w, http.StatusOK, map[string]any{"providers": []paymentProvider{}})
 }
 
 func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
@@ -297,10 +284,6 @@ func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input.InvoiceID = strings.TrimSpace(input.InvoiceID)
-	input.Provider = headerKey(input.Provider)
-	if input.Provider == "" {
-		input.Provider = paymentProviderManualVietQR
-	}
 	if input.InvoiceID == "" {
 		http.Error(w, "invoiceId is required", http.StatusBadRequest)
 		return
@@ -313,7 +296,12 @@ func handlePaymentIntentCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	provider, err := loadPaymentProviderByCode(r.Context(), db, tenantID, input.Provider)
+	providerCode, err := loadTenantDefaultPaymentProviderCode(r.Context(), db, tenantID)
+	if err != nil {
+		http.Error(w, "cannot resolve default payment provider", http.StatusInternalServerError)
+		return
+	}
+	provider, err := loadPaymentProviderByCode(r.Context(), db, tenantID, providerCode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -370,11 +358,6 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	providers, err := listPaymentProviders(r.Context(), db, tenantID)
-	if err != nil {
-		http.Error(w, "cannot load payment providers", http.StatusInternalServerError)
-		return
-	}
 	options, err := listMasterDataOptions(r.Context(), db, tenantID)
 	if err != nil {
 		http.Error(w, "cannot load master data options", http.StatusInternalServerError)
@@ -398,7 +381,6 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 
 	transactions, err := listPaymentTransactions(r.Context(), db, paymentTransactionListFilters{
 		TenantID: tenantID,
-		Provider: headerKey(query.Get("provider")),
 		Status:   headerKey(query.Get("transactionStatus")),
 		Limit:    300,
 	})
@@ -419,7 +401,7 @@ func handlePaymentReconciliation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, paymentReconciliationResponse{
-		Providers:    providers,
+		Providers:    []paymentProvider{},
 		Schools:      options.Schools,
 		SchoolYears:  options.SchoolYears,
 		Classes:      options.Classes,
@@ -698,7 +680,7 @@ func loadPaymentProviderByCode(ctx context.Context, db *sql.DB, tenantID string,
 	var configBytes []byte
 	err := db.QueryRowContext(ctx, `
 SELECT pp.id::text, pp.code, pp.display_name, pp.provider_type, pp.status, pp.tenant_id::text, pp.config
-FROM payment_providers
+FROM payment_providers pp
 WHERE pp.code = $1
 	AND pp.status <> 'inactive'
 	AND pp.tenant_id = $2::uuid`, code, tenantID).Scan(
@@ -1834,7 +1816,7 @@ func createPayOSPaymentLink(ctx context.Context, provider paymentProvider, invoi
 	orderCode := payOSOrderCode(invoice.InvoiceCode)
 	description := cleanANS(invoice.InvoiceCode, 9)
 	if description == "" {
-		description = "ABCSUN"
+		description = "DEKISUGI"
 	}
 	payload := map[string]any{
 		"orderCode":   orderCode,
@@ -1928,12 +1910,12 @@ func loadPayOSConfig(provider paymentProvider) payOSConfig {
 		APIBaseURL:  firstNonEmpty(providerConfigString(provider.config, "apiBaseUrl", "api_base_url"), providerNestedConfigString(provider.config, "checkout", "apiBaseUrl", "api_base_url")),
 	}
 	envConfig := payOSConfig{
-		ClientID:    strings.TrimSpace(os.Getenv("ABC_PAYOS_CLIENT_ID")),
-		APIKey:      strings.TrimSpace(os.Getenv("ABC_PAYOS_API_KEY")),
-		ChecksumKey: strings.TrimSpace(os.Getenv("ABC_PAYOS_CHECKSUM_KEY")),
-		ReturnURL:   strings.TrimSpace(os.Getenv("ABC_PAYOS_RETURN_URL")),
-		CancelURL:   strings.TrimSpace(os.Getenv("ABC_PAYOS_CANCEL_URL")),
-		APIBaseURL:  firstNonEmpty(os.Getenv("ABC_PAYOS_API_BASE_URL"), "https://api-merchant.payos.vn"),
+		ClientID:    strings.TrimSpace(os.Getenv("DEKISUGI_PAYOS_CLIENT_ID")),
+		APIKey:      strings.TrimSpace(os.Getenv("DEKISUGI_PAYOS_API_KEY")),
+		ChecksumKey: strings.TrimSpace(os.Getenv("DEKISUGI_PAYOS_CHECKSUM_KEY")),
+		ReturnURL:   strings.TrimSpace(os.Getenv("DEKISUGI_PAYOS_RETURN_URL")),
+		CancelURL:   strings.TrimSpace(os.Getenv("DEKISUGI_PAYOS_CANCEL_URL")),
+		APIBaseURL:  firstNonEmpty(os.Getenv("DEKISUGI_PAYOS_API_BASE_URL"), "https://api-merchant.payos.vn"),
 	}
 	if config.ClientID == "" {
 		config.ClientID = envConfig.ClientID

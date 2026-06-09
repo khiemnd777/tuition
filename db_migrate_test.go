@@ -362,7 +362,7 @@ func TestLoadEmbeddedMigrationsIncludesSchoolTreeManagement(t *testing.T) {
 		"school_years_school_id_fkey",
 		"school_years_school_code_key",
 		"schools_set_updated_at",
-		"ABC_SUN",
+		"DEKISUGI",
 	} {
 		if !strings.Contains(schoolTree.SQL, want) {
 			t.Fatalf("expected school tree migration to contain %q", want)
@@ -457,7 +457,7 @@ func TestLoadEmbeddedMigrationsIncludesTenantFoundation(t *testing.T) {
 		"schools_tenant_code_key",
 		"tenant_memberships_tenant_id_fkey",
 		"tenant_memberships_user_id_fkey",
-		"ABC_SUN",
+		"DEKISUGI",
 	} {
 		if !strings.Contains(tenant.SQL, want) {
 			t.Fatalf("expected tenant foundation migration to contain %q", want)
@@ -490,7 +490,7 @@ func TestLoadEmbeddedMigrationsIncludesTenantAwareAuthRBAC(t *testing.T) {
 		"tenant_user_roles_user_id_fkey",
 		"tenant_user_roles_role_id_fkey",
 		"app_user_roles",
-		"ABC_SUN",
+		"DEKISUGI",
 	} {
 		if !strings.Contains(tenantAuth.SQL, want) {
 			t.Fatalf("expected tenant-aware auth/RBAC migration to contain %q", want)
@@ -614,7 +614,7 @@ func TestLoadEmbeddedMigrationsIncludesTenantDataIsolation(t *testing.T) {
 		"parents_tenant_email_key",
 		"notification_campaigns_tenant_code_key",
 		"operation_logs_tenant_id_fkey",
-		"ABC_SUN",
+		"DEKISUGI",
 	} {
 		if !strings.Contains(tenantData.SQL, want) {
 			t.Fatalf("expected tenant data isolation migration to contain %q", want)

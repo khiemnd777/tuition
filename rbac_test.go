@@ -10,7 +10,7 @@ import (
 
 func TestRequirePermissionRejectsHeaderSpoofing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/users/save", nil)
-	req.Header.Set("X-ABC-Admin-Permission", "system.users.write")
+	req.Header.Set("X-DEKISUGI-Admin-Permission", "system.users.write")
 	req = req.WithContext(context.WithValue(req.Context(), authenticatedUserContextKey, authenticatedUser{
 		ID:            "user-1",
 		Email:         "viewer@example.edu.vn",
@@ -124,7 +124,9 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		"GET /api/v1/subscriptions/plans":                     "subscription.view",
 		"GET /api/v1/subscriptions/purchase":                  "subscription.view",
 		"POST /api/v1/subscriptions/purchase/checkout":        "subscription.update",
+		" /api/v1/subscriptions/requests":                     "subscription.view",
 		"GET /api/v1/subscriptions/invoices":                  "subscription.view",
+		"GET /api/v1/subscriptions/invoices/receipt":          "subscription.view",
 		"POST /api/v1/tenants/subscription/save":              "subscription.update",
 		"POST /api/v1/subscriptions/invoices/generate":        "subscription.update",
 		"POST /api/v1/subscriptions/invoices/mark-paid":       "subscription.update",
@@ -149,6 +151,13 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		"GET /api/v1/admin/reports/export":                    "report.export",
 		"GET /api/v1/admin/operation-logs":                    "operation_log.view",
 		"POST /api/v1/admin/users/roles":                      "user.assign_role",
+		"GET /api/v1/platform/intake-requests":                "tenant.view",
+		"POST /api/v1/platform/intake-requests/status":        "tenant.update",
+		"POST /api/v1/platform/tenants/onboard":               "tenant.create",
+		" /api/v1/platform/tenants/payment-providers":         "tenant.update",
+		" /api/v1/platform/tenants/email-config":              "tenant.update",
+		" /api/v1/platform/tenants/email-cron":                "tenant.update",
+		" /api/v1/platform/tenants/subscription-requests":     "subscription.update",
 		"POST /api/v1/vietqr/batch":                           "payment.create",
 		"POST /api/v1/email/preview":                          "notification.send",
 		"POST /api/v1/email/cron/run":                         "email_cron.update",
@@ -174,6 +183,27 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	if !routes["POST /api/v1/platform/users/roles"].AllowPlatformOnly {
 		t.Fatal("platform user role endpoint must allow platform-only authenticated access")
 	}
+	if !routes["GET /api/v1/platform/intake-requests"].AllowPlatformOnly {
+		t.Fatal("platform intake endpoint must allow platform-only authenticated access")
+	}
+	if !routes["POST /api/v1/platform/tenants/onboard"].AllowPlatformOnly {
+		t.Fatal("platform tenant onboard endpoint must allow platform-only authenticated access")
+	}
+	if !routes[" /api/v1/platform/tenants/payment-providers"].AllowPlatformOnly {
+		t.Fatal("platform tenant payment provider endpoint must allow platform-only authenticated access")
+	}
+	if !routes[" /api/v1/platform/tenants/email-config"].AllowPlatformOnly {
+		t.Fatal("platform tenant email config endpoint must allow platform-only authenticated access")
+	}
+	if !routes[" /api/v1/platform/tenants/email-cron"].AllowPlatformOnly {
+		t.Fatal("platform tenant email cron endpoint must allow platform-only authenticated access")
+	}
+	if !routes[" /api/v1/platform/tenants/subscription-requests"].AllowPlatformOnly {
+		t.Fatal("platform tenant subscription requests endpoint must allow platform-only authenticated access")
+	}
+	if !routes["GET /api/v1/subscriptions/invoices/receipt"].AllowPlatformOnly {
+		t.Fatal("subscription receipt endpoint must allow platform-only authenticated access")
+	}
 	if routes["POST /api/v1/tenants/save"].PermissionResolver == nil {
 		t.Fatal("tenant save must resolve create/update permission from request body")
 	}
@@ -188,6 +218,12 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	}
 	if !routes["GET /api/v1/readyz"].Public {
 		t.Fatal("ready endpoint must remain public for Docker and local readiness checks")
+	}
+	if !routes["GET /api/v1/public/subscription-plans"].Public {
+		t.Fatal("public subscription plans endpoint must remain public for the landing page")
+	}
+	if routes["GET /api/v1/subscriptions/plans"].Public {
+		t.Fatal("authenticated subscription plans endpoint must remain protected")
 	}
 }
 

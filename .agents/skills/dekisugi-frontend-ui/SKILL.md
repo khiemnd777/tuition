@@ -1,9 +1,9 @@
 ---
-name: abcsun-frontend-ui
-description: Frontend UI workflow for the ABC SUN embedded vanilla web app. Use when changing web/index.html, web/styles.css, web/app.js, tabs, table editing, QR preview, email config UI, cron UI, client-side API calls, or responsive layout.
+name: dekisugi-frontend-ui
+description: Frontend UI workflow for the DEKISUGI embedded vanilla web app. Use when changing web/index.html, web/styles.css, web/app.js, tabs, table editing, QR preview, email config UI, cron UI, client-side API calls, or responsive layout.
 ---
 
-# ABC SUN Frontend UI
+# DEKISUGI Frontend UI
 
 Use this for browser-facing changes in `web/*`.
 

@@ -270,7 +270,7 @@ func TestRenderInvoicePDFContainsInvoiceDataAndQR(t *testing.T) {
 	}
 	for _, want := range [][]byte{
 		[]byte("%PDF-1.4"),
-		[]byte("ABC SUN Invoice Receipt"),
+		[]byte("DEKISUGI Invoice Receipt"),
 		[]byte("SUNTEST001"),
 		[]byte("Nguyen An"),
 		[]byte("VietQR BillNumber"),

@@ -1,4 +1,0 @@
-interface:
-  display_name: "ABC SUN Frontend UI"
-  short_description: "Vanilla web UI workflow for this app"
-  default_prompt: "Use $abcsun-frontend-ui to update the ABC SUN browser UI and verify the workflow."

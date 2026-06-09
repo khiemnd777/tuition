@@ -1,4 +1,0 @@
-interface:
-  display_name: "ABC SUN TDD Slice"
-  short_description: "Vertical-slice TDD for this Go app"
-  default_prompt: "Use $abcsun-tdd-slice to add a behavior with one failing test at a time."

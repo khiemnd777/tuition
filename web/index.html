@@ -3,112 +3,258 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ABC SUN Finance Hub</title>
+    <title>DEKISUGI Finance Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div id="loginScreen" class="login-screen">
-      <section class="login-panel" aria-labelledby="loginTitle">
-        <div class="brand login-brand">
+    <div id="loginScreen" class="landing-screen">
+      <header class="landing-header">
+        <a class="brand landing-brand" href="#landingWelcome" aria-label="DEKISUGI Finance Hub">
           <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
           <div>
-            <p class="eyebrow">ABC SUN</p>
-            <h1 id="loginTitle">ABC SUN Finance Hub</h1>
-            <p>Đăng nhập quản trị học phí</p>
+            <p class="eyebrow">DEKISUGI</p>
+            <h1>Finance Hub</h1>
           </div>
+        </a>
+        <nav class="landing-nav" aria-label="Landing navigation">
+          <a href="#landingWelcome">Tổng quan</a>
+          <a href="#landingSubscriptions">Gói dịch vụ</a>
+          <a href="#landingContact">Liên hệ</a>
+        </nav>
+        <div class="landing-header-actions">
+          <button type="button" data-landing-mode="login"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
+          <button class="primary" type="button" data-landing-mode="signup"><span class="mui-icon" aria-hidden="true">storefront</span><span>Enrollment</span></button>
         </div>
-        <div class="login-mode-switch" aria-label="Chọn luồng truy cập">
-          <button id="showLoginMode" type="button" class="primary"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
-          <button id="showSignupMode" type="button"><span class="mui-icon" aria-hidden="true">storefront</span><span>Đăng ký trường</span></button>
+      </header>
+
+      <main class="landing-main">
+        <section id="landingWelcome" class="landing-section landing-hero">
+          <div class="landing-hero-copy">
+            <p class="eyebrow">School payment operations</p>
+            <h1>DEKISUGI Finance Hub</h1>
+            <p class="landing-hero-text">Nền tảng vận hành học phí cho trường học: tạo invoice, sinh VietQR, đối soát giao dịch, gửi thông báo phụ huynh và quản trị subscription theo tenant.</p>
+            <div class="landing-hero-actions">
+              <button class="primary" type="button" data-landing-mode="signup"><span class="mui-icon" aria-hidden="true">rocket_launch</span><span>Bắt đầu Enrollment</span></button>
+              <button type="button" data-landing-mode="login"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập hệ thống</span></button>
+            </div>
+            <dl class="landing-proof-grid">
+              <div>
+                <dt>VietQR</dt>
+                <dd>Chuẩn NAPAS TLV/CRC</dd>
+              </div>
+              <div>
+                <dt>Tenant</dt>
+                <dd>Phân quyền theo trường</dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>Preview, dry-run, cron</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="landing-hero-board landing-hover-card" aria-label="Payment operations preview">
+            <div class="landing-board-top">
+              <span class="mui-icon" aria-hidden="true">dashboard</span>
+              <div>
+                <strong>Finance command center</strong>
+                <small>Thu học phí tháng hiện tại</small>
+              </div>
+            </div>
+            <div class="landing-board-metrics">
+              <div><span>Workspace</span><strong>Invoice</strong></div>
+              <div><span>Payment</span><strong>VietQR</strong></div>
+              <div><span>Notify</span><strong>Email</strong></div>
+            </div>
+            <div class="landing-board-flow">
+              <span>Import học sinh</span>
+              <span>Tạo hóa đơn</span>
+              <span>Gửi VietQR</span>
+              <span>Đối soát</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section landing-feature-section" aria-labelledby="landingFeatureTitle">
+          <div class="landing-section-head">
+            <p class="section-kicker">Operational areas</p>
+            <h2 id="landingFeatureTitle">Các khu vực vận hành rõ ràng</h2>
+          </div>
+          <div class="landing-feature-grid">
+            <article class="landing-feature-card landing-hover-card">
+              <span class="mui-icon" aria-hidden="true">qr_code_scanner</span>
+              <h3>Thu học phí & VietQR</h3>
+              <p>Sinh invoice, payload VietQR và QR image theo từng học sinh, kỳ thu và khoản phí.</p>
+            </article>
+            <article class="landing-feature-card landing-hover-card">
+              <span class="mui-icon" aria-hidden="true">account_balance_wallet</span>
+              <h3>Đối soát thanh toán</h3>
+              <p>Theo dõi giao dịch, trạng thái invoice, khoản còn thiếu và các dòng cần manual review.</p>
+            </article>
+            <article class="landing-feature-card landing-hover-card">
+              <span class="mui-icon" aria-hidden="true">campaign</span>
+              <h3>Thông báo phụ huynh</h3>
+              <p>Preview email, dry-run, gửi theo campaign và vận hành cron khi tenant đã được cấp quyền.</p>
+            </article>
+            <article class="landing-feature-card landing-hover-card">
+              <span class="mui-icon" aria-hidden="true">admin_panel_settings</span>
+              <h3>Platform Admin</h3>
+              <p>Tạo tenant, cấu hình provider, quản trị subscription và xử lý enrollment từ một control plane.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="landingSubscriptions" class="landing-section landing-subscriptions" aria-labelledby="landingSubscriptionTitle">
+          <div class="landing-section-head">
+            <p class="section-kicker">Subscriptions</p>
+            <h2 id="landingSubscriptionTitle">Gói dịch vụ từ Platform Admin</h2>
+            <p>Danh sách dưới đây được đọc trực tiếp từ cấu hình subscription plans của hệ thống.</p>
+          </div>
+          <div id="landingPlanStatus" class="landing-data-status" role="status">Đang tải gói dịch vụ</div>
+          <div id="landingPlanGrid" class="landing-plan-grid" aria-live="polite">
+            <article class="landing-plan-card landing-hover-card">
+              <span class="mui-icon" aria-hidden="true">sync</span>
+              <h3>Đang tải dữ liệu</h3>
+              <p>Subscription plans sẽ hiển thị khi API sẵn sàng.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="landingAccess" class="landing-section landing-access" aria-labelledby="loginTitle">
+          <div class="landing-access-copy">
+            <p class="section-kicker">Access</p>
+            <h2 id="loginTitle">Đăng nhập hoặc gửi Enrollment</h2>
+            <p>Tenant subscription được tạo và cập nhật trong Platform Admin. Trường gửi intake, Platform Admin tiếp nhận rồi cấu hình gói, tài khoản và provider phù hợp.</p>
+            <div class="landing-contact-strip">
+              <a href="mailto:khiemnd777@gmail.com"><span class="mui-icon" aria-hidden="true">mail</span><span>khiemnd777@gmail.com</span></a>
+              <a href="tel:0974322365"><span class="mui-icon" aria-hidden="true">call</span><span>0974322365</span></a>
+            </div>
+          </div>
+
+          <section class="login-panel landing-auth-card" aria-labelledby="loginTitle">
+            <div class="login-mode-switch" role="tablist" aria-label="Chọn luồng truy cập">
+              <button id="showLoginMode" type="button" class="primary" role="tab" aria-selected="true" aria-controls="loginForm"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
+              <button id="showSignupMode" type="button" role="tab" aria-selected="false" aria-controls="signupForm"><span class="mui-icon" aria-hidden="true">storefront</span><span>Enrollment</span></button>
+            </div>
+            <form id="loginForm" class="login-form" role="tabpanel" aria-labelledby="showLoginMode">
+              <label>
+                <span>Email hoặc SĐT</span>
+                <input id="loginEmail" type="text" autocomplete="username" required />
+              </label>
+              <label>
+                <span>Password</span>
+                <input id="loginPassword" type="password" autocomplete="current-password" required />
+              </label>
+              <button id="loginSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
+              <button id="showPasswordResetMode" class="login-text-action" type="button"><span>Quên mật khẩu?</span></button>
+              <div id="loginStatus" class="login-status">Đang kiểm tra phiên</div>
+              <p class="login-legal"><a href="/terms.html" target="_blank" rel="noreferrer">Điều khoản sử dụng</a> · <a href="/privacy.html" target="_blank" rel="noreferrer">Chính sách bảo mật</a></p>
+            </form>
+            <form id="bootstrapForm" class="login-form" hidden>
+              <div class="login-mode-head">
+                <p class="section-kicker">Thiết lập ban đầu</p>
+                <h2>Tạo Admin đầu tiên</h2>
+              </div>
+              <label>
+                <span>Tên hiển thị</span>
+                <input id="bootstrapDisplayName" autocomplete="name" />
+              </label>
+              <label>
+                <span>Email</span>
+                <input id="bootstrapEmail" type="email" autocomplete="username" />
+              </label>
+              <label>
+                <span>SĐT</span>
+                <input id="bootstrapPhone" type="tel" autocomplete="tel" />
+              </label>
+              <label>
+                <span>Password</span>
+                <input id="bootstrapPassword" type="password" autocomplete="new-password" required />
+              </label>
+              <label>
+                <span>Xác nhận password</span>
+                <input id="bootstrapPasswordConfirm" type="password" autocomplete="new-password" required />
+              </label>
+              <button id="bootstrapSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Tạo Admin</span></button>
+              <div id="bootstrapStatus" class="login-status"></div>
+            </form>
+            <form id="signupForm" class="login-form" role="tabpanel" aria-labelledby="showSignupMode" hidden>
+              <div class="login-mode-head">
+                <p class="section-kicker">Enrollment intake</p>
+                <h2>Gửi thông tin đăng ký</h2>
+              </div>
+              <label>
+                <span>Tên trường / tổ chức</span>
+                <input id="signupTenantName" autocomplete="organization" />
+              </label>
+              <label>
+                <span>Gói quan tâm</span>
+                <select id="signupDesiredPlan">
+                  <option value="">Đang tải gói dịch vụ</option>
+                </select>
+              </label>
+              <label>
+                <span>Tên người phụ trách</span>
+                <input id="signupOwnerDisplayName" autocomplete="name" />
+              </label>
+              <label>
+                <span>Email owner</span>
+                <input id="signupOwnerEmail" type="email" autocomplete="username" />
+              </label>
+              <label>
+                <span>SĐT owner</span>
+                <input id="signupOwnerPhone" type="tel" autocomplete="tel" />
+              </label>
+              <label>
+                <span>Nhu cầu / ghi chú</span>
+                <textarea id="signupNote" rows="3" placeholder="Số học sinh, thời điểm muốn triển khai, yêu cầu xuất hóa đơn..."></textarea>
+              </label>
+              <button id="signupSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi thông tin</span></button>
+              <div id="signupStatus" class="login-status"></div>
+              <p class="login-legal">Sau khi tiếp nhận, Platform Admin sẽ tạo tài khoản và cấu hình gói dịch vụ phù hợp.</p>
+            </form>
+            <form id="passwordResetForm" class="login-form" role="tabpanel" aria-labelledby="showLoginMode" hidden>
+              <div class="login-mode-head">
+                <p class="section-kicker">Password reset</p>
+                <h2>Đặt lại mật khẩu</h2>
+              </div>
+              <label>
+                <span>Email hoặc SĐT</span>
+                <input id="passwordResetIdentifier" type="text" autocomplete="username" />
+              </label>
+              <button id="passwordResetRequest" type="button"><span class="mui-icon" aria-hidden="true">vpn_key</span><span>Lấy token</span></button>
+              <label>
+                <span>Token đặt lại</span>
+                <input id="passwordResetToken" autocomplete="one-time-code" />
+              </label>
+              <label>
+                <span>Password mới</span>
+                <input id="passwordResetNewPassword" type="password" autocomplete="new-password" />
+              </label>
+              <label>
+                <span>Xác nhận password mới</span>
+                <input id="passwordResetConfirmPassword" type="password" autocomplete="new-password" />
+              </label>
+              <button id="passwordResetSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">lock_reset</span><span>Cập nhật mật khẩu</span></button>
+              <button id="passwordResetBackToLogin" type="button"><span class="mui-icon" aria-hidden="true">arrow_back</span><span>Trở về đăng nhập</span></button>
+              <div id="passwordResetStatus" class="login-status"></div>
+            </form>
+          </section>
+        </section>
+      </main>
+
+      <footer id="landingContact" class="landing-footer">
+        <div>
+          <strong>DEKISUGI Finance Hub</strong>
+          <p>Powered by <a href="https://knasoftware.com" target="_blank" rel="noreferrer">KNA Software - knasoftware.com</a></p>
         </div>
-        <form id="loginForm" class="login-form">
-          <label>
-            <span>Email hoặc SĐT</span>
-            <input id="loginEmail" type="text" autocomplete="username" required />
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="loginPassword" type="password" autocomplete="current-password" required />
-          </label>
-          <button id="loginSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
-          <div id="loginStatus" class="login-status">Đang kiểm tra phiên</div>
-        </form>
-        <form id="bootstrapForm" class="login-form" hidden>
-          <div class="login-mode-head">
-            <p class="section-kicker">Thiết lập ban đầu</p>
-            <h2>Tạo Admin đầu tiên</h2>
-          </div>
-          <label>
-            <span>Tên hiển thị</span>
-            <input id="bootstrapDisplayName" autocomplete="name" />
-          </label>
-          <label>
-            <span>Email</span>
-            <input id="bootstrapEmail" type="email" autocomplete="username" />
-          </label>
-          <label>
-            <span>SĐT</span>
-            <input id="bootstrapPhone" type="tel" autocomplete="tel" />
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="bootstrapPassword" type="password" autocomplete="new-password" required />
-          </label>
-          <label>
-            <span>Xác nhận password</span>
-            <input id="bootstrapPasswordConfirm" type="password" autocomplete="new-password" required />
-          </label>
-          <button id="bootstrapSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">admin_panel_settings</span><span>Tạo Admin</span></button>
-          <div id="bootstrapStatus" class="login-status"></div>
-        </form>
-        <form id="signupForm" class="login-form" hidden>
-          <div class="login-mode-head">
-            <p class="section-kicker">Tenant onboarding</p>
-            <h2>Đăng ký trường mới</h2>
-          </div>
-          <label>
-            <span>Tên trường / tổ chức</span>
-            <input id="signupTenantName" autocomplete="organization" />
-          </label>
-          <label>
-            <span>Tenant code</span>
-            <input id="signupTenantCode" placeholder="SCHOOL_B" />
-          </label>
-          <label>
-            <span>Tên trường khởi tạo</span>
-            <input id="signupSchoolName" />
-          </label>
-          <label>
-            <span>Code trường khởi tạo</span>
-            <input id="signupSchoolCode" placeholder="SCHOOL_B" />
-          </label>
-          <label>
-            <span>Tên người phụ trách</span>
-            <input id="signupOwnerDisplayName" autocomplete="name" />
-          </label>
-          <label>
-            <span>Email owner</span>
-            <input id="signupOwnerEmail" type="email" autocomplete="username" />
-          </label>
-          <label>
-            <span>SĐT owner</span>
-            <input id="signupOwnerPhone" type="tel" autocomplete="tel" />
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="signupPassword" type="password" autocomplete="new-password" required />
-          </label>
-          <label>
-            <span>Xác nhận password</span>
-            <input id="signupPasswordConfirm" type="password" autocomplete="new-password" required />
-          </label>
-          <button id="signupSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">storefront</span><span>Tạo tenant</span></button>
-          <div id="signupStatus" class="login-status"></div>
-        </form>
-      </section>
+        <address>
+          <a href="mailto:khiemnd777@gmail.com">khiemnd777@gmail.com</a>
+          <a href="tel:0974322365">0974322365</a>
+        </address>
+      </footer>
     </div>
 
     <div id="appShell" class="app-shell" hidden>
@@ -116,9 +262,8 @@
         <div class="brand">
           <span class="brand-mark mui-icon" aria-hidden="true">qr_code_2</span>
           <div>
-            <p class="eyebrow">ABC SUN</p>
+            <p class="eyebrow">DEKISUGI</p>
             <h1>Finance Hub</h1>
-            <p>Học phí, hóa đơn, thanh toán & vận hành</p>
           </div>
         </div>
 
@@ -873,7 +1018,7 @@
               <span>Kỳ thu</span>
               <input id="paymentReconPeriodFilter" placeholder="2026-04" />
             </label>
-            <label>
+            <label hidden>
               <span>Provider</span>
               <select id="paymentProviderFilter"></select>
             </label>
@@ -954,7 +1099,6 @@
           <div class="table-wrap reconciliation-table-wrap">
             <table class="reconciliation-table" aria-label="Giao dịch đối soát">
               <colgroup>
-                <col class="recon-provider-col" />
                 <col class="recon-time-col" />
                 <col class="recon-money-col" />
                 <col class="recon-account-col" />
@@ -964,7 +1108,6 @@
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">Provider</th>
                   <th scope="col">Thời gian</th>
                   <th scope="col">Số tiền</th>
                   <th scope="col">Tài khoản</th>
@@ -1246,7 +1389,7 @@
                 <option value="manual_review">Manual review</option>
               </select>
             </label>
-            <label>
+            <label hidden>
               <span>Provider</span>
               <select id="adminReportsProvider"></select>
             </label>
@@ -1339,7 +1482,7 @@
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">Provider</th>
+                  <th scope="col">Reference</th>
                   <th scope="col">Số tiền</th>
                   <th scope="col">Match reason</th>
                   <th scope="col">Invoice</th>
@@ -1508,6 +1651,16 @@
                 </div>
               </div>
               <div id="tenantSummary" class="tenant-summary"></div>
+              <div class="panel-subsection">
+                <div class="panel-head compact">
+                  <div>
+                    <p class="section-kicker">Intake</p>
+                    <h3 class="section-title"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Yêu cầu đăng ký</span></h3>
+                  </div>
+                  <button id="refreshPlatformIntakeRequests" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải intake</span></button>
+                </div>
+                <div id="platformIntakeList" class="tenant-list">Chưa tải intake</div>
+              </div>
               <div id="tenantList" class="tenant-list">Chưa tải tenant</div>
           </section>
 
@@ -1523,6 +1676,10 @@
                   <button class="platform-detail-tab active" type="button" data-tenant-detail-tab="overview" aria-selected="true">Overview</button>
                   <button class="platform-detail-tab" type="button" data-tenant-detail-tab="billing" aria-selected="false">Billing Config</button>
                   <button class="platform-detail-tab" type="button" data-tenant-detail-tab="invoices" aria-selected="false">Invoices & Dunning</button>
+                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="requests" aria-selected="false">Requests</button>
+                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="providers" aria-selected="false">Payment Providers</button>
+                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="email" aria-selected="false">Email Delivery</button>
+                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="cron" aria-selected="false">Email Cron</button>
                 </div>
 
                 <section class="platform-detail-panel" data-tenant-detail-panel="overview">
@@ -1621,7 +1778,131 @@
                     </table>
                   </div>
                 </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="requests" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Subscription requests</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">published_with_changes</span><span>Yêu cầu đổi gói / hủy / hoàn tiền</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="refreshPlatformTenantSubscriptionRequests" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải requests</span></button>
+                    </div>
+                  </div>
+                  <div id="platformTenantSubscriptionRequestsSummary" class="tenant-summary"></div>
+                  <div id="platformTenantSubscriptionRequestsList" class="admin-role-list">Chưa tải requests</div>
+                </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="providers" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Payment providers</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">account_balance_wallet</span><span>Cấu hình provider cho tenant</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="refreshPlatformTenantProviders" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải provider</span></button>
+                    </div>
+                  </div>
+                  <div id="platformTenantProvidersSummary" class="tenant-summary"></div>
+                  <div id="platformTenantProvidersList" class="admin-role-list">Chưa tải provider</div>
+                </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="email" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Email delivery</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">outgoing_mail</span><span>Gmail / Resend theo tenant</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="refreshPlatformTenantEmailConfig" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải email</span></button>
+                      <button id="editPlatformTenantEmailConfig" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Cấu hình</span></button>
+                    </div>
+                  </div>
+                  <div id="platformTenantEmailSummary" class="tenant-summary"></div>
+                  <div id="platformTenantEmailDetail" class="operation-log-detail">Chưa tải cấu hình email</div>
+                </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="cron" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Email cron</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">schedule_send</span><span>Lịch gửi email theo tenant</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="refreshPlatformTenantEmailCron" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải cron</span></button>
+                      <button id="editPlatformTenantEmailCron" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Cấu hình cron</span></button>
+                    </div>
+                  </div>
+                  <div id="platformTenantEmailCronSummary" class="tenant-summary"></div>
+                  <div id="platformTenantEmailCronDetail" class="operation-log-detail">Chưa tải email cron</div>
+                </section>
           </section>
+
+          <div id="tenantOnboardForm" class="tenant-form" hidden>
+            <input id="tenantOnboardIntakeId" type="hidden" />
+            <label>
+              <span>Tenant code</span>
+              <input id="tenantOnboardTenantCode" placeholder="SCHOOL_B" />
+            </label>
+            <label>
+              <span>Tên tenant / trường</span>
+              <input id="tenantOnboardTenantName" placeholder="Trường ABC" />
+            </label>
+            <label>
+              <span>Trạng thái tenant</span>
+              <select id="tenantOnboardTenantStatus">
+                <option value="active">active</option>
+                <option value="trial">trial</option>
+                <option value="suspended">suspended</option>
+              </select>
+            </label>
+            <label>
+              <span>Code trường khởi tạo</span>
+              <input id="tenantOnboardInitialSchoolCode" placeholder="SCHOOL_B" />
+            </label>
+            <label>
+              <span>Tên trường khởi tạo</span>
+              <input id="tenantOnboardInitialSchoolName" placeholder="Trường ABC" />
+            </label>
+            <label>
+              <span>Tên owner</span>
+              <input id="tenantOnboardOwnerDisplayName" autocomplete="name" />
+            </label>
+            <label>
+              <span>Email owner</span>
+              <input id="tenantOnboardOwnerEmail" type="email" autocomplete="username" />
+            </label>
+            <label>
+              <span>SĐT owner</span>
+              <input id="tenantOnboardOwnerPhone" type="tel" autocomplete="tel" />
+            </label>
+            <label>
+              <span>Password tạm</span>
+              <input id="tenantOnboardOwnerPassword" type="password" autocomplete="new-password" />
+            </label>
+            <label>
+              <span>Plan</span>
+              <select id="tenantOnboardPlan"></select>
+            </label>
+            <label>
+              <span>Subscription status</span>
+              <select id="tenantOnboardSubscriptionStatus">
+                <option value="active">active</option>
+                <option value="trial">trial</option>
+                <option value="past_due">past_due</option>
+                <option value="suspended">suspended</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </label>
+            <label>
+              <span>Trial ends at</span>
+              <input id="tenantOnboardTrialEndsAt" type="date" />
+            </label>
+            <label>
+              <span>Current period ends at</span>
+              <input id="tenantOnboardCurrentPeriodEndsAt" type="date" />
+            </label>
+          </div>
 
           <div id="tenantForm" class="tenant-form" hidden>
             <input id="tenantId" type="hidden" />
@@ -1677,6 +1958,51 @@
               <span>Current period ends at</span>
               <input id="tenantSubscriptionCurrentPeriodEndsAt" type="date" />
             </label>
+          </div>
+          <div id="platformTenantProviderForm" class="tenant-form" hidden>
+            <input id="platformTenantProviderTenantId" type="hidden" />
+            <input id="platformTenantProviderCode" type="hidden" />
+            <label><span>Provider</span><input id="platformTenantProviderLabel" readonly /></label>
+            <label><span>Tên hiển thị</span><input id="platformTenantProviderDisplayName" /></label>
+            <label><span>Trạng thái</span><select id="platformTenantProviderStatus"><option value="active">active</option><option value="sandbox">sandbox</option><option value="inactive">inactive</option></select></label>
+            <label><span>Bank BIN</span><input id="platformTenantProviderBankBin" placeholder="970415" /></label>
+            <label><span>Số tài khoản</span><input id="platformTenantProviderAccountNumber" /></label>
+            <label><span>Tên tài khoản</span><input id="platformTenantProviderAccountName" /></label>
+            <label><span>PayOS client ID</span><input id="platformTenantProviderClientId" /></label>
+            <label><span>PayOS API key</span><input id="platformTenantProviderApiKey" type="password" autocomplete="off" /></label>
+            <label><span>PayOS checksum key</span><input id="platformTenantProviderChecksumKey" type="password" autocomplete="off" /></label>
+            <label><span>Return URL</span><input id="platformTenantProviderReturnUrl" /></label>
+            <label><span>Cancel URL</span><input id="platformTenantProviderCancelUrl" /></label>
+            <label><span>API base URL</span><input id="platformTenantProviderApiBaseUrl" /></label>
+            <label class="checkbox-label"><input id="platformTenantProviderSetDefault" type="checkbox" /><span>Đặt làm provider mặc định của tenant</span></label>
+          </div>
+          <div id="platformTenantEmailForm" class="tenant-form" hidden>
+            <input id="platformTenantEmailTenantId" type="hidden" />
+            <label><span>Provider</span><select id="platformTenantEmailProvider"><option value="gmail">Gmail SMTP</option><option value="resend">Resend</option></select></label>
+            <label><span>Gmail address</span><input id="platformTenantGmailAddress" type="email" autocomplete="username" /></label>
+            <label><span>Gmail app password</span><input id="platformTenantGmailAppPassword" type="password" autocomplete="off" /></label>
+            <label><span>Resend API key</span><input id="platformTenantResendApiKey" type="password" autocomplete="off" /></label>
+            <label><span>From</span><input id="platformTenantEmailFrom" /></label>
+            <label><span>Reply-To</span><input id="platformTenantEmailReplyTo" /></label>
+            <label><span>Subject</span><input id="platformTenantEmailSubject" /></label>
+            <label><span>Tên trường</span><input id="platformTenantEmailSchoolName" /></label>
+            <label><span>School EN</span><input id="platformTenantEmailSchoolNameEn" /></label>
+            <label><span>Kỳ thu mặc định</span><input id="platformTenantPaymentPeriod" /></label>
+            <label><span>Public URL</span><input id="platformTenantPublicBaseUrl" /></label>
+          </div>
+          <div id="platformTenantEmailCronForm" class="tenant-form" hidden>
+            <input id="platformTenantEmailCronTenantId" type="hidden" />
+            <label><span>Bật cron</span><select id="platformTenantEmailCronEnabled"><option value="false">false</option><option value="true">true</option></select></label>
+            <label><span>Giờ gửi</span><input id="platformTenantEmailCronSendTime" type="time" /></label>
+            <label><span>Giới hạn/ngày</span><input id="platformTenantEmailCronDailyLimit" type="number" min="1" max="500" step="1" /></label>
+            <label><span>Template</span><select id="platformTenantEmailCronTemplate"><option value="payment_due">payment_due</option><option value="payment_reminder">payment_reminder</option></select></label>
+          </div>
+          <div id="platformSubscriptionRequestProcessForm" class="tenant-form" hidden>
+            <input id="platformSubscriptionRequestId" type="hidden" />
+            <input id="platformSubscriptionRequestTenantId" type="hidden" />
+            <label><span>Trạng thái</span><select id="platformSubscriptionRequestStatus"><option value="approved">approved</option><option value="processed">processed</option><option value="rejected">rejected</option></select></label>
+            <label class="checkbox-label"><input id="platformSubscriptionRequestApply" type="checkbox" /><span>Áp dụng thay đổi gói/trạng thái ngay</span></label>
+            <label><span>Ghi chú Platform Admin</span><textarea id="platformSubscriptionRequestAdminNote" rows="3"></textarea></label>
           </div>
           <div id="subscriptionBillingGenerateForm" class="tenant-form" hidden>
             <input id="subscriptionBillingGenerateTenantId" type="hidden" />
@@ -1752,7 +2078,7 @@
                 </label>
                 <label>
                   <span>Tenant search</span>
-                  <input id="subscriptionFinanceQuery" placeholder="ABC_SUN" />
+                  <input id="subscriptionFinanceQuery" placeholder="DEKISUGI" />
                 </label>
                 <label>
                   <span>Subscription status</span>
@@ -2081,7 +2407,7 @@
           <div class="panel-head">
             <div>
               <p class="section-kicker">Tenant subscription</p>
-              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Gói hiện tại và checkout</span></h2>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Gói dịch vụ của trường</span></h2>
             </div>
             <div class="panel-actions">
               <button id="refreshSubscriptionPurchase" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
@@ -2089,7 +2415,11 @@
             </div>
           </div>
           <div id="subscriptionPurchaseSummary" class="tenant-summary"></div>
-          <div class="tenant-form">
+          <div class="operation-log-detail">Trường không tự chọn payment provider hoặc tự checkout phí subscription. Vui lòng liên hệ Platform Admin để gia hạn, nâng cấp, hạ cấp hoặc hủy gói.</div>
+          <div class="admin-user-actions">
+            <button id="openSubscriptionChangeRequest" class="primary" type="button"><span class="mui-icon" aria-hidden="true">published_with_changes</span><span>Gửi yêu cầu subscription</span></button>
+          </div>
+          <div class="tenant-form" hidden>
             <label>
               <span>Plan</span>
               <select id="subscriptionPurchasePlan"></select>
@@ -2123,6 +2453,16 @@
         <section class="panel tenant-admin-panel">
           <div class="panel-head">
             <div>
+              <p class="section-kicker">Requests</p>
+              <h2 class="section-title"><span class="mui-icon" aria-hidden="true">published_with_changes</span><span>Yêu cầu đã gửi</span></h2>
+            </div>
+          </div>
+          <div id="subscriptionChangeRequestsList" class="admin-role-list">Chưa tải request</div>
+        </section>
+
+        <section class="panel tenant-admin-panel" hidden>
+          <div class="panel-head">
+            <div>
               <p class="section-kicker">Checkout result</p>
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">qr_code_2</span><span>QR / Payment link</span></h2>
             </div>
@@ -2147,14 +2487,22 @@
                   <th>Status</th>
                   <th>Due</th>
                   <th>Paid</th>
+                  <th>Receipt</th>
                 </tr>
               </thead>
               <tbody id="subscriptionPurchaseInvoices">
-                <tr><td colspan="6">Chưa tải invoice</td></tr>
+                <tr><td colspan="7">Chưa tải invoice</td></tr>
               </tbody>
             </table>
           </div>
         </section>
+      </div>
+      <div id="subscriptionChangeRequestForm" class="tenant-form" hidden>
+        <label><span>Loại yêu cầu</span><select id="subscriptionChangeRequestType"><option value="upgrade">Nâng cấp gói</option><option value="downgrade">Hạ cấp gói</option><option value="cancel">Hủy subscription</option><option value="refund">Yêu cầu hoàn tiền</option></select></label>
+        <label><span>Gói mong muốn</span><select id="subscriptionChangeRequestPlan"></select></label>
+        <label><span>Ngày hiệu lực mong muốn</span><input id="subscriptionChangeRequestEffectiveAt" type="date" /></label>
+        <label><span>Số tiền hoàn nếu có</span><input id="subscriptionChangeRequestRefundAmount" type="number" min="0" step="1000" /></label>
+        <label><span>Lý do</span><textarea id="subscriptionChangeRequestReason" rows="3"></textarea></label>
       </div>
     </section>
 
@@ -2222,8 +2570,8 @@
             <div class="school-tree-editor" hidden>
               <div id="schoolTreeSchoolEditor" class="tree-editor-group" hidden>
                 <input id="schoolTreeSchoolId" type="hidden" />
-                <label><span>Code trường</span><input id="schoolTreeSchoolCode" placeholder="ABC_SUN" /></label>
-                <label><span>Tên trường</span><input id="schoolTreeSchoolName" placeholder="ABC SUN" /></label>
+                <label><span>Code trường</span><input id="schoolTreeSchoolCode" placeholder="DEKISUGI" /></label>
+                <label><span>Tên trường</span><input id="schoolTreeSchoolName" placeholder="DEKISUGI" /></label>
                 <label><span>Trạng thái</span><select id="schoolTreeSchoolStatus"><option value="active">active</option><option value="archived">archived</option></select></label>
                 <button id="saveSchoolTreeSchool" class="primary" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu trường</span></button>
                 <button id="newSchoolTreeSchool" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Mới</span></button>
@@ -2397,14 +2745,15 @@
             <div class="panel-head">
               <div>
                 <p class="section-kicker">Email settings</p>
-                <h2 class="section-title"><span class="mui-icon" aria-hidden="true">settings</span><span>Cấu hình email</span></h2>
+                <h2 class="section-title"><span class="mui-icon" aria-hidden="true">settings</span><span>Gửi thông báo cho phụ huynh</span></h2>
               </div>
               <div class="panel-actions">
-                <button id="openEmailConfigDialog" type="button"><span class="mui-icon" aria-hidden="true">tune</span><span>Email</span></button>
-                <button id="openCronConfigDialog" type="button"><span class="mui-icon" aria-hidden="true">schedule</span><span>Cron</span></button>
+                <button id="openEmailConfigDialog" type="button" hidden><span class="mui-icon" aria-hidden="true">tune</span><span>Email</span></button>
+                <button id="openCronConfigDialog" type="button" hidden><span class="mui-icon" aria-hidden="true">schedule</span><span>Cron</span></button>
                 <span id="emailConfigStatus" class="status-pill">Chưa cấu hình</span>
               </div>
             </div>
+            <div class="operation-log-detail">Gmail/Resend và cron do Platform Admin cấu hình cho từng trường. Màn hình này chỉ dùng để preview, dry-run và gửi thông báo học phí khi tenant đã được cấp quyền.</div>
             <div class="form-grid" hidden>
               <label>
                 <span>Provider</span>
@@ -2427,7 +2776,7 @@
               </label>
               <label>
                 <span>From</span>
-                <input id="emailFrom" placeholder="ABC SUN <billing@example.edu.vn>" />
+                <input id="emailFrom" placeholder="DEKISUGI <billing@example.edu.vn>" />
               </label>
               <label>
                 <span>Reply-To</span>
@@ -2459,7 +2808,7 @@
                 <option value="payment_due">Thông báo thanh toán</option>
                 <option value="payment_paid">Xác nhận đã thanh toán</option>
               </select>
-              <button id="saveEmailConfig" type="button"><span class="mui-icon" aria-hidden="true">save</span><span>Lưu cấu hình</span></button>
+              <button id="saveEmailConfig" type="button" hidden><span class="mui-icon" aria-hidden="true">save</span><span>Lưu cấu hình</span></button>
               <button id="previewEmail" type="button"><span class="mui-icon" aria-hidden="true">visibility</span><span>Preview email</span></button>
               <button id="dryRunEmail" type="button"><span class="mui-icon" aria-hidden="true">fact_check</span><span>Dry-run</span></button>
               <button id="sendEmail" class="primary" type="button"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi email</span></button>
@@ -2487,9 +2836,9 @@
                 </label>
               </div>
               <div class="email-actions cron-actions">
-                <button id="saveCron" type="button"><span class="mui-icon" aria-hidden="true">event_available</span><span>Lưu cron từ danh sách</span></button>
-                <button id="disableCron" type="button"><span class="mui-icon" aria-hidden="true">event_busy</span><span>Tắt cron</span></button>
-                <button id="runCronNow" class="primary" type="button"><span class="mui-icon" aria-hidden="true">play_arrow</span><span>Chạy đợt cron</span></button>
+                <button id="saveCron" type="button" hidden><span class="mui-icon" aria-hidden="true">event_available</span><span>Lưu cron từ danh sách</span></button>
+                <button id="disableCron" type="button" hidden><span class="mui-icon" aria-hidden="true">event_busy</span><span>Tắt cron</span></button>
+                <button id="runCronNow" class="primary" type="button" hidden><span class="mui-icon" aria-hidden="true">play_arrow</span><span>Chạy đợt cron</span></button>
               </div>
               <div id="cronStatus" class="email-status"></div>
             </div>

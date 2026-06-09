@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	adminActorHeader       = "X-ABC-Admin-Actor"
-	adminActorUserIDHeader = "X-ABC-Admin-User-ID"
+	adminActorHeader       = "X-DEKISUGI-Admin-Actor"
+	adminActorUserIDHeader = "X-DEKISUGI-Admin-User-ID"
 	requestIDHeader        = "X-Request-ID"
 
 	defaultAuditLogLimit     = 100

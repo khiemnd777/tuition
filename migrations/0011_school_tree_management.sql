@@ -19,7 +19,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS schools_code_key ON schools (code);
 CREATE INDEX IF NOT EXISTS schools_status_idx ON schools (status);
 
 INSERT INTO schools (code, name, status)
-VALUES ('ABC_SUN', 'ABC SUN', 'active')
+VALUES ('DEKISUGI', 'DEKISUGI', 'active')
 ON CONFLICT (code) DO UPDATE
 SET name = EXCLUDED.name,
 	status = EXCLUDED.status,
@@ -28,7 +28,7 @@ SET name = EXCLUDED.name,
 ALTER TABLE school_years ADD COLUMN IF NOT EXISTS school_id uuid;
 
 UPDATE school_years
-SET school_id = (SELECT id FROM schools WHERE code = 'ABC_SUN')
+SET school_id = (SELECT id FROM schools WHERE code = 'DEKISUGI')
 WHERE school_id IS NULL;
 
 ALTER TABLE school_years ALTER COLUMN school_id SET NOT NULL;

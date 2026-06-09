@@ -1,8 +1,8 @@
-# ABC SUN Production Module Roadmap
+# DEKISUGI Production Module Roadmap
 
 Last reviewed: 2026-05-22
 
-This document records the production-oriented module analysis for the ABC SUN school payment system. It is intended to be used as a launch point for separate implementation initiatives on different days.
+This document records the production-oriented module analysis for the DEKISUGI school payment system. It is intended to be used as a launch point for separate implementation initiatives on different days.
 
 ## Production Direction
 
@@ -64,7 +64,7 @@ Acceptance:
 Launch prompt:
 
 ```text
-Start Initiative 1 from docs/initiatives/production-module-roadmap.md. Design and implement the production persistence foundation for ABC SUN, preserving current VietQR/email behavior.
+Start Initiative 1 from docs/initiatives/production-module-roadmap.md. Design and implement the production persistence foundation for DEKISUGI, preserving current VietQR/email behavior.
 ```
 
 ## Initiative 2: Student, Parent, Class Master Data

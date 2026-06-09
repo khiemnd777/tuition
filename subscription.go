@@ -63,10 +63,18 @@ func handleSubscriptionPlans(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"plans": plans})
 }
 
+func handlePublicSubscriptionPlans(w http.ResponseWriter, r *http.Request) {
+	handleSubscriptionPlans(w, r)
+}
+
 func handleTenantSubscriptionSave(w http.ResponseWriter, r *http.Request) {
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
 		return
 	}
 	activeTenantID, ok := requireActiveTenantID(w, r)
@@ -84,7 +92,7 @@ func handleTenantSubscriptionSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if input.TenantID != activeTenantID {
+	if input.TenantID != activeTenantID && !user.IsPlatformAdmin {
 		http.Error(w, "subscription update is limited to the active tenant", http.StatusForbidden)
 		return
 	}
@@ -102,7 +110,7 @@ func handleTenantSubscriptionSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenants, err := listUserTenants(r.Context(), db, user.ID, tenant.ID)
-	if authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") {
+	if user.IsPlatformAdmin && (authenticatedUserHasPermission(user, "operation_log.cross_tenant_view") || authenticatedUserHasPermission(user, "audit_log.cross_tenant_view") || authenticatedUserHasPermission(user, "tenant.view")) {
 		tenants, err = listAllTenants(r.Context(), db, tenant.ID)
 	}
 	if err != nil {

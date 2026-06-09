@@ -42,8 +42,8 @@ func TestSuggestSubscriptionBillingPeriodDefaultsFromCurrentMonth(t *testing.T) 
 }
 
 func TestBuildSubscriptionInvoiceCode(t *testing.T) {
-	got := buildSubscriptionInvoiceCode("abc_sun", time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC))
-	if got != "SUB-ABC_SUN-202607" {
+	got := buildSubscriptionInvoiceCode("dekisugi", time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC))
+	if got != "SUB-DEKISUGI-202607" {
 		t.Fatalf("unexpected invoice code %q", got)
 	}
 }

@@ -1,9 +1,9 @@
 ---
-name: abcsun-tdd-slice
-description: Vertical-slice test-driven development workflow for the ABC SUN Go app. Use when adding or fixing behavior test-first in QR generation, CSV import, email rendering, Gmail MIME, cron quota, API handlers, or client/server contracts.
+name: dekisugi-tdd-slice
+description: Vertical-slice test-driven development workflow for the DEKISUGI Go app. Use when adding or fixing behavior test-first in QR generation, CSV import, email rendering, Gmail MIME, cron quota, API handlers, or client/server contracts.
 ---
 
-# ABC SUN TDD Slice
+# DEKISUGI TDD Slice
 
 Use one failing behavior test at a time. Do not write a batch of imagined tests before implementation.
 

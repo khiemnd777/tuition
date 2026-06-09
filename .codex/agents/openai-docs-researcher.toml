@@ -1,4 +1,4 @@
-name = "abcsun_openai_docs_researcher"
+name = "dekisugi_openai_docs_researcher"
 description = "Read-only OpenAI documentation researcher for Codex skills, subagents, AGENTS.md, and config questions."
 model_reasoning_effort = "medium"
 sandbox_mode = "read-only"

@@ -164,7 +164,7 @@ func handleAuthTenantSwitch(w http.ResponseWriter, r *http.Request) {
 	oldAccessToken, _ := readCookieValue(r, authAccessCookieName)
 	oldRefreshToken, _ := readCookieValue(r, authRefreshCookieName)
 	now := time.Now().UTC()
-	session, tokens, err := switchAuthTenantSession(r.Context(), db, user.ID, input.TenantID, now, loadAuthConfig(), auditContextFromRequest(r))
+	session, tokens, err := switchAuthTenantSession(r.Context(), db, user.ID, input.TenantID, user.IsPlatformAdmin, now, loadAuthConfig(), auditContextFromRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
@@ -438,6 +438,9 @@ RETURNING id::text, code, name, status`, input.Code, input.Name, input.Status, u
 	if err := ensureTenantSubscription(ctx, exec, tenant.ID, tenant.Status, user.ID); err != nil {
 		return tenantSummary{}, err
 	}
+	if err := ensureDefaultPaymentProvidersForTenant(ctx, exec, tenant.ID, user.ID); err != nil {
+		return tenantSummary{}, err
+	}
 	if err := ensureTenantUserRole(ctx, exec, tenant.ID, user.ID, "tenant_owner", user.ID); err != nil {
 		return tenantSummary{}, err
 	}
@@ -513,8 +516,11 @@ RETURNING id::text, code, name, status`, input.ID, input.Code, input.Name, input
 	return tenant, nil
 }
 
-func switchAuthTenantSession(ctx context.Context, db *sql.DB, userID string, tenantID string, now time.Time, cfg authConfig, auditCtx requestAuditContext) (authSessionResponse, authIssuedTokens, error) {
+func switchAuthTenantSession(ctx context.Context, db *sql.DB, userID string, tenantID string, isPlatformAdmin bool, now time.Time, cfg authConfig, auditCtx requestAuditContext) (authSessionResponse, authIssuedTokens, error) {
 	tenant, err := loadSwitchableTenantForUser(ctx, db, userID, tenantID)
+	if err != nil && isPlatformAdmin {
+		tenant, err = loadSwitchableTenantForPlatformAdmin(ctx, db, tenantID)
+	}
 	if err != nil {
 		return authSessionResponse{}, authIssuedTokens{}, fmt.Errorf("active tenant membership required")
 	}
@@ -538,6 +544,44 @@ func switchAuthTenantSession(ctx context.Context, db *sql.DB, userID string, ten
 		},
 	})
 	return session, tokens, nil
+}
+
+func loadSwitchableTenantForPlatformAdmin(ctx context.Context, db *sql.DB, tenantID string) (authTenantSummary, error) {
+	var tenant authTenantSummary
+	var trialEndsAt sql.NullTime
+	var currentPeriodEndsAt sql.NullTime
+	err := db.QueryRowContext(ctx, `
+SELECT tenant.id::text,
+	tenant.code,
+	tenant.name,
+	tenant.status,
+	'' AS membership_status,
+	false AS is_owner,
+	COALESCE(ts.status, ''),
+	COALESCE(plan.code, ''),
+	COALESCE(plan.name, ''),
+	ts.trial_ends_at,
+	ts.current_period_ends_at
+FROM tenants tenant
+LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
+WHERE tenant.id = $1::uuid
+	AND tenant.status IN ('active', 'trial', 'suspended', 'archived')`, strings.TrimSpace(tenantID)).Scan(
+		&tenant.ID,
+		&tenant.Code,
+		&tenant.Name,
+		&tenant.Status,
+		&tenant.MembershipStatus,
+		&tenant.IsOwner,
+		&tenant.SubscriptionStatus,
+		&tenant.PlanCode,
+		&tenant.PlanName,
+		&trialEndsAt,
+		&currentPeriodEndsAt,
+	)
+	tenant.TrialEndsAt = formatNullDate(trialEndsAt)
+	tenant.CurrentPeriodEndsAt = formatNullDate(currentPeriodEndsAt)
+	return tenant, err
 }
 
 func loadSwitchableTenantForUser(ctx context.Context, db *sql.DB, userID string, tenantID string) (authTenantSummary, error) {

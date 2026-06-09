@@ -71,6 +71,10 @@ func handleSubscriptionAutomationStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
 	activeTenantID := activeTenantIDFromRequest(r)
 	scope, ok := resolveSubscriptionFinanceScope(w, r, user, activeTenantID)
 	if !ok {
@@ -95,6 +99,10 @@ func handleSubscriptionAutomationRun(w http.ResponseWriter, r *http.Request) {
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
 		return
 	}
 	activeTenantID := activeTenantIDFromRequest(r)
@@ -188,13 +196,13 @@ func runSubscriptionAutomationSchedulerOnce(ctx context.Context) error {
 
 func subscriptionAutomationSchedulerStatusFromEnv() subscriptionAutomationSchedulerStatus {
 	interval := defaultSubscriptionAutomationInterval
-	if raw := strings.TrimSpace(os.Getenv("ABC_SUBSCRIPTION_AUTOMATION_INTERVAL")); raw != "" {
+	if raw := strings.TrimSpace(os.Getenv("DEKISUGI_SUBSCRIPTION_AUTOMATION_INTERVAL")); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil && parsed >= time.Minute {
 			interval = parsed
 		}
 	}
 	return subscriptionAutomationSchedulerStatus{
-		Enabled:         parseBoolWithDefault(os.Getenv("ABC_SUBSCRIPTION_AUTOMATION_ENABLED"), false),
+		Enabled:         parseBoolWithDefault(os.Getenv("DEKISUGI_SUBSCRIPTION_AUTOMATION_ENABLED"), false),
 		Interval:        interval.String(),
 		IntervalSeconds: int(interval / time.Second),
 	}

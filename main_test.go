@@ -343,7 +343,7 @@ func TestBuildGmailMessageIncludesInlineQR(t *testing.T) {
 	cfg := defaultEmailConfig()
 	cfg.GmailAddress = "billing@gmail.com"
 	cfg.GmailAppPassword = "abcd efgh ijkl mnop"
-	cfg.From = "ABC SUN <billing@gmail.com>"
+	cfg.From = "DEKISUGI <billing@gmail.com>"
 	cfg.ReplyTo = "billing@example.edu.vn"
 	item := buildQRItem(paymentRow{
 		ID:          "row-001",
@@ -367,7 +367,7 @@ func TestBuildGmailMessageIncludesInlineQR(t *testing.T) {
 	}
 	body := string(msg)
 	for _, want := range []string{
-		"From: ABC SUN <billing@gmail.com>",
+		"From: DEKISUGI <billing@gmail.com>",
 		"To: parent@example.com",
 		"Reply-To: billing@example.edu.vn",
 		"Message-ID: <test@gmail.com>",

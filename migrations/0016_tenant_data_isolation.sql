@@ -19,7 +19,7 @@ WHERE student.class_id = class.id
 UPDATE parents parent
 SET tenant_id = tenant.id
 FROM tenants tenant
-WHERE tenant.code = 'ABC_SUN'
+WHERE tenant.code = 'DEKISUGI'
 	AND parent.tenant_id IS NULL;
 
 UPDATE notification_campaigns campaign
@@ -31,7 +31,7 @@ SET tenant_id = COALESCE(
 		WHERE school_year.id = campaign.school_year_id
 		LIMIT 1
 	),
-	(SELECT id FROM tenants WHERE code = 'ABC_SUN')
+	(SELECT id FROM tenants WHERE code = 'DEKISUGI')
 )
 WHERE campaign.tenant_id IS NULL;
 
@@ -40,7 +40,7 @@ ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_prevent_update;
 UPDATE audit_logs audit_log
 SET tenant_id = tenant.id
 FROM tenants tenant
-WHERE tenant.code = 'ABC_SUN'
+WHERE tenant.code = 'DEKISUGI'
 	AND audit_log.tenant_id IS NULL;
 
 ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_prevent_update;
@@ -48,7 +48,7 @@ ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_prevent_update;
 UPDATE operation_logs operation_log
 SET tenant_id = tenant.id
 FROM tenants tenant
-WHERE tenant.code = 'ABC_SUN'
+WHERE tenant.code = 'DEKISUGI'
 	AND operation_log.tenant_id IS NULL;
 
 ALTER TABLE students ALTER COLUMN tenant_id SET NOT NULL;

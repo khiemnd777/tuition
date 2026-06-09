@@ -1,4 +1,0 @@
-interface:
-  display_name: "ABC SUN Change Workflow"
-  short_description: "Repo workflow for safe ABC SUN changes"
-  default_prompt: "Use $abcsun-change-workflow to make a scoped change in the ABC SUN VietQR app."

@@ -1,6 +1,6 @@
-# ABC SUN Initiative State
+# DEKISUGI Initiative State
 
-Last updated: 2026-06-07
+Last updated: 2026-06-09
 
 ## Current Status
 
@@ -8,11 +8,11 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, cross-tenant finance operations, and subscription background automation complete.
 
-Current phase: `platform_admin_platform_only_ux_hardening_complete`
+Current phase: `platform_admin_tenant_subscription_control_hardening_complete`
 
-Current initiative: Platform-only UX hardening is complete, clarifying control-plane session state versus tenant workspace state in Web Admin.
+Current initiative: Platform Admin/Tenant subscription control hardening is complete. Tenant users can view subscription status, invoices, receipts, and submit upgrade/downgrade/cancel/refund requests; Platform Admin owns tenant subscription mutation, subscription invoices, payment provider defaults, tenant email delivery config, and tenant email cron.
 
-Next recommended initiative: No additional subscription/platform split phase is currently queued; the remaining follow-up is optional browser verification of the new platform-only UX.
+Next recommended initiative: Run a full authenticated browser QA pass in an environment with browser automation available and seeded Platform Admin/Tenant accounts.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
@@ -36,7 +36,7 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 - Subscription Phase 1: Tenant Foundation is complete:
   - Added tenant foundation migration `0014_tenant_foundation`.
   - Created `tenants` and `tenant_memberships`.
-  - Seeded the default `ABC_SUN` tenant.
+  - Seeded the default `DEKISUGI` tenant.
   - Backfilled all existing schools to the default tenant.
   - Backfilled existing app users as active default-tenant members.
   - Changed school code uniqueness from global `code` to `(tenant_id, code)`.
@@ -52,7 +52,7 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 - Subscription Phase 3: Data Isolation is complete:
   - Added migration `0016_tenant_data_isolation`.
   - Added `tenant_id` to `students`, `parents`, `notification_campaigns`, `audit_logs`, and `operation_logs`.
-  - Backfilled tenant-owned records to the default `ABC_SUN` tenant or their owning school tenant.
+  - Backfilled tenant-owned records to the default `DEKISUGI` tenant or their owning school tenant.
   - Changed student code, parent email, and notification campaign code uniqueness to tenant scope.
   - Added active-tenant fail-fast checks to tenant-scoped API handlers.
   - Scoped master data, school tree, fee schedule, invoice, notification, payment dashboard, admin report/export, audit, operation, and readiness queries by active tenant.
@@ -115,7 +115,7 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added migration `0023_subscription_automation_scheduler` to persist automation run logs across active-tenant and cross-tenant scopes.
   - Extended tenant subscription billing config with automation policy fields for enablement, renewal lead window, dunning cooldown, and overdue suspension threshold.
   - Added subscription automation status and run APIs so finance operators can preview or execute a combined automation cycle without switching tenant workflows manually.
-  - Added background scheduler startup controlled by `ABC_SUBSCRIPTION_AUTOMATION_ENABLED` and `ABC_SUBSCRIPTION_AUTOMATION_INTERVAL`.
+  - Added background scheduler startup controlled by `DEKISUGI_SUBSCRIPTION_AUTOMATION_ENABLED` and `DEKISUGI_SUBSCRIPTION_AUTOMATION_INTERVAL`.
   - Reused the existing renewal invoice and dunning send flows, while adding cooldown-aware candidate selection for automated dunning and automatic suspension after overdue grace periods.
   - Added Web Admin automation panel in the subscription finance console to show scheduler state, latest run summary, and manual preview/run actions.
 - Platform/Admin auth-session decoupling is complete:
@@ -138,6 +138,13 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 - Platform sidebar split is complete:
   - Removed the redundant `Platform Admin` child item and promoted `Tenants`, `Finance Console`, `Entitlements`, and `Platform Users` into first-class left-sidebar destinations.
   - Replaced the old control-plane parent tab with four standalone platform tabs so each area now has its own page title, route target, and recovery state.
+- Platform Admin/Tenant subscription control hardening is complete:
+  - Added admin-led intake/password-reset hardening, tenant payment default provider settings, tenant email cron state, and tenant subscription change request persistence.
+  - Locked subscription mutation endpoints to Platform Admin while keeping tenant read access and tenant subscription change requests.
+  - Moved tenant payment provider selection and Gmail/Resend/Cron controls into Platform Admin tenant detail panels.
+  - Updated tenant subscription UI so schools do not self-checkout or choose payment providers; they can submit upgrade, downgrade, cancel, or refund requests in Vietnamese and open paid subscription receipts.
+  - Updated payment intent and subscription checkout creation to use the Platform Admin configured default provider instead of client-selected providers.
+  - Scoped email send quotas, tenant cron state, password reset delivery, notification sends, and subscription dunning to tenant email configuration.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.
@@ -320,7 +327,7 @@ Advanced 1 is complete. Continue with Advanced 2 from docs/initiatives/current-s
 Advanced 2 launch prompt:
 
 ```text
-Start Advanced 2 from docs/initiatives/current-state.md. Build production-grade login for ABC SUN with access tokens, refresh token rotation and revocation, logout, session expiry, and secure browser session handling.
+Start Advanced 2 from docs/initiatives/current-state.md. Build production-grade login for DEKISUGI with access tokens, refresh token rotation and revocation, logout, session expiry, and secure browser session handling.
 ```
 
 Advanced 2 progress:
@@ -329,7 +336,7 @@ Advanced 2 progress:
   - Added auth schema with `password_hash` on `app_users`, auth sessions, access tokens, and rotated refresh tokens.
   - Added login, session, refresh, and logout APIs with HttpOnly SameSite browser cookies.
   - Stored only token hashes in PostgreSQL; refresh tokens are single-use and session revocation is recorded.
-  - Added bootstrap admin support through `ABC_AUTH_BOOTSTRAP_EMAIL`, `ABC_AUTH_BOOTSTRAP_PASSWORD`, and `ABC_AUTH_BOOTSTRAP_DISPLAY_NAME`.
+  - Added bootstrap admin support through `DEKISUGI_AUTH_BOOTSTRAP_EMAIL`, `DEKISUGI_AUTH_BOOTSTRAP_PASSWORD`, and `DEKISUGI_AUTH_BOOTSTRAP_DISPLAY_NAME`.
   - Protected production API routes with access-token middleware while keeping auth endpoints, provider webhooks, and QR PNG public.
   - Preserved authenticated audit actor context and added optional password setting in the user admin screen.
   - Added login/logout UI, session refresh handling, expiry recovery, tests, and docs.
@@ -343,14 +350,14 @@ Advanced 2 is complete. Continue with Advanced 3 from docs/initiatives/current-s
 Advanced 3 launch prompt:
 
 ```text
-Start Advanced 3 from docs/initiatives/current-state.md. Enforce RBAC at the API level for ABC SUN, map permissions to routes and UI actions, and preserve authenticated audit actors.
+Start Advanced 3 from docs/initiatives/current-state.md. Enforce RBAC at the API level for DEKISUGI, map permissions to routes and UI actions, and preserve authenticated audit actors.
 ```
 
 Advanced 3 progress:
 
 - Advanced 3 is complete.
   - Added a central server-side RBAC route map for protected `/api/v1` endpoints.
-  - Enforced permissions from authenticated user roles instead of trusting `X-ABC-Admin-Permission`.
+  - Enforced permissions from authenticated user roles instead of trusting `X-DEKISUGI-Admin-Permission`.
   - Kept auth endpoints, provider webhooks, and QR PNG public; kept bank options authenticated-only.
   - Added dynamic permission resolution for shared import-field and email-config endpoints.
   - Added email config/send/cron permission seeds in migration `0010_rbac_permissions`.
@@ -374,9 +381,9 @@ Advanced 4 progress:
 
 - Advanced 4 is complete.
   - Added `schools` and `school_id` on `school_years` through migration `0011_school_tree_management`.
-  - Backfilled existing school-year data into default school `ABC_SUN`.
+  - Backfilled existing school-year data into default school `DEKISUGI`.
   - Added server-side school tree APIs for reading the tree and saving schools, school years/cohorts, and classes.
-  - Kept legacy master-data CSV compatible by making `school` optional and defaulting to `ABC_SUN`.
+  - Kept legacy master-data CSV compatible by making `school` optional and defaulting to `DEKISUGI`.
   - Extended master-data options/students with school metadata and `schoolId` filtering.
   - Added route-level RBAC for school tree read/write APIs using `master_data.read` and `master_data.write`.
   - Added a `Học sinh` school-tree panel with node-driven filters, compact edit forms, and a quick path into related fee schedules.
@@ -391,7 +398,7 @@ Advanced 4 is complete. Define the next Advanced Production initiative in docs/i
 Advanced 5 launch prompt:
 
 ```text
-Start Advanced 5 from docs/initiatives/current-state.md. Reframe the ABC SUN admin UI around task-based school-accounting workflows, production navigation groups, context selectors, breadcrumbs, quick actions, legacy QR-tool demotion, and permission-aware menu/action visibility.
+Start Advanced 5 from docs/initiatives/current-state.md. Reframe the DEKISUGI admin UI around task-based school-accounting workflows, production navigation groups, context selectors, breadcrumbs, quick actions, legacy QR-tool demotion, and permission-aware menu/action visibility.
 ```
 
 Advanced 5 planning:
@@ -418,7 +425,7 @@ Advanced 5 planning:
 Tổng quan / Việc cần xử lý
 
 ┌───────────────┬────────────────────────────────────────────────────┐
-│ Tổng quan     │ ABC SUN · 2025-2026 · Kỳ 05/2026 · Operator        │
+│ Tổng quan     │ DEKISUGI · 2025-2026 · Kỳ 05/2026 · Operator        │
 │  Dashboard    │                                                    │
 │  Việc cần xử lý│ [12 thiếu recipient] [8 giao dịch chưa khớp]       │
 │               │ [5 lớp chưa có bảng phí] [3 email lỗi]             │
@@ -480,7 +487,7 @@ Thiết lập / Trường & lớp
 
 ┌────────────────────┬───────────────────────────────────────────────┐
 │ Cây trường         │ Chi tiết node đang chọn                       │
-│ ABC SUN            │ Lớp 1A                                        │
+│ DEKISUGI            │ Lớp 1A                                        │
 │ └─ 2025-2026       │ Năm học: 2025-2026 · Khối 1 · 32 học sinh     │
 │    ├─ Khối 1       │                                               │
 │    │  ├─ Lớp 1A    │ Readiness                                     │
@@ -546,7 +553,7 @@ Thiết lập / Học sinh & phụ huynh
 
 ┌────────────────────┬──────────────────────────┬──────────────────────┐
 │ Cây trường         │ Danh sách học sinh        │ Chi tiết học sinh     │
-│ ABC SUN            │ [Search] [Khối] [Lớp]     │ HS001 - Nguyễn An     │
+│ DEKISUGI            │ [Search] [Khối] [Lớp]     │ HS001 - Nguyễn An     │
 │ └─ 2025-2026       │ [Thiếu contact ▾]         │ Lớp 1A · 2025-2026   │
 │    └─ Khối 1       │ HS001 Nguyễn An      1A   │                      │
 │       └─ Lớp 1A    │ HS002 Trần Bình      1A   │ Phụ huynh             │
@@ -857,6 +864,12 @@ Completed:
   - Updated login and session issuance to prefer the active tenant when present, but allow `platform_admin` to create a valid session with no tenant binding.
   - Updated access-token and refresh-token session loading/validation so platform-only sessions remain refreshable and authenticated without a synthetic tenant membership.
   - Kept tenant-owner and tenant-admin sessions backward compatible by preserving tenant-bound session creation when an active tenant exists.
+- Admin-led tenant subscription onboarding is complete:
+  - Added public intake and password reset APIs while disabling runtime self-serve tenant signup.
+  - Added Platform Admin onboarding so the platform creates the tenant, owner account, initial school, selected subscription, tenant payment providers, and intake conversion status.
+  - Moved tenant payment provider and Gmail/Resend configuration to Platform Admin tenant detail, with tenant notification send paths loading server-side tenant email config.
+  - Updated Tenant UI so subscription is view-only for schools and subscription provider/checkout controls are no longer customer-facing.
+  - Added Vietnamese Terms and Privacy pages plus tenant-facing copy for expiry, suspend, upgrade, downgrade, cancel, refund, invoice and receipt expectations.
 - Added migration `0012_user_contacts_and_roles` to add `app_users.phone`, relax email-only identity, enforce Email-or-SĐT contact, seed roles `admin`, `staff`, `accountant`, and seed canonical `{module}.{action}` permissions.
 - Added public auth bootstrap status/create API at `/api/v1/auth/bootstrap`; when no users exist, the UI shows the first Admin creation form before login.
 - Updated login to accept Email or SĐT, while preserving HttpOnly access/refresh token behavior.
@@ -889,10 +902,10 @@ The agent must:
    - any known blockers
 4. If the user asked to continue, start the next recommended Advanced Production initiative unless they specify a different initiative.
 5. Use repo skills before implementation:
-   - `$abcsun-change-workflow` by default
-   - `$abcsun-vietqr-payments` for QR/payment/invoice amount behavior
-   - `$abcsun-email-delivery` for email/cron/notification behavior
-   - `$abcsun-frontend-ui` for Web Admin UI work
+   - `$dekisugi-change-workflow` by default
+   - `$dekisugi-vietqr-payments` for QR/payment/invoice amount behavior
+   - `$dekisugi-email-delivery` for email/cron/notification behavior
+   - `$dekisugi-frontend-ui` for Web Admin UI work
 6. Update this file at the end of every initiative or meaningful partial implementation.
 
 ## Next Launch Prompt

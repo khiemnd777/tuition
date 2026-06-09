@@ -163,9 +163,9 @@ type authIssuedTokens struct {
 func loadAuthConfig() authConfig {
 	env, _ := loadAppEnvironment(os.LookupEnv)
 	return authConfig{
-		AccessTokenTTL:  authEnvDuration("ABC_AUTH_ACCESS_TTL", defaultAccessTokenTTL),
-		RefreshTokenTTL: authEnvDuration("ABC_AUTH_REFRESH_TTL", defaultRefreshTokenTTL),
-		CookieSecure:    authEnvBool("ABC_AUTH_COOKIE_SECURE", env == appEnvProduction),
+		AccessTokenTTL:  authEnvDuration("DEKISUGI_AUTH_ACCESS_TTL", defaultAccessTokenTTL),
+		RefreshTokenTTL: authEnvDuration("DEKISUGI_AUTH_REFRESH_TTL", defaultRefreshTokenTTL),
+		CookieSecure:    authEnvBool("DEKISUGI_AUTH_COOKIE_SECURE", env == appEnvProduction),
 	}
 }
 
@@ -352,56 +352,7 @@ func handleAuthBootstrapCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAuthTenantSignup(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	var input authTenantSignupRequest
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
-		return
-	}
-	input = normalizeAuthTenantSignupInput(input)
-	if err := validateAuthTenantSignupInput(input); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	db, err := openMasterDataDatabase(r.Context())
-	if err != nil {
-		writeMasterDataDBError(w, err)
-		return
-	}
-	defer db.Close()
-
-	user, schoolCount, err := createTenantOwnerSignup(r.Context(), db, input, auditContextFromRequest(r))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := enrichAuthenticatedUser(r.Context(), db, &user); err != nil {
-		http.Error(w, "cannot load owner session", http.StatusInternalServerError)
-		return
-	}
-	if !authenticatedUserHasActiveTenant(user) {
-		http.Error(w, "active tenant membership required", http.StatusForbidden)
-		return
-	}
-
-	now := time.Now().UTC()
-	tokens, err := issueAuthSession(r.Context(), db, user.ID, user.ActiveTenant.ID, now, loadAuthConfig(), auditContextFromRequest(r))
-	if err != nil {
-		http.Error(w, "cannot create session", http.StatusInternalServerError)
-		return
-	}
-	if err := recordAuthLastLogin(r.Context(), db, user.ID, now); err != nil {
-		http.Error(w, "cannot update last login", http.StatusInternalServerError)
-		return
-	}
-	setAuthCookies(w, r, tokens, loadAuthConfig())
-	writeJSON(w, http.StatusCreated, authSessionResponse{
-		User:             user,
-		Onboarding:       buildAuthOnboardingSummary(user, schoolCount),
-		AccessExpiresAt:  tokens.AccessExpiresAt,
-		RefreshExpiresAt: tokens.RefreshExpiresAt,
-	})
+	http.Error(w, "Đăng ký tài khoản trường được xử lý bởi Platform Admin. Vui lòng gửi form tư vấn.", http.StatusGone)
 }
 
 func handleAuthSession(w http.ResponseWriter, r *http.Request) {
@@ -509,10 +460,10 @@ func authenticatedUserHasActiveTenant(user authenticatedUser) bool {
 	if strings.TrimSpace(user.ActiveTenant.ID) == "" {
 		return false
 	}
-	if user.ActiveTenant.Status != "" && !tenantStatusAllowsAuth(user.ActiveTenant.Status) {
+	if user.ActiveTenant.Status != "" && !tenantStatusAllowsAuth(user.ActiveTenant.Status) && !user.IsPlatformAdmin {
 		return false
 	}
-	if user.ActiveTenant.MembershipStatus != "" && user.ActiveTenant.MembershipStatus != "active" {
+	if user.ActiveTenant.MembershipStatus != "" && user.ActiveTenant.MembershipStatus != "active" && !user.IsPlatformAdmin {
 		return false
 	}
 	return true
@@ -614,10 +565,10 @@ func validateRefreshTokenRecord(record authTokenRecord, now time.Time) error {
 		}
 		return errors.New("active tenant not found")
 	}
-	if !tenantStatusAllowsAuth(record.TenantStatus) {
+	if !tenantStatusAllowsAuth(record.TenantStatus) && !record.IsPlatformAdmin {
 		return errors.New("tenant is not active")
 	}
-	if record.MembershipStatus != "active" {
+	if record.MembershipStatus != "active" && !record.IsPlatformAdmin {
 		return errors.New("tenant membership is not active")
 	}
 	return nil
@@ -672,15 +623,15 @@ func expiredAuthCookie(r *http.Request, cfg authConfig, name string, path string
 }
 
 func ensureBootstrapAdmin(ctx context.Context, db *sql.DB) error {
-	email := normalizeAuthEmail(os.Getenv("ABC_AUTH_BOOTSTRAP_EMAIL"))
-	phone := normalizeAdminPhone(os.Getenv("ABC_AUTH_BOOTSTRAP_PHONE"))
-	password := os.Getenv("ABC_AUTH_BOOTSTRAP_PASSWORD")
-	displayName := strings.TrimSpace(os.Getenv("ABC_AUTH_BOOTSTRAP_DISPLAY_NAME"))
+	email := normalizeAuthEmail(os.Getenv("DEKISUGI_AUTH_BOOTSTRAP_EMAIL"))
+	phone := normalizeAdminPhone(os.Getenv("DEKISUGI_AUTH_BOOTSTRAP_PHONE"))
+	password := os.Getenv("DEKISUGI_AUTH_BOOTSTRAP_PASSWORD")
+	displayName := strings.TrimSpace(os.Getenv("DEKISUGI_AUTH_BOOTSTRAP_DISPLAY_NAME"))
 	if email == "" && phone == "" && password == "" {
 		return nil
 	}
 	if password == "" || (email == "" && phone == "") {
-		return fmt.Errorf("ABC_AUTH_BOOTSTRAP_EMAIL or ABC_AUTH_BOOTSTRAP_PHONE must be set with ABC_AUTH_BOOTSTRAP_PASSWORD")
+		return fmt.Errorf("DEKISUGI_AUTH_BOOTSTRAP_EMAIL or DEKISUGI_AUTH_BOOTSTRAP_PHONE must be set with DEKISUGI_AUTH_BOOTSTRAP_PASSWORD")
 	}
 	input := adminUserSaveInput{Email: email, Phone: phone, DisplayName: displayName, Status: "active", Password: password}
 	if err := validateAdminUserSaveInput(&input); err != nil {
@@ -998,6 +949,7 @@ LIMIT 1`, email, phone).Scan(&user.ID, &user.Email, &user.Phone, &user.DisplayNa
 }
 
 func enrichAuthenticatedUser(ctx context.Context, db *sql.DB, user *authenticatedUser) error {
+	preferredTenantID := strings.TrimSpace(user.ActiveTenant.ID)
 	tenants, activeTenant, err := loadAuthenticatedUserTenants(ctx, db, user.ID, user.ActiveTenant.ID)
 	if err != nil {
 		return err
@@ -1036,6 +988,13 @@ ORDER BY r.code, p.code`, user.ID)
 	user.PlatformRoles = platformRoles
 	user.PlatformRoleCodes = platformRoleCodes
 	user.IsPlatformAdmin = stringSliceContains(platformRoleCodes, "platform_admin")
+	if user.IsPlatformAdmin && preferredTenantID != "" && user.ActiveTenant.ID != preferredTenantID {
+		platformTenant, err := loadSwitchableTenantForPlatformAdmin(ctx, db, preferredTenantID)
+		if err != nil {
+			return err
+		}
+		user.ActiveTenant = platformTenant
+	}
 
 	tenantRoles := []adminRoleSummary{}
 	tenantPermissions := []adminPermissionSummary{}
@@ -1317,8 +1276,8 @@ SELECT at.id::text,
 	u.display_name,
 	u.status,
 	COALESCE(tenant.id::text, ''),
-	tenant.code,
-	tenant.name,
+	COALESCE(tenant.code, ''),
+	COALESCE(tenant.name, ''),
 	COALESCE(tenant.status, ''),
 	COALESCE(membership.status, ''),
 	COALESCE(membership.is_owner, false),
@@ -1349,6 +1308,16 @@ WHERE at.token_hash = $1
 		OR (
 			tenant.status IN ('active', 'trial')
 			AND membership.status = 'active'
+		)
+		OR (
+			tenant.status IN ('active', 'trial', 'suspended', 'archived')
+			AND EXISTS (
+				SELECT 1
+				FROM app_user_roles ur
+				JOIN app_roles role ON role.id = ur.role_id
+				WHERE ur.user_id = u.id
+					AND role.code = 'platform_admin'
+			)
 		)
 	)
 ORDER BY rt.issued_at DESC

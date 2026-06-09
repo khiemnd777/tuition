@@ -335,7 +335,7 @@ func handleNotificationCampaignEmailPreview(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	cfg, err := loadEmailConfig()
+	cfg, err := loadEmailConfigForTenant(r.Context(), tenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -470,7 +470,7 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := loadEmailConfig()
+	cfg, err := loadEmailConfigForTenant(r.Context(), tenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -484,7 +484,7 @@ func handleNotificationCampaignSend(w http.ResponseWriter, r *http.Request) {
 
 	sentLimit := 0
 	if !input.DryRun {
-		quota, err := emailSendQuotaStatus(time.Now())
+		quota, err := emailSendQuotaStatusForTenant(r.Context(), tenantID, time.Now())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1426,7 +1426,7 @@ func sendNotificationCampaign(ctx context.Context, db *sql.DB, cfg emailConfig, 
 		}
 	}
 	if !input.DryRun {
-		recordEmailCronSent(countSentEmails(results), time.Now())
+		recordEmailCronSentForTenant(ctx, input.TenantID, countSentEmails(results), time.Now())
 		if err := incrementTenantUsageCounter(ctx, db, input.TenantID, subscriptionMetricMonthlyNotifications, subscriptionUsagePeriodKey(subscriptionMetricMonthlyNotifications, time.Now()), countSentEmails(results)); err != nil {
 			return notificationSendResponse{}, err
 		}
@@ -1656,7 +1656,7 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 		recipients[idx].CampaignID = campaignID
 	}
 
-	cfg, err := loadEmailConfig()
+	cfg, err := loadEmailConfigForTenant(ctx, tenantID)
 	if err != nil {
 		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, "", err.Error()), nil
 	}
@@ -1664,7 +1664,7 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 	if err := validateEmailConfigForSend(cfg); err != nil {
 		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, cfg.Provider, err.Error()), nil
 	}
-	quota, err := emailSendQuotaStatus(time.Now())
+	quota, err := emailSendQuotaStatusForTenant(ctx, tenantID, time.Now())
 	if err != nil {
 		return recordPaidConfirmationFailure(ctx, db, template, campaignID, recipients, options, cfg.Provider, err.Error()), nil
 	}
@@ -1714,7 +1714,7 @@ func sendPaidConfirmationForInvoice(ctx context.Context, db *sql.DB, invoiceID s
 		}
 	}
 	if sent > 0 {
-		recordEmailCronSent(sent, time.Now())
+		recordEmailCronSentForTenant(ctx, tenantID, sent, time.Now())
 		if err := incrementTenantUsageCounter(ctx, db, tenantID, subscriptionMetricMonthlyNotifications, subscriptionUsagePeriodKey(subscriptionMetricMonthlyNotifications, time.Now()), sent); err != nil {
 			return nil, err
 		}

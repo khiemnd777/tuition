@@ -1,9 +1,9 @@
 ---
-name: abcsun-change-workflow
-description: Repo-specific change workflow for the ABC SUN VietQR Go app. Use when implementing, reviewing, or validating any non-trivial code change in this repository, especially changes that cross Go handlers, VietQR generation, email/cron behavior, or the vanilla web UI.
+name: dekisugi-change-workflow
+description: Repo-specific change workflow for the DEKISUGI VietQR Go app. Use when implementing, reviewing, or validating any non-trivial code change in this repository, especially changes that cross Go handlers, VietQR generation, email/cron behavior, or the vanilla web UI.
 ---
 
-# ABC SUN Change Workflow
+# DEKISUGI Change Workflow
 
 Use this as the default workflow for changes in this repo. Keep edits narrow and preserve the current simple Go + embedded static-web architecture.
 
@@ -30,11 +30,11 @@ File map:
 
 Choose the narrower companion skill when useful:
 
-- QR payload, CSV import, payment rows, fees: `$abcsun-vietqr-payments`.
-- Email template, provider, SMTP, Resend, cron, quota: `$abcsun-email-delivery`.
-- Browser UI, tab workflow, layout, client API wiring: `$abcsun-frontend-ui`.
-- Bug investigation: `$abcsun-debug-loop`.
-- Test-first feature or fix: `$abcsun-tdd-slice`.
+- QR payload, CSV import, payment rows, fees: `$dekisugi-vietqr-payments`.
+- Email template, provider, SMTP, Resend, cron, quota: `$dekisugi-email-delivery`.
+- Browser UI, tab workflow, layout, client API wiring: `$dekisugi-frontend-ui`.
+- Bug investigation: `$dekisugi-debug-loop`.
+- Test-first feature or fix: `$dekisugi-tdd-slice`.
 
 ## Implement
 

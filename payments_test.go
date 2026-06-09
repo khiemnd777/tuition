@@ -234,10 +234,10 @@ func TestResolvePaymentWebhookTenant(t *testing.T) {
 		wantErr      bool
 	}{
 		{name: "legacy provider path", path: "/api/v1/payments/webhooks/sepay", wantTenant: "", wantProvider: "sepay"},
-		{name: "tenant-scoped provider path", path: "/api/v1/payments/webhooks/abc_sun/sepay", wantTenant: "ABC_SUN", wantProvider: "sepay"},
-		{name: "tenant path supports mixed case", path: "/api/v1/payments/webhooks/AbC_SuN/payos", wantTenant: "ABC_SUN", wantProvider: "payos"},
+		{name: "tenant-scoped provider path", path: "/api/v1/payments/webhooks/dekisugi/sepay", wantTenant: "DEKISUGI", wantProvider: "sepay"},
+		{name: "tenant path supports mixed case", path: "/api/v1/payments/webhooks/DeKiSuGi/payos", wantTenant: "DEKISUGI", wantProvider: "payos"},
 		{name: "missing provider should fail", path: "/api/v1/payments/webhooks/", wantErr: true},
-		{name: "invalid extra segment should fail", path: "/api/v1/payments/webhooks/abc_sun/sepay/extra", wantErr: true},
+		{name: "invalid extra segment should fail", path: "/api/v1/payments/webhooks/dekisugi/sepay/extra", wantErr: true},
 	}
 
 	for _, tc := range cases {
@@ -263,12 +263,12 @@ func TestResolvePaymentWebhookTenant(t *testing.T) {
 }
 
 func TestLoadPayOSConfigPrefersTenantProviderConfig(t *testing.T) {
-	t.Setenv("ABC_PAYOS_CLIENT_ID", "env-client")
-	t.Setenv("ABC_PAYOS_API_KEY", "env-api")
-	t.Setenv("ABC_PAYOS_CHECKSUM_KEY", "env-checksum")
-	t.Setenv("ABC_PAYOS_RETURN_URL", "https://env-return.example")
-	t.Setenv("ABC_PAYOS_CANCEL_URL", "https://env-cancel.example")
-	t.Setenv("ABC_PAYOS_API_BASE_URL", "https://env-api-base.example")
+	t.Setenv("DEKISUGI_PAYOS_CLIENT_ID", "env-client")
+	t.Setenv("DEKISUGI_PAYOS_API_KEY", "env-api")
+	t.Setenv("DEKISUGI_PAYOS_CHECKSUM_KEY", "env-checksum")
+	t.Setenv("DEKISUGI_PAYOS_RETURN_URL", "https://env-return.example")
+	t.Setenv("DEKISUGI_PAYOS_CANCEL_URL", "https://env-cancel.example")
+	t.Setenv("DEKISUGI_PAYOS_API_BASE_URL", "https://env-api-base.example")
 
 	cfg := loadPayOSConfig(paymentProvider{
 		Code: paymentProviderPayOS,
@@ -292,18 +292,18 @@ func TestLoadPayOSConfigPrefersTenantProviderConfig(t *testing.T) {
 
 func TestLoadPayOSConfigFallsBackToEnvForMissingTenantFields(t *testing.T) {
 	for key, value := range map[string]string{
-		"ABC_PAYOS_CLIENT_ID":    "env-client",
-		"ABC_PAYOS_API_KEY":      "env-api",
-		"ABC_PAYOS_CHECKSUM_KEY": "env-checksum",
-		"ABC_PAYOS_RETURN_URL":   "https://env-return.example",
-		"ABC_PAYOS_CANCEL_URL":   "https://env-cancel.example",
+		"DEKISUGI_PAYOS_CLIENT_ID":    "env-client",
+		"DEKISUGI_PAYOS_API_KEY":      "env-api",
+		"DEKISUGI_PAYOS_CHECKSUM_KEY": "env-checksum",
+		"DEKISUGI_PAYOS_RETURN_URL":   "https://env-return.example",
+		"DEKISUGI_PAYOS_CANCEL_URL":   "https://env-cancel.example",
 	} {
 		if err := os.Setenv(key, value); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Cleanup(func() {
-		for _, key := range []string{"ABC_PAYOS_CLIENT_ID", "ABC_PAYOS_API_KEY", "ABC_PAYOS_CHECKSUM_KEY", "ABC_PAYOS_RETURN_URL", "ABC_PAYOS_CANCEL_URL"} {
+		for _, key := range []string{"DEKISUGI_PAYOS_CLIENT_ID", "DEKISUGI_PAYOS_API_KEY", "DEKISUGI_PAYOS_CHECKSUM_KEY", "DEKISUGI_PAYOS_RETURN_URL", "DEKISUGI_PAYOS_CANCEL_URL"} {
 			_ = os.Unsetenv(key)
 		}
 	})

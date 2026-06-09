@@ -8,15 +8,15 @@ import (
 
 func TestBuildSchoolTreeGroupsClassesByYearAndGrade(t *testing.T) {
 	tree := buildSchoolTree(
-		[]schoolTreeSchool{{ID: "school-1", Code: "ABC_SUN", Name: "ABC SUN", Status: "active"}},
+		[]schoolTreeSchool{{ID: "school-1", Code: "DEKISUGI", Name: "DEKISUGI", Status: "active"}},
 		[]schoolTreeSchoolYear{
-			{ID: "year-1", SchoolID: "school-1", SchoolCode: "ABC_SUN", Code: "2025-2026", Name: "2025-2026", Status: "active", ClassCount: 2, StudentCount: 33, FeeScheduleCount: 4, AdjustmentCount: 3},
-			{ID: "year-2", SchoolID: "school-1", SchoolCode: "ABC_SUN", Code: "2024-2025", Name: "2024-2025", Status: "archived", ClassCount: 1, StudentCount: 10, FeeScheduleCount: 1, AdjustmentCount: 0},
+			{ID: "year-1", SchoolID: "school-1", SchoolCode: "DEKISUGI", Code: "2025-2026", Name: "2025-2026", Status: "active", ClassCount: 2, StudentCount: 33, FeeScheduleCount: 4, AdjustmentCount: 3},
+			{ID: "year-2", SchoolID: "school-1", SchoolCode: "DEKISUGI", Code: "2024-2025", Name: "2024-2025", Status: "archived", ClassCount: 1, StudentCount: 10, FeeScheduleCount: 1, AdjustmentCount: 0},
 		},
 		[]schoolTreeClass{
-			{ID: "class-1", SchoolID: "school-1", SchoolCode: "ABC_SUN", SchoolYearID: "year-1", SchoolYearCode: "2025-2026", Grade: "1", Name: "1A", Status: "active", StudentCount: 18, FeeScheduleCount: 1, ActiveFeeScheduleCount: 1, AdjustmentCount: 2, BillingReadyStudentCount: 17, MissingBillingRecipientCount: 1, CurrentFeeScheduleCount: 1, CurrentActiveScheduleCount: 1, CurrentInvoiceCount: 18, OpenInvoiceCount: 3},
-			{ID: "class-2", SchoolID: "school-1", SchoolCode: "ABC_SUN", SchoolYearID: "year-1", SchoolYearCode: "2025-2026", Grade: "1", Name: "1B", Status: "active", StudentCount: 15, FeeScheduleCount: 1, ActiveFeeScheduleCount: 0, AdjustmentCount: 1, BillingReadyStudentCount: 15, MissingBillingRecipientCount: 0, CurrentFeeScheduleCount: 0, CurrentActiveScheduleCount: 0, CurrentInvoiceCount: 0, OpenInvoiceCount: 0},
-			{ID: "class-3", SchoolID: "school-1", SchoolCode: "ABC_SUN", SchoolYearID: "year-2", SchoolYearCode: "2024-2025", Grade: "2", Name: "2A", Status: "active", StudentCount: 10, FeeScheduleCount: 1, BillingReadyStudentCount: 8, MissingBillingRecipientCount: 2, CurrentFeeScheduleCount: 1, CurrentActiveScheduleCount: 0, CurrentInvoiceCount: 9, OpenInvoiceCount: 2},
+			{ID: "class-1", SchoolID: "school-1", SchoolCode: "DEKISUGI", SchoolYearID: "year-1", SchoolYearCode: "2025-2026", Grade: "1", Name: "1A", Status: "active", StudentCount: 18, FeeScheduleCount: 1, ActiveFeeScheduleCount: 1, AdjustmentCount: 2, BillingReadyStudentCount: 17, MissingBillingRecipientCount: 1, CurrentFeeScheduleCount: 1, CurrentActiveScheduleCount: 1, CurrentInvoiceCount: 18, OpenInvoiceCount: 3},
+			{ID: "class-2", SchoolID: "school-1", SchoolCode: "DEKISUGI", SchoolYearID: "year-1", SchoolYearCode: "2025-2026", Grade: "1", Name: "1B", Status: "active", StudentCount: 15, FeeScheduleCount: 1, ActiveFeeScheduleCount: 0, AdjustmentCount: 1, BillingReadyStudentCount: 15, MissingBillingRecipientCount: 0, CurrentFeeScheduleCount: 0, CurrentActiveScheduleCount: 0, CurrentInvoiceCount: 0, OpenInvoiceCount: 0},
+			{ID: "class-3", SchoolID: "school-1", SchoolCode: "DEKISUGI", SchoolYearID: "year-2", SchoolYearCode: "2024-2025", Grade: "2", Name: "2A", Status: "active", StudentCount: 10, FeeScheduleCount: 1, BillingReadyStudentCount: 8, MissingBillingRecipientCount: 2, CurrentFeeScheduleCount: 1, CurrentActiveScheduleCount: 0, CurrentInvoiceCount: 9, OpenInvoiceCount: 2},
 		},
 	)
 
@@ -74,8 +74,8 @@ func TestSchoolTreeReadinessScopeFromRequest(t *testing.T) {
 }
 
 func TestNormalizeSchoolTreeInputs(t *testing.T) {
-	school := normalizeSchoolTreeSchoolInput(schoolTreeSchoolInput{Code: "abc sun", Name: " ABC SUN ", Status: ""})
-	if school.Code != "ABC_SUN" || school.Name != "ABC SUN" || school.Status != "active" {
+	school := normalizeSchoolTreeSchoolInput(schoolTreeSchoolInput{Code: "dekisugi", Name: " DEKISUGI ", Status: ""})
+	if school.Code != "DEKISUGI" || school.Name != "DEKISUGI" || school.Status != "active" {
 		t.Fatalf("unexpected normalized school: %+v", school)
 	}
 	if err := validateSchoolTreeSchoolInput(school); err != nil {

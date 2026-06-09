@@ -16,7 +16,7 @@ import (
 
 const (
 	maxMasterDataImportRows = 1000
-	defaultTenantCode       = "ABC_SUN"
+	defaultTenantCode       = "DEKISUGI"
 )
 
 var classGradePattern = regexp.MustCompile(`\d+`)
@@ -374,7 +374,7 @@ func openMasterDataDatabase(ctx context.Context) (*sql.DB, error) {
 	}
 	db, err := openConfiguredDatabase(ctx, cfg)
 	if err != nil {
-		return nil, errors.New("database connection failed; check ABC database environment and server")
+		return nil, errors.New("database connection failed; check DEKISUGI database environment and server")
 	}
 	return db, nil
 }

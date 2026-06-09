@@ -1,0 +1,4 @@
+interface:
+  display_name: "DEKISUGI Landing Page"
+  short_description: "Public landing workflow for this app"
+  default_prompt: "Use $dekisugi-landing-page to update the DEKISUGI public landing page and its Docker surface."

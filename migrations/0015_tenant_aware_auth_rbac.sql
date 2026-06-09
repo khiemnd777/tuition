@@ -5,7 +5,7 @@
 ALTER TABLE app_auth_sessions ADD COLUMN IF NOT EXISTS tenant_id uuid;
 
 UPDATE app_auth_sessions
-SET tenant_id = (SELECT id FROM tenants WHERE code = 'ABC_SUN')
+SET tenant_id = (SELECT id FROM tenants WHERE code = 'DEKISUGI')
 WHERE tenant_id IS NULL;
 
 ALTER TABLE app_auth_sessions ALTER COLUMN tenant_id SET NOT NULL;
@@ -29,7 +29,7 @@ INSERT INTO tenant_user_roles (tenant_id, user_id, role_id, assigned_at, assigne
 SELECT tenant.id, ur.user_id, ur.role_id, ur.assigned_at, ur.assigned_by_user_id
 FROM tenants tenant
 CROSS JOIN app_user_roles ur
-WHERE tenant.code = 'ABC_SUN'
+WHERE tenant.code = 'DEKISUGI'
 ON CONFLICT (tenant_id, user_id, role_id) DO NOTHING;
 
 DO $$

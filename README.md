@@ -1,4 +1,4 @@
-# ABC SUN Finance Hub
+# DEKISUGI Finance Hub
 
 Demo nhỏ để kiểm tra flow sinh VietQR theo danh sách học sinh/phụ huynh trước khi mở rộng import Excel/PDF.
 
@@ -14,7 +14,7 @@ Nếu cổng mặc định đang bận, có thể chạy bằng `PORT=18081 go r
 
 ## Chạy bằng Docker
 
-Stack Docker local dùng project name `finance_hub` và gồm 4 service: `api`, `admin`, `postgres`, và `redis`.
+Stack Docker local dùng project name `finance_hub` và gồm 5 service: `api`, `admin`, `landing`, `postgres`, và `redis`.
 
 ```sh
 cp .env.example .env
@@ -27,20 +27,29 @@ make restart
 - build lại `api` và `admin`
 - khởi động `postgres` và `redis`, chờ health
 - chạy `migrate up` bắt buộc
-- khởi động `api` và `admin`
-- chờ `api` qua `GET /api/v1/readyz`, chờ `auth/bootstrap` usable, và chờ Admin UI sẵn sàng
+- khởi động `api`, `admin`, và `landing`
+- chờ `api` qua `GET /api/v1/readyz`, chờ `auth/bootstrap` usable, chờ Admin UI và Landing Page sẵn sàng
 
-Chỉ khi pipeline hoàn tất thì mở browser tại `http://localhost:18181`.
+Chỉ khi pipeline hoàn tất thì mở browser tại `http://localhost:18181` cho Admin hoặc `http://localhost:18182` cho Landing Page.
+
+Landing Page public có container riêng `finance_hub_landing`, proxy về API để tránh chạy thêm scheduler của Go app. Nếu stack đang chạy sẵn và chỉ muốn bật lại landing:
+
+```sh
+docker compose up -d landing
+```
+
+Mở Landing Page tại `http://localhost:18182`.
 
 Nếu máy đang có service khác ở các cổng mặc định của stack này, override host ports:
 
 ```sh
-API_PORT=18182 ADMIN_PORT=18183 POSTGRES_PORT=15437 REDIS_PORT=16382 make restart
+API_PORT=18183 ADMIN_PORT=18184 LANDING_PORT=18185 POSTGRES_PORT=15437 REDIS_PORT=16382 make restart
 ```
 
 Mặc định:
 
 - Admin UI: `http://localhost:18181`
+- Landing Page: `http://localhost:18182`
 - API trực tiếp: `http://localhost:18180`
 - PostgreSQL: `localhost:15436`
 - Redis: `localhost:16381`
@@ -102,29 +111,29 @@ Repo này có bộ cấu hình Codex/OpenAI local:
 - `docs/initiatives/production-module-roadmap.md`: roadmap production theo từng initiative/module để có thể triển khai từng ngày.
 - `docs/initiatives/current-state.md`: state hiện tại để agent biết đang đến đâu khi bạn hỏi `Đến đâu rồi?` hoặc `bắt đầu tiếp công việc`.
 
-Khi mở Codex trong thư mục này, có thể gọi trực tiếp các skill như `$abcsun-vietqr-payments`, `$abcsun-email-delivery`, hoặc `$abcsun-debug-loop`.
+Khi mở Codex trong thư mục này, có thể gọi trực tiếp các skill như `$dekisugi-vietqr-payments`, `$dekisugi-email-delivery`, hoặc `$dekisugi-debug-loop`.
 
 ## Nền tảng persistence production
 
 Server vẫn khởi động được khi chưa cấu hình database để phục vụ static UI và endpoint QR PNG public, nhưng Web Admin production và các API bảo vệ yêu cầu PostgreSQL. Các lệnh production persistence dùng PostgreSQL và đọc cấu hình từ biến môi trường, không lưu secret trong repo:
 
 ```sh
-export ABC_ENV=local
-export ABC_DATABASE_URL_LOCAL='postgres://user:password@localhost:5432/abcsun?sslmode=disable'
+export DEKISUGI_ENV=local
+export DEKISUGI_DATABASE_URL_LOCAL='postgres://user:password@localhost:5432/dekisugi?sslmode=disable'
 go run . db config
 go run . db ping
 go run . migrate status
 go run . migrate up
 ```
 
-`ABC_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `ABC_DATABASE_URL_LOCAL`, `ABC_DATABASE_URL_STAGING`, `ABC_DATABASE_URL_PRODUCTION`; sau đó fallback sang `ABC_DATABASE_URL` và `DATABASE_URL`.
+`DEKISUGI_ENV` hỗ trợ `local`, `staging`, hoặc `production`. URL database được ưu tiên theo môi trường: `DEKISUGI_DATABASE_URL_LOCAL`, `DEKISUGI_DATABASE_URL_STAGING`, `DEKISUGI_DATABASE_URL_PRODUCTION`; sau đó fallback sang `DEKISUGI_DATABASE_URL` và `DATABASE_URL`.
 
-Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `schools`, `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice. Schema vận hành tạo `operation_logs` để giữ lỗi webhook, email và background job cho production review. Schema auth tạo `app_auth_sessions`, `app_auth_access_tokens`, `app_auth_refresh_tokens`, và thêm `password_hash` vào `app_users`; browser token chỉ lưu hash trong DB. Migration RBAC bổ sung permission cho email config/send/cron để tất cả API production có permission route-level rõ ràng. Migration school tree thêm `schools`, backfill dữ liệu hiện có vào `ABC_SUN`, và gắn năm học/lớp vào cây `school > school year/cohort > class`. Migration user/RBAC mới thêm `phone` cho `app_users`, cho phép Email hoặc SĐT là định danh bắt buộc, seed role `admin`, `staff`, `accountant`, và seed permission canonical dạng `{module}.{action}`. Migration tenant foundation tạo `tenants` và `tenant_memberships`, gắn toàn bộ `schools` hiện có vào tenant mặc định `ABC_SUN`, và chuyển unique school code sang phạm vi `(tenant_id, code)` để chuẩn bị cho subscription nhiều trường. Migration tenant-aware auth/RBAC gắn `app_auth_sessions` vào active tenant, tạo `tenant_user_roles`, và backfill role assignment từ `app_user_roles` vào tenant mặc định. Migration tenant data isolation thêm `tenant_id` cho students, parents, notification campaigns, audit logs, operation logs và chuyển unique student/parent/campaign code/email sang phạm vi tenant. Migration tenant onboarding/switching seed quyền tenant, thêm index membership cho switcher, và bật tạo tenant/school khởi tạo từ Web Admin. Migration actor-model role split tách rõ `platform_admin` khỏi các role tenant `tenant_owner`, `tenant_admin`, `tenant_staff`, `tenant_accountant`, đồng thời backfill role cũ sang mapping mới. Migration `0026_platform_auth_sessions_nullable_tenant` cho phép `app_auth_sessions.tenant_id` nullable để `platform_admin` có thể đăng nhập bằng platform-only session khi không có tenant membership.
+Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `schools`, `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice. Schema vận hành tạo `operation_logs` để giữ lỗi webhook, email và background job cho production review. Schema auth tạo `app_auth_sessions`, `app_auth_access_tokens`, `app_auth_refresh_tokens`, và thêm `password_hash` vào `app_users`; browser token chỉ lưu hash trong DB. Migration RBAC bổ sung permission cho email config/send/cron để tất cả API production có permission route-level rõ ràng. Migration school tree thêm `schools`, backfill dữ liệu hiện có vào `DEKISUGI`, và gắn năm học/lớp vào cây `school > school year/cohort > class`. Migration user/RBAC mới thêm `phone` cho `app_users`, cho phép Email hoặc SĐT là định danh bắt buộc, seed role `admin`, `staff`, `accountant`, và seed permission canonical dạng `{module}.{action}`. Migration tenant foundation tạo `tenants` và `tenant_memberships`, gắn toàn bộ `schools` hiện có vào tenant mặc định `DEKISUGI`, và chuyển unique school code sang phạm vi `(tenant_id, code)` để chuẩn bị cho subscription nhiều trường. Migration tenant-aware auth/RBAC gắn `app_auth_sessions` vào active tenant, tạo `tenant_user_roles`, và backfill role assignment từ `app_user_roles` vào tenant mặc định. Migration tenant data isolation thêm `tenant_id` cho students, parents, notification campaigns, audit logs, operation logs và chuyển unique student/parent/campaign code/email sang phạm vi tenant. Migration tenant onboarding/switching seed quyền tenant, thêm index membership cho switcher, và bật tạo tenant/school khởi tạo từ Web Admin. Migration actor-model role split tách rõ `platform_admin` khỏi các role tenant `tenant_owner`, `tenant_admin`, `tenant_staff`, `tenant_accountant`, đồng thời backfill role cũ sang mapping mới. Migration `0026_platform_auth_sessions_nullable_tenant` cho phép `app_auth_sessions.tenant_id` nullable để `platform_admin` có thể đăng nhập bằng platform-only session khi không có tenant membership.
 
 Quy ước production hiện tại:
 
 - Primary key dùng UUID do PostgreSQL sinh bằng `gen_random_uuid()`.
-- Tenant mặc định hiện là `ABC_SUN`; auth session tự chọn active tenant đầu tiên, route-level RBAC đọc role theo tenant, và các API school-owned production data lọc theo active tenant. Web Admin có tenant switcher, tenant onboarding, và tenant subscription admin cho operator có quyền; ngoài bootstrap `platform_admin`, màn public login còn có luồng `Đăng ký trường` để self-serve tạo tenant mới, school khởi tạo, owner đầu tiên, rồi auto-login vào workspace tenant với role `tenant_owner`. phase thanh toán đã triển khai tenant-scoped provider credentials và webhook ownership: provider list sẽ trả `webhookPath` theo tenant, `payOS` ưu tiên credential trong `payment_providers.config`, và write workflow production sẽ bị chặn khi subscription tenant không còn `active` hoặc `trial`. Subscription Phase 8 bổ sung entitlement/usage metering cho `schools`, `operators`, `students`, và `monthly_notifications`; quota được enforce ở các workflow create/import/send thật và tenant panel hiển thị usage theo plan hiện tại. Subscription Phase 9 bổ sung lane billing riêng cho tenant subscription với `subscription_invoices`, manual mark-paid, và dunning email cho overdue invoice, tách biệt khỏi invoice học phí của học sinh. Subscription Phase 10 bổ sung self-service billing config, renewal preview/generate controls, và finance CSV export cho lane subscription billing. Subscription Phase 11 bổ sung cross-tenant finance console để finance/ops nội bộ theo dõi, preview, và chạy renewal hoặc dunning batch mà không phải switch từng tenant.
+- Tenant mặc định hiện là `DEKISUGI`; auth session tự chọn active tenant đầu tiên, route-level RBAC đọc role theo tenant, và các API school-owned production data lọc theo active tenant. Web Admin có tenant switcher, tenant onboarding, và tenant subscription admin cho operator có quyền; ngoài bootstrap `platform_admin`, màn public login còn có luồng `Đăng ký trường` để self-serve tạo tenant mới, school khởi tạo, owner đầu tiên, rồi auto-login vào workspace tenant với role `tenant_owner`. phase thanh toán đã triển khai tenant-scoped provider credentials và webhook ownership: provider list sẽ trả `webhookPath` theo tenant, `payOS` ưu tiên credential trong `payment_providers.config`, và write workflow production sẽ bị chặn khi subscription tenant không còn `active` hoặc `trial`. Subscription Phase 8 bổ sung entitlement/usage metering cho `schools`, `operators`, `students`, và `monthly_notifications`; quota được enforce ở các workflow create/import/send thật và tenant panel hiển thị usage theo plan hiện tại. Subscription Phase 9 bổ sung lane billing riêng cho tenant subscription với `subscription_invoices`, manual mark-paid, và dunning email cho overdue invoice, tách biệt khỏi invoice học phí của học sinh. Subscription Phase 10 bổ sung self-service billing config, renewal preview/generate controls, và finance CSV export cho lane subscription billing. Subscription Phase 11 bổ sung cross-tenant finance console để finance/ops nội bộ theo dõi, preview, và chạy renewal hoặc dunning batch mà không phải switch từng tenant.
 - Phase C bổ sung tab tenant-facing `Gói & Thanh toán` để owner tự xem plan hiện tại, chọn provider checkout, tạo subscription invoice cho kỳ tiếp theo, và nhận QR hoặc payment link thanh toán mà không cần platform admin thao tác tay.
 - Phase D bổ sung auto-confirm payment cho checkout subscription: webhook/payment event giờ có thể match sang `subscription_invoices`, tự chuyển invoice sang `paid`, và cập nhật `tenant_subscriptions` về `active` mà không phải luôn dựa vào nút `mark-paid` thủ công.
 - Platform/Admin split cleanup bổ sung panel `Platform users` riêng trong `Platform Admin`, tách khỏi `Tenant Access`, để `platform_admin` quản lý operator hệ thống mà không dùng chung form/role lane với tenant operator.
@@ -139,13 +148,13 @@ Quy ước production hiện tại:
 Bootstrap admin đầu tiên sau khi chạy migration auth:
 
 ```sh
-export ABC_AUTH_BOOTSTRAP_EMAIL='admin@example.edu.vn'
-export ABC_AUTH_BOOTSTRAP_PHONE='0901234567'
-export ABC_AUTH_BOOTSTRAP_PASSWORD='change-this-long-password'
-export ABC_AUTH_BOOTSTRAP_DISPLAY_NAME='ABC SUN Admin'
+export DEKISUGI_AUTH_BOOTSTRAP_EMAIL='admin@example.edu.vn'
+export DEKISUGI_AUTH_BOOTSTRAP_PHONE='0901234567'
+export DEKISUGI_AUTH_BOOTSTRAP_PASSWORD='change-this-long-password'
+export DEKISUGI_AUTH_BOOTSTRAP_DISPLAY_NAME='DEKISUGI Admin'
 ```
 
-Nếu `app_users` chưa có user nào, màn đăng nhập sẽ đổi sang form tạo Admin đầu tiên tại URL Web Admin. Form này yêu cầu password và ít nhất một trong hai trường Email hoặc SĐT; bootstrap user được gán `platform_admin` ở cấp hệ thống và `tenant_owner` trong tenant mặc định. Bootstrap qua biến môi trường vẫn được hỗ trợ: khi login với Email/SĐT bootstrap, app tạo/cập nhật user active với cùng mapping role này. Có thể điều chỉnh TTL bằng `ABC_AUTH_ACCESS_TTL` và `ABC_AUTH_REFRESH_TTL` theo định dạng Go duration, ví dụ `15m`, `168h`. Ở production, cookie tự bật `Secure`; local HTTP có thể để mặc định không secure hoặc cấu hình bằng `ABC_AUTH_COOKIE_SECURE`.
+Nếu `app_users` chưa có user nào, màn đăng nhập sẽ đổi sang form tạo Admin đầu tiên tại URL Web Admin. Form này yêu cầu password và ít nhất một trong hai trường Email hoặc SĐT; bootstrap user được gán `platform_admin` ở cấp hệ thống và `tenant_owner` trong tenant mặc định. Bootstrap qua biến môi trường vẫn được hỗ trợ: khi login với Email/SĐT bootstrap, app tạo/cập nhật user active với cùng mapping role này. Có thể điều chỉnh TTL bằng `DEKISUGI_AUTH_ACCESS_TTL` và `DEKISUGI_AUTH_REFRESH_TTL` theo định dạng Go duration, ví dụ `15m`, `168h`. Ở production, cookie tự bật `Secure`; local HTTP có thể để mặc định không secure hoặc cấu hình bằng `DEKISUGI_AUTH_COOKIE_SECURE`.
 
 Role production mặc định:
 
@@ -209,7 +218,7 @@ Quy tắc import:
 
 - `student_code` là bắt buộc và hiện vẫn unique toàn hệ thống để giữ ổn định invoice/payment hiện có.
 - `student_name` không được dùng làm định danh; hai học sinh trùng tên phải có `student_code` khác nhau.
-- `school` là tùy chọn; nếu bỏ trống app dùng trường mặc định `ABC_SUN`.
+- `school` là tùy chọn; nếu bỏ trống app dùng trường mặc định `DEKISUGI`.
 - `school_year` và `class_name` là bắt buộc. `grade` có thể bỏ trống nếu app suy ra được từ `class_name`, ví dụ `3.02` -> `3`.
 - Một học sinh có thể có nhiều phụ huynh; mỗi học sinh chỉ có một phụ huynh chính đang active.
 - `parent_email` được chuẩn hóa lowercase. `parent_phone` được chuẩn hóa về dạng số/SĐT gọn. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
@@ -271,11 +280,11 @@ Ghi nhận tiền mặt yêu cầu người thu tiền, số tiền, lý do và 
 payOS dùng env sau, không commit secret thật:
 
 ```sh
-export ABC_PAYOS_CLIENT_ID='...'
-export ABC_PAYOS_API_KEY='...'
-export ABC_PAYOS_CHECKSUM_KEY='...'
-export ABC_PAYOS_RETURN_URL='https://example.edu.vn/payment-return'
-export ABC_PAYOS_CANCEL_URL='https://example.edu.vn/payment-cancel'
+export DEKISUGI_PAYOS_CLIENT_ID='...'
+export DEKISUGI_PAYOS_API_KEY='...'
+export DEKISUGI_PAYOS_CHECKSUM_KEY='...'
+export DEKISUGI_PAYOS_RETURN_URL='https://example.edu.vn/payment-return'
+export DEKISUGI_PAYOS_CANCEL_URL='https://example.edu.vn/payment-cancel'
 ```
 
 ## Notification campaigns
@@ -336,7 +345,7 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `POST /api/v1/payments/intents`: tạo payment intent cho invoice qua `manual_vietqr`, `sepay`, hoặc `payos`.
 - `GET /api/v1/payments/transactions`: danh sách giao dịch ledger, hỗ trợ `provider`, `status`, `limit`.
 - `GET /api/v1/payments/reconciliation`: dữ liệu tab đối soát gồm provider, master-data filters, summary, invoices, transactions, intents và reconciliation matches theo invoice.
-- `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos` theo tenant mặc định `ABC_SUN` (legacy path, vẫn hỗ trợ), lưu raw event, parse transaction và đối soát.
+- `POST /api/v1/payments/webhooks/{provider}`: nhận webhook `sepay` hoặc `payos` theo tenant mặc định `DEKISUGI` (legacy path, vẫn hỗ trợ), lưu raw event, parse transaction và đối soát.
 - `POST /api/v1/payments/webhooks/{tenantCode}/{provider}`: nhận webhook tenant-scoped theo tenant code, lưu raw event, parse transaction và đối soát.
 - `POST /api/v1/payments/cash-receipts`: ghi nhận phiếu thu tiền mặt vào ledger và invoice; yêu cầu lý do audit qua `reason`.
 - `GET /api/v1/subscriptions/plans`: danh sách subscription plan cho tenant admin.
@@ -359,8 +368,8 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 Subscription automation scheduler Phase 12:
 
 - Billing config của tenant active có thêm `automationEnabled`, `renewalLeadDays`, `dunningEnabled`, `dunningIntervalDays`, `suspendEnabled`, và `suspendAfterDays`.
-- Background scheduler chỉ bật khi `ABC_SUBSCRIPTION_AUTOMATION_ENABLED=true`.
-- Có thể chỉnh chu kỳ scheduler bằng `ABC_SUBSCRIPTION_AUTOMATION_INTERVAL`, ví dụ `5m`, `15m`, hoặc `1h`.
+- Background scheduler chỉ bật khi `DEKISUGI_SUBSCRIPTION_AUTOMATION_ENABLED=true`.
+- Có thể chỉnh chu kỳ scheduler bằng `DEKISUGI_SUBSCRIPTION_AUTOMATION_INTERVAL`, ví dụ `5m`, `15m`, hoặc `1h`.
 - Scheduler dùng cùng renewal/dunning flow của finance console, nhưng dunning có cooldown theo `dunningIntervalDays` để tránh gửi lặp mỗi tick.
 - `GET /api/v1/notifications/options`: danh sách template, campaign, năm học và lớp cho tab thông báo.
 - `GET /api/v1/notifications/templates`: danh sách notification template/version.
@@ -417,7 +426,7 @@ Các trường cần nhập trong UI:
 - `Gmail address`: tài khoản Gmail/Google Workspace dùng để gửi.
 - `Gmail app password`: mật khẩu ứng dụng 16 ký tự của Gmail.
 - `Resend API key`: chỉ cần khi chọn Resend, key dạng `re_...`.
-- `From`: ví dụ `ABC SUN <billing@example.edu.vn>`. Với Gmail, nếu để trống app dùng `Gmail address`.
+- `From`: ví dụ `DEKISUGI <billing@example.edu.vn>`. Với Gmail, nếu để trống app dùng `Gmail address`.
 - `Reply-To`: email nhận phản hồi
 - `Public URL`: domain public của app nếu muốn `QR Link` mở được ngoài máy local
 

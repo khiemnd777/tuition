@@ -2,7 +2,7 @@
 
 ## Project
 
-ABC SUN QR Generating System is a small Go app for school payment workflows. It imports payment rows, generates VietQR payloads/PNG images, previews and sends payment emails, and can queue email batches through a local cron state file.
+DEKISUGI QR Generating System is a small Go app for school payment workflows. It imports payment rows, generates VietQR payloads/PNG images, previews and sends payment emails, and can queue email batches through a local cron state file.
 
 ## Runbook
 
@@ -45,29 +45,32 @@ ABC SUN QR Generating System is a small Go app for school payment workflows. It 
 
 Repo-scoped skills live under `.agents/skills` and follow the OpenAI/Codex `SKILL.md` format.
 
-- `$abcsun-change-workflow`: default workflow for scoped repo changes.
-- `$abcsun-vietqr-payments`: QR payload, payment rows, CSV import, fee totals, PNG output.
-- `$abcsun-email-delivery`: email config, templates, Gmail/Resend, cron, quota.
-- `$abcsun-frontend-ui`: embedded vanilla web UI workflow.
-- `$abcsun-debug-loop`: reproduction-first debugging.
-- `$abcsun-tdd-slice`: one-behavior-at-a-time TDD.
+- `$dekisugi-change-workflow`: default workflow for scoped repo changes.
+- `$dekisugi-vietqr-payments`: QR payload, payment rows, CSV import, fee totals, PNG output.
+- `$dekisugi-email-delivery`: email config, templates, Gmail/Resend, cron, quota.
+- `$dekisugi-frontend-ui`: embedded vanilla web UI workflow.
+- `$dekisugi-landing-page`: public Landing Page, subscription plan display, Login/Enrollment navigation, hover transforms, and `finance_hub_landing`.
+- `$dekisugi-debug-loop`: reproduction-first debugging.
+- `$dekisugi-tdd-slice`: one-behavior-at-a-time TDD.
 
 ## Custom Subagents
 
 Custom agents live under `.codex/agents`.
 
-- `abcsun_code_mapper`: read-only codepath exploration.
-- `abcsun_qr_payment_engineer`: QR/payment implementation.
-- `abcsun_email_delivery_engineer`: email/cron implementation.
-- `abcsun_frontend_ui_engineer`: UI implementation and browser verification.
-- `abcsun_repo_reviewer`: correctness/security/test review.
-- `abcsun_openai_docs_researcher`: OpenAI docs lookup for Codex/skill/subagent questions.
+- `dekisugi_code_mapper`: read-only codepath exploration.
+- `dekisugi_qr_payment_engineer`: QR/payment implementation.
+- `dekisugi_email_delivery_engineer`: email/cron implementation.
+- `dekisugi_frontend_ui_engineer`: UI implementation and browser verification.
+- `dekisugi_landing_page_engineer`: public Landing Page and landing Docker surface implementation.
+- `dekisugi_repo_reviewer`: correctness/security/test review.
+- `dekisugi_openai_docs_researcher`: OpenAI docs lookup for Codex/skill/subagent questions.
 
 ## Documentation
 
 - `CONTEXT.md` is the domain glossary. Keep it implementation-free.
 - `docs/adr/` records durable architecture decisions.
 - `docs/agents/` explains repo-local agent setup assumptions.
+- `docs/landing/DESIGN.md` records Landing Page design, interaction, data, and Docker runtime rules.
 - `docs/initiatives/production-module-roadmap.md` records the production module roadmap.
 - `docs/initiatives/current-state.md` records cross-session initiative progress.
 

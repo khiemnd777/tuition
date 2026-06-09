@@ -279,6 +279,10 @@ func handleSubscriptionInvoiceGenerate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
 	activeTenantID, ok := requireActiveTenantID(w, r)
 	if !ok {
 		return
@@ -314,6 +318,10 @@ func handleSubscriptionInvoiceMarkPaid(w http.ResponseWriter, r *http.Request) {
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
 		return
 	}
 	activeTenantID, ok := requireActiveTenantID(w, r)
@@ -357,6 +365,10 @@ func handleSubscriptionDunningRun(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
 	activeTenantID, ok := requireActiveTenantID(w, r)
 	if !ok {
 		return
@@ -380,7 +392,7 @@ func handleSubscriptionDunningRun(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	cfg, _ := loadEmailConfig()
+	cfg, _ := loadTenantEmailConfig(r.Context(), db, input.TenantID)
 	results, err := runSubscriptionDunning(r.Context(), db, user, input, auditContextFromRequest(r), appBaseURL(r, cfg))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -399,6 +411,10 @@ func handleSubscriptionBillingConfigSave(w http.ResponseWriter, r *http.Request)
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
 		return
 	}
 	activeTenantID, ok := requireActiveTenantID(w, r)
@@ -488,6 +504,10 @@ func handleSubscriptionPurchaseCheckout(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
 	activeTenantID, ok := requireActiveTenantID(w, r)
 	if !ok {
 		return
@@ -551,6 +571,10 @@ func handleSubscriptionFinanceRenewals(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
 		return
 	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
+		return
+	}
 	activeTenantID := activeTenantIDFromRequest(r)
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var input subscriptionBatchRunInput
@@ -587,6 +611,10 @@ func handleSubscriptionFinanceDunning(w http.ResponseWriter, r *http.Request) {
 	user, ok := authenticatedUserFromRequest(r)
 	if !ok {
 		http.Error(w, "not authenticated", http.StatusUnauthorized)
+		return
+	}
+	if !user.IsPlatformAdmin {
+		http.Error(w, "platform admin required", http.StatusForbidden)
 		return
 	}
 	activeTenantID := activeTenantIDFromRequest(r)
@@ -743,10 +771,7 @@ func normalizeSubscriptionInvoiceGenerateInput(input subscriptionInvoiceGenerate
 func normalizeSubscriptionPurchaseCheckoutInput(input subscriptionPurchaseCheckoutInput, activeTenantID string) subscriptionPurchaseCheckoutInput {
 	input.TenantID = firstNonEmpty(strings.TrimSpace(input.TenantID), strings.TrimSpace(activeTenantID))
 	input.PlanCode = headerKey(input.PlanCode)
-	input.Provider = headerKey(input.Provider)
-	if input.Provider == "" {
-		input.Provider = paymentProviderManualVietQR
-	}
+	input.Provider = ""
 	input.PeriodStartsAt = strings.TrimSpace(input.PeriodStartsAt)
 	input.PeriodEndsAt = strings.TrimSpace(input.PeriodEndsAt)
 	input.DueAt = strings.TrimSpace(input.DueAt)
@@ -759,9 +784,6 @@ func validateSubscriptionPurchaseCheckoutInput(input subscriptionPurchaseCheckou
 	}
 	if strings.TrimSpace(input.PlanCode) == "" {
 		return fmt.Errorf("planCode is required")
-	}
-	if input.Provider != paymentProviderManualVietQR && input.Provider != paymentProviderPayOS && input.Provider != paymentProviderSePay {
-		return fmt.Errorf("provider must be manual_vietqr, sepay, or payos")
 	}
 	if strings.TrimSpace(input.PeriodStartsAt) == "" {
 		return fmt.Errorf("periodStartsAt is required")
@@ -1352,7 +1374,11 @@ RETURNING id::text`,
 }
 
 func createSubscriptionCheckout(ctx context.Context, db *sql.DB, user authenticatedUser, input subscriptionPurchaseCheckoutInput, auditCtx requestAuditContext) (subscriptionCheckoutResult, error) {
-	provider, err := loadPaymentProviderByCode(ctx, db, input.TenantID, input.Provider)
+	providerCode, err := loadTenantDefaultPaymentProviderCode(ctx, db, input.TenantID)
+	if err != nil {
+		return subscriptionCheckoutResult{}, err
+	}
+	provider, err := loadPaymentProviderByCode(ctx, db, input.TenantID, providerCode)
 	if err != nil {
 		return subscriptionCheckoutResult{}, err
 	}
@@ -1572,14 +1598,14 @@ func runSubscriptionDunningForInvoices(ctx context.Context, db *sql.DB, user aut
 		}
 		return results, nil
 	}
-	cfg, err := loadEmailConfig()
+	cfg, err := loadTenantEmailConfig(ctx, db, input.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	if err := validateEmailConfigForSend(cfg); err != nil {
 		return nil, err
 	}
-	quota, err := emailSendQuotaStatus(time.Now())
+	quota, err := emailSendQuotaStatusForTenant(ctx, input.TenantID, time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -1655,7 +1681,7 @@ func runSubscriptionDunningForInvoices(ctx context.Context, db *sql.DB, user aut
 		results = append(results, invoiceResult)
 	}
 	if sent > 0 {
-		recordEmailCronSent(sent, time.Now())
+		recordEmailCronSentForTenant(ctx, input.TenantID, sent, time.Now())
 	}
 	auditCtx.TenantID = input.TenantID
 	_ = insertAuditLog(ctx, db, auditLogInput{
@@ -2119,7 +2145,7 @@ func buildSubscriptionBillingCSV(ctx context.Context, db *sql.DB, filters subscr
 	if err != nil {
 		return "", nil, err
 	}
-	filename := fmt.Sprintf("abcsun-subscription-%s-%s.csv", filters.Dataset, time.Now().Format("20060102"))
+	filename := fmt.Sprintf("dekisugi-subscription-%s-%s.csv", filters.Dataset, time.Now().Format("20060102"))
 	return filename, data, nil
 }
 
@@ -2399,18 +2425,17 @@ func runSubscriptionDunningBatch(ctx context.Context, db *sql.DB, user authentic
 	if err != nil {
 		return nil, err
 	}
-	cfg, _ := loadEmailConfig()
-	baseURL := appBaseURL(r, cfg)
 	results := []subscriptionBatchTenantResult{}
 	for _, row := range rows {
 		if row.PastDueCount == 0 && !(row.LatestInvoiceStatus == subscriptionInvoiceStatusOpen && row.LatestDueAt != "" && row.LatestDueAt <= time.Now().UTC().Format("2006-01-02")) {
 			continue
 		}
+		cfg, _ := loadTenantEmailConfig(ctx, db, row.TenantID)
 		dunningResults, err := runSubscriptionDunning(ctx, db, user, subscriptionDunningRunInput{
 			TenantID:    row.TenantID,
 			DryRun:      input.DryRun,
 			ConfirmSend: input.ConfirmRun,
-		}, auditCtx, baseURL)
+		}, auditCtx, appBaseURL(r, cfg))
 		if err != nil {
 			results = append(results, subscriptionBatchTenantResult{
 				TenantID:   row.TenantID,
@@ -2469,7 +2494,7 @@ func buildSubscriptionFinanceConsoleCSV(ctx context.Context, db *sql.DB, filters
 	if err != nil {
 		return "", nil, err
 	}
-	return fmt.Sprintf("abcsun-subscription-finance-%s-%s.csv", dataset, time.Now().Format("20060102")), data, nil
+	return fmt.Sprintf("dekisugi-subscription-finance-%s-%s.csv", dataset, time.Now().Format("20060102")), data, nil
 }
 
 func filterSubscriptionFinanceRows(rows []subscriptionFinanceConsoleRow, keep func(subscriptionFinanceConsoleRow) bool) []subscriptionFinanceConsoleRow {

@@ -1,4 +1,4 @@
-module abcsun-vietqr-demo
+module dekisugi-vietqr-demo
 
 go 1.23.0
 

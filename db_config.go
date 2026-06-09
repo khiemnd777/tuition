@@ -48,9 +48,9 @@ func loadDatabaseConfigFromLookup(lookup func(string) (string, bool)) (databaseC
 	}
 
 	url, source := firstEnvValue(lookup, databaseURLCandidates(env)...)
-	table := envString(lookup, "ABC_DB_MIGRATIONS_TABLE", defaultMigrationTable)
+	table := envString(lookup, "DEKISUGI_DB_MIGRATIONS_TABLE", defaultMigrationTable)
 	if !sqlIdentifierPattern.MatchString(table) {
-		return databaseConfig{}, fmt.Errorf("ABC_DB_MIGRATIONS_TABLE must be a simple SQL identifier")
+		return databaseConfig{}, fmt.Errorf("DEKISUGI_DB_MIGRATIONS_TABLE must be a simple SQL identifier")
 	}
 
 	return databaseConfig{
@@ -58,14 +58,14 @@ func loadDatabaseConfigFromLookup(lookup func(string) (string, bool)) (databaseC
 		URL:             url,
 		URLSource:       source,
 		MigrationsTable: table,
-		MaxOpenConns:    envPositiveInt(lookup, "ABC_DB_MAX_OPEN_CONNS", defaultMaxOpenConns),
-		MaxIdleConns:    envPositiveInt(lookup, "ABC_DB_MAX_IDLE_CONNS", defaultMaxIdleConns),
-		ConnMaxLifetime: envDuration(lookup, "ABC_DB_CONN_MAX_LIFETIME", defaultConnMaxLifetime),
+		MaxOpenConns:    envPositiveInt(lookup, "DEKISUGI_DB_MAX_OPEN_CONNS", defaultMaxOpenConns),
+		MaxIdleConns:    envPositiveInt(lookup, "DEKISUGI_DB_MAX_IDLE_CONNS", defaultMaxIdleConns),
+		ConnMaxLifetime: envDuration(lookup, "DEKISUGI_DB_CONN_MAX_LIFETIME", defaultConnMaxLifetime),
 	}, nil
 }
 
 func loadAppEnvironment(lookup func(string) (string, bool)) (string, error) {
-	raw, _ := firstEnvValue(lookup, "ABC_ENV", "APP_ENV")
+	raw, _ := firstEnvValue(lookup, "DEKISUGI_ENV", "APP_ENV")
 	if raw == "" {
 		return appEnvLocal, nil
 	}
@@ -87,8 +87,8 @@ func normalizeAppEnvironment(raw string) (string, error) {
 
 func databaseURLCandidates(env string) []string {
 	return []string{
-		"ABC_DATABASE_URL_" + strings.ToUpper(env),
-		"ABC_DATABASE_URL",
+		"DEKISUGI_DATABASE_URL_" + strings.ToUpper(env),
+		"DEKISUGI_DATABASE_URL",
 		"DATABASE_URL",
 	}
 }
@@ -97,7 +97,7 @@ func (cfg databaseConfig) requireURL() error {
 	if strings.TrimSpace(cfg.URL) != "" {
 		return nil
 	}
-	return fmt.Errorf("database URL is required; set %s, ABC_DATABASE_URL, or DATABASE_URL", databaseURLCandidates(cfg.Environment)[0])
+	return fmt.Errorf("database URL is required; set %s, DEKISUGI_DATABASE_URL, or DATABASE_URL", databaseURLCandidates(cfg.Environment)[0])
 }
 
 func openConfiguredDatabase(ctx context.Context, cfg databaseConfig) (*sql.DB, error) {

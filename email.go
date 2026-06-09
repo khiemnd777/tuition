@@ -118,7 +118,8 @@ type resendTag struct {
 func handleEmailConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		cfg, err := loadEmailConfig()
+		tenantID := activeTenantIDFromRequest(r)
+		cfg, err := loadEmailConfigForTenant(r.Context(), tenantID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -131,7 +132,8 @@ func handleEmailConfig(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid json body", http.StatusBadRequest)
 			return
 		}
-		current, _ := loadEmailConfig()
+		tenantID := activeTenantIDFromRequest(r)
+		current, _ := loadEmailConfigForTenant(r.Context(), tenantID)
 		req = normalizeEmailConfig(req)
 		if req.APIKey == "" {
 			req.APIKey = current.APIKey
@@ -139,7 +141,20 @@ func handleEmailConfig(w http.ResponseWriter, r *http.Request) {
 		if req.GmailAppPassword == "" {
 			req.GmailAppPassword = current.GmailAppPassword
 		}
-		if err := saveEmailConfig(req); err != nil {
+		var err error
+		if tenantID == "" {
+			err = saveEmailConfig(req)
+		} else {
+			user, _ := authenticatedUserFromRequest(r)
+			db, openErr := openMasterDataDatabase(r.Context())
+			if openErr != nil {
+				writeMasterDataDBError(w, openErr)
+				return
+			}
+			defer db.Close()
+			err = saveTenantEmailConfig(r.Context(), db, tenantID, req, user.ID)
+		}
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -156,7 +171,8 @@ func handleEmailPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json body", http.StatusBadRequest)
 		return
 	}
-	cfg, err := loadEmailConfig()
+	tenantID := activeTenantIDFromRequest(r)
+	cfg, err := loadEmailConfigForTenant(r.Context(), tenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -198,7 +214,8 @@ func handleEmailSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := loadEmailConfig()
+	tenantID := activeTenantIDFromRequest(r)
+	cfg, err := loadEmailConfigForTenant(r.Context(), tenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -213,7 +230,7 @@ func handleEmailSend(w http.ResponseWriter, r *http.Request) {
 	baseURL := appBaseURL(r, cfg)
 	sentLimit := 0
 	if !req.DryRun {
-		quota, err := emailSendQuotaStatus(time.Now())
+		quota, err := emailSendQuotaStatusForTenant(r.Context(), tenantID, time.Now())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -227,7 +244,7 @@ func handleEmailSend(w http.ResponseWriter, r *http.Request) {
 
 	results := sendPaymentEmailRows(r.Context(), cfg, req.Rows, req.Template, baseURL, req.DryRun, sentLimit)
 	if !req.DryRun {
-		recordEmailCronSent(countSentEmails(results), time.Now())
+		recordEmailCronSentForTenant(r.Context(), tenantID, countSentEmails(results), time.Now())
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
@@ -310,6 +327,29 @@ func sendPaymentEmailRow(ctx context.Context, cfg emailConfig, row paymentRow, t
 	result.ResendID = outcome.ResendID
 	result.MessageID = outcome.MessageID
 	return result
+}
+
+func sendSimpleEmail(ctx context.Context, cfg emailConfig, to string, subject string, htmlBody string, textBody string) (emailSendOutcome, error) {
+	cfg = normalizeEmailConfig(cfg)
+	if err := validateEmailConfigForSend(cfg); err != nil {
+		return emailSendOutcome{}, err
+	}
+	item := qrItem{
+		paymentRow: paymentRow{
+			ID:          "transactional-email",
+			Email:       strings.TrimSpace(to),
+			StudentName: strings.TrimSpace(to),
+			BillNumber:  "transactional",
+		},
+	}
+	if item.Email == "" || !strings.Contains(item.Email, "@") {
+		return emailSendOutcome{}, fmt.Errorf("valid recipient email is required")
+	}
+	return sendRenderedEmail(ctx, cfg, item, renderedEmail{
+		Subject: strings.TrimSpace(subject),
+		HTML:    htmlBody,
+		Text:    textBody,
+	})
 }
 
 func loadEmailConfig() (emailConfig, error) {
@@ -634,7 +674,7 @@ func sendResendEmail(ctx context.Context, cfg emailConfig, item qrItem, email re
 	}
 	req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "abcsun-vietqr-demo/1.0")
+	req.Header.Set("User-Agent", "dekisugi-vietqr-demo/1.0")
 
 	client := &http.Client{Timeout: 20 * time.Second}
 	resp, err := client.Do(req)

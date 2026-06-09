@@ -1,6 +1,6 @@
 # Production Operations Runbook
 
-This runbook covers deployment readiness, staging smoke tests, rollback, and incident response for the ABC SUN production modules.
+This runbook covers deployment readiness, staging smoke tests, rollback, and incident response for the DEKISUGI production modules.
 
 ## Pre-Deploy Checklist
 
@@ -14,15 +14,15 @@ go run . migrate status
 Verify environment configuration without printing secrets:
 
 ```sh
-ABC_ENV=staging go run . db config
-ABC_ENV=staging go run . db ping
+DEKISUGI_ENV=staging go run . db config
+DEKISUGI_ENV=staging go run . db ping
 ```
 
 Before production schema changes, take and verify a fresh backup using `docs/runbooks/backup-restore.md`.
 
 ## Deployment Sequence
 
-1. Confirm the target environment: `ABC_ENV=staging` or `ABC_ENV=production`.
+1. Confirm the target environment: `DEKISUGI_ENV=staging` or `DEKISUGI_ENV=production`.
 2. Confirm database URL comes from the environment or secret manager, not a tracked file.
 3. Run `go run . migrate status`.
 4. Run `go run . migrate up`.

@@ -1,9 +1,9 @@
 ---
-name: abcsun-email-delivery
-description: Email delivery workflow for the ABC SUN app. Use when changing email configuration, Gmail SMTP, Resend sending, MIME assembly, inline QR attachments, email templates, preview/dry-run behavior, cron queueing, rolling 24-hour quota, or provider validation.
+name: dekisugi-email-delivery
+description: Email delivery workflow for the DEKISUGI app. Use when changing email configuration, Gmail SMTP, Resend sending, MIME assembly, inline QR attachments, email templates, preview/dry-run behavior, cron queueing, rolling 24-hour quota, or provider validation.
 ---
 
-# ABC SUN Email Delivery
+# DEKISUGI Email Delivery
 
 Use this for payment email preview, send, provider, and cron work.
 

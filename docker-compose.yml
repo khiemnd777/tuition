@@ -11,8 +11,8 @@ services:
     env_file:
       - .env
     environment:
-      ABC_ENV: ${ABC_ENV:-local}
-      ABC_DATABASE_URL_LOCAL: ${ABC_DATABASE_URL_LOCAL:-postgres://abcsun:abcsun_local_password@postgres:5432/abcsun?sslmode=disable}
+      DEKISUGI_ENV: ${DEKISUGI_ENV:-local}
+      DEKISUGI_DATABASE_URL_LOCAL: ${DEKISUGI_DATABASE_URL_LOCAL:-postgres://dekisugi:dekisugi_local_password@postgres:5432/dekisugi?sslmode=disable}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       PORT: 18080
     ports:
@@ -52,14 +52,32 @@ services:
       retries: 3
       start_period: 5s
 
+  landing:
+    container_name: finance_hub_landing
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${LANDING_PORT:-18182}:80"
+    volumes:
+      - ./docker/landing.nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
   postgres:
     container_name: finance_hub_postgres
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-abcsun}
-      POSTGRES_USER: ${POSTGRES_USER:-abcsun}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-abcsun_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-dekisugi}
+      POSTGRES_USER: ${POSTGRES_USER:-dekisugi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dekisugi_local_password}
     ports:
       - "${POSTGRES_PORT:-15436}:5432"
     volumes:

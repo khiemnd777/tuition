@@ -133,7 +133,7 @@ func runServer() {
 	go startEmailCronScheduler(ctx)
 	go startSubscriptionAutomationScheduler(ctx)
 
-	log.Printf("ABC SUN Finance Hub: %s", localServerURL(addr))
+	log.Printf("DEKISUGI Finance Hub: %s", localServerURL(addr))
 	log.Fatal(server.ListenAndServe())
 }
 

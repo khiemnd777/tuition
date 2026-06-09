@@ -193,13 +193,13 @@ func TestPreferredAuthSessionTenantIDUsesActiveTenantWhenPresent(t *testing.T) {
 }
 
 func TestEnsureBootstrapAdminDoesNotOverwriteExistingPassword(t *testing.T) {
-	dbURL := os.Getenv("ABC_DATABASE_URL_LOCAL")
+	dbURL := os.Getenv("DEKISUGI_DATABASE_URL_LOCAL")
 	if dbURL == "" {
-		t.Skip("ABC_DATABASE_URL_LOCAL is not set")
+		t.Skip("DEKISUGI_DATABASE_URL_LOCAL is not set")
 	}
 
-	t.Setenv("ABC_ENV", "local")
-	t.Setenv("ABC_DATABASE_URL_LOCAL", dbURL)
+	t.Setenv("DEKISUGI_ENV", "local")
+	t.Setenv("DEKISUGI_DATABASE_URL_LOCAL", dbURL)
 
 	db, err := openMasterDataDatabase(context.Background())
 	if err != nil {
@@ -216,10 +216,10 @@ func TestEnsureBootstrapAdminDoesNotOverwriteExistingPassword(t *testing.T) {
 	cleanupBootstrapTestUser(t, db, email, phone)
 	defer cleanupBootstrapTestUser(t, db, email, phone)
 
-	t.Setenv("ABC_AUTH_BOOTSTRAP_EMAIL", email)
-	t.Setenv("ABC_AUTH_BOOTSTRAP_PHONE", phone)
-	t.Setenv("ABC_AUTH_BOOTSTRAP_PASSWORD", initialPassword)
-	t.Setenv("ABC_AUTH_BOOTSTRAP_DISPLAY_NAME", "Bootstrap Test")
+	t.Setenv("DEKISUGI_AUTH_BOOTSTRAP_EMAIL", email)
+	t.Setenv("DEKISUGI_AUTH_BOOTSTRAP_PHONE", phone)
+	t.Setenv("DEKISUGI_AUTH_BOOTSTRAP_PASSWORD", initialPassword)
+	t.Setenv("DEKISUGI_AUTH_BOOTSTRAP_DISPLAY_NAME", "Bootstrap Test")
 
 	if err := ensureBootstrapAdmin(context.Background(), db); err != nil {
 		t.Fatalf("ensureBootstrapAdmin create failed: %v", err)
@@ -233,7 +233,7 @@ func TestEnsureBootstrapAdminDoesNotOverwriteExistingPassword(t *testing.T) {
 		t.Fatal("expected bootstrap-created user to accept initial password")
 	}
 
-	t.Setenv("ABC_AUTH_BOOTSTRAP_PASSWORD", updatedPassword)
+	t.Setenv("DEKISUGI_AUTH_BOOTSTRAP_PASSWORD", updatedPassword)
 	if err := ensureBootstrapAdmin(context.Background(), db); err != nil {
 		t.Fatalf("ensureBootstrapAdmin re-run failed: %v", err)
 	}

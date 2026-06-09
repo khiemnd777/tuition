@@ -5,7 +5,7 @@
 ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS tenant_id uuid;
 
 UPDATE payment_providers
-SET tenant_id = (SELECT id FROM tenants WHERE code = 'ABC_SUN')
+SET tenant_id = (SELECT id FROM tenants WHERE code = 'DEKISUGI')
 WHERE tenant_id IS NULL;
 
 ALTER TABLE payment_providers ALTER COLUMN tenant_id SET NOT NULL;
@@ -37,9 +37,9 @@ FROM tenants tenant
 CROSS JOIN (
 	SELECT code, display_name, provider_type, status, config
 	FROM payment_providers
-	WHERE tenant_id = (SELECT id FROM tenants WHERE code = 'ABC_SUN')
+	WHERE tenant_id = (SELECT id FROM tenants WHERE code = 'DEKISUGI')
 ) template
-WHERE tenant.code <> 'ABC_SUN'
+WHERE tenant.code <> 'DEKISUGI'
 ON CONFLICT (tenant_id, code) DO UPDATE
 SET display_name = EXCLUDED.display_name,
 	provider_type = EXCLUDED.provider_type,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DEKISUGI Frontend UI"
+  short_description: "Vanilla web UI workflow for this app"
+  default_prompt: "Use $dekisugi-frontend-ui to update the DEKISUGI browser UI and verify the workflow."

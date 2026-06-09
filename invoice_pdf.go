@@ -15,8 +15,8 @@ func renderInvoicePDF(invoice invoiceDocument, qr qrItem) ([]byte, error) {
 	}
 
 	var content strings.Builder
-	addPDFText(&content, 48, 798, 18, "ABC SUN Invoice Receipt")
-	addPDFText(&content, 48, 774, 11, "School: ABC SUN")
+	addPDFText(&content, 48, 798, 18, "DEKISUGI Invoice Receipt")
+	addPDFText(&content, 48, 774, 11, "School: DEKISUGI")
 	addPDFText(&content, 48, 752, 11, "Invoice: "+invoice.InvoiceCode)
 	addPDFText(&content, 48, 734, 10, "Student: "+invoice.StudentName+" ("+invoice.StudentCode+")")
 	addPDFText(&content, 48, 718, 10, "Class: "+invoice.ClassName+" | Period: "+invoice.PeriodCode)

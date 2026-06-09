@@ -318,6 +318,10 @@ const appContextPeriodEl = document.querySelector("#appContextPeriod");
 const appContextMonthEl = document.querySelector("#appContextMonth");
 const loginScreenEl = document.querySelector("#loginScreen");
 const appShellEl = document.querySelector("#appShell");
+const landingPlanStatusEl = document.querySelector("#landingPlanStatus");
+const landingPlanGridEl = document.querySelector("#landingPlanGrid");
+const landingAccessEl = document.querySelector("#landingAccess");
+const landingModeButtons = [...document.querySelectorAll("[data-landing-mode]")];
 const loginFormEl = document.querySelector("#loginForm");
 const loginEmailEl = document.querySelector("#loginEmail");
 const loginPasswordEl = document.querySelector("#loginPassword");
@@ -325,6 +329,7 @@ const loginSubmitBtn = document.querySelector("#loginSubmit");
 const loginStatusEl = document.querySelector("#loginStatus");
 const showLoginModeBtn = document.querySelector("#showLoginMode");
 const showSignupModeBtn = document.querySelector("#showSignupMode");
+const showPasswordResetModeBtn = document.querySelector("#showPasswordResetMode");
 const bootstrapFormEl = document.querySelector("#bootstrapForm");
 const bootstrapDisplayNameEl = document.querySelector("#bootstrapDisplayName");
 const bootstrapEmailEl = document.querySelector("#bootstrapEmail");
@@ -335,16 +340,22 @@ const bootstrapSubmitBtn = document.querySelector("#bootstrapSubmit");
 const bootstrapStatusEl = document.querySelector("#bootstrapStatus");
 const signupFormEl = document.querySelector("#signupForm");
 const signupTenantNameEl = document.querySelector("#signupTenantName");
-const signupTenantCodeEl = document.querySelector("#signupTenantCode");
-const signupSchoolNameEl = document.querySelector("#signupSchoolName");
-const signupSchoolCodeEl = document.querySelector("#signupSchoolCode");
+const signupDesiredPlanEl = document.querySelector("#signupDesiredPlan");
 const signupOwnerDisplayNameEl = document.querySelector("#signupOwnerDisplayName");
 const signupOwnerEmailEl = document.querySelector("#signupOwnerEmail");
 const signupOwnerPhoneEl = document.querySelector("#signupOwnerPhone");
-const signupPasswordEl = document.querySelector("#signupPassword");
-const signupPasswordConfirmEl = document.querySelector("#signupPasswordConfirm");
+const signupNoteEl = document.querySelector("#signupNote");
 const signupSubmitBtn = document.querySelector("#signupSubmit");
 const signupStatusEl = document.querySelector("#signupStatus");
+const passwordResetFormEl = document.querySelector("#passwordResetForm");
+const passwordResetIdentifierEl = document.querySelector("#passwordResetIdentifier");
+const passwordResetRequestBtn = document.querySelector("#passwordResetRequest");
+const passwordResetTokenEl = document.querySelector("#passwordResetToken");
+const passwordResetNewPasswordEl = document.querySelector("#passwordResetNewPassword");
+const passwordResetConfirmPasswordEl = document.querySelector("#passwordResetConfirmPassword");
+const passwordResetSubmitBtn = document.querySelector("#passwordResetSubmit");
+const passwordResetBackToLoginBtn = document.querySelector("#passwordResetBackToLogin");
+const passwordResetStatusEl = document.querySelector("#passwordResetStatus");
 const tenantOnboardingBannerEl = document.querySelector("#tenantOnboardingBanner");
 const refreshSubscriptionPurchaseBtn = document.querySelector("#refreshSubscriptionPurchase");
 const subscriptionPurchaseStatusEl = document.querySelector("#subscriptionPurchaseStatus");
@@ -358,6 +369,14 @@ const subscriptionPurchaseAmountEl = document.querySelector("#subscriptionPurcha
 const startSubscriptionCheckoutBtn = document.querySelector("#startSubscriptionCheckout");
 const subscriptionCheckoutResultEl = document.querySelector("#subscriptionCheckoutResult");
 const subscriptionPurchaseInvoicesEl = document.querySelector("#subscriptionPurchaseInvoices");
+const openSubscriptionChangeRequestBtn = document.querySelector("#openSubscriptionChangeRequest");
+const subscriptionChangeRequestsListEl = document.querySelector("#subscriptionChangeRequestsList");
+const subscriptionChangeRequestFormEl = document.querySelector("#subscriptionChangeRequestForm");
+const subscriptionChangeRequestTypeEl = document.querySelector("#subscriptionChangeRequestType");
+const subscriptionChangeRequestPlanEl = document.querySelector("#subscriptionChangeRequestPlan");
+const subscriptionChangeRequestEffectiveAtEl = document.querySelector("#subscriptionChangeRequestEffectiveAt");
+const subscriptionChangeRequestRefundAmountEl = document.querySelector("#subscriptionChangeRequestRefundAmount");
+const subscriptionChangeRequestReasonEl = document.querySelector("#subscriptionChangeRequestReason");
 const authUserBadgeEl = document.querySelector("#authUserBadge");
 const tenantSwitcherWrapEl = document.querySelector("#tenantSwitcherWrap");
 const tenantSwitcherEl = document.querySelector("#tenantSwitcher");
@@ -380,6 +399,23 @@ const tenantSummaryEl = document.querySelector("#tenantSummary");
 const tenantListEl = document.querySelector("#tenantList");
 const tenantDetailTabButtons = [...document.querySelectorAll("[data-tenant-detail-tab]")];
 const tenantDetailPanels = [...document.querySelectorAll("[data-tenant-detail-panel]")];
+const refreshPlatformIntakeRequestsBtn = document.querySelector("#refreshPlatformIntakeRequests");
+const platformIntakeListEl = document.querySelector("#platformIntakeList");
+const tenantOnboardFormEl = document.querySelector("#tenantOnboardForm");
+const tenantOnboardIntakeIdEl = document.querySelector("#tenantOnboardIntakeId");
+const tenantOnboardTenantCodeEl = document.querySelector("#tenantOnboardTenantCode");
+const tenantOnboardTenantNameEl = document.querySelector("#tenantOnboardTenantName");
+const tenantOnboardTenantStatusEl = document.querySelector("#tenantOnboardTenantStatus");
+const tenantOnboardInitialSchoolCodeEl = document.querySelector("#tenantOnboardInitialSchoolCode");
+const tenantOnboardInitialSchoolNameEl = document.querySelector("#tenantOnboardInitialSchoolName");
+const tenantOnboardOwnerDisplayNameEl = document.querySelector("#tenantOnboardOwnerDisplayName");
+const tenantOnboardOwnerEmailEl = document.querySelector("#tenantOnboardOwnerEmail");
+const tenantOnboardOwnerPhoneEl = document.querySelector("#tenantOnboardOwnerPhone");
+const tenantOnboardOwnerPasswordEl = document.querySelector("#tenantOnboardOwnerPassword");
+const tenantOnboardPlanEl = document.querySelector("#tenantOnboardPlan");
+const tenantOnboardSubscriptionStatusEl = document.querySelector("#tenantOnboardSubscriptionStatus");
+const tenantOnboardTrialEndsAtEl = document.querySelector("#tenantOnboardTrialEndsAt");
+const tenantOnboardCurrentPeriodEndsAtEl = document.querySelector("#tenantOnboardCurrentPeriodEndsAt");
 const tenantFormEl = document.querySelector("#tenantForm");
 const tenantIdEl = document.querySelector("#tenantId");
 const tenantCodeEl = document.querySelector("#tenantCode");
@@ -456,6 +492,61 @@ const subscriptionBillingPaymentNoteEl = document.querySelector("#subscriptionBi
 const subscriptionBillingDunningFormEl = document.querySelector("#subscriptionBillingDunningForm");
 const subscriptionBillingDunningTenantIdEl = document.querySelector("#subscriptionBillingDunningTenantId");
 const subscriptionBillingDunningModeEl = document.querySelector("#subscriptionBillingDunningMode");
+const refreshPlatformTenantProvidersBtn = document.querySelector("#refreshPlatformTenantProviders");
+const platformTenantProvidersSummaryEl = document.querySelector("#platformTenantProvidersSummary");
+const platformTenantProvidersListEl = document.querySelector("#platformTenantProvidersList");
+const platformTenantProviderFormEl = document.querySelector("#platformTenantProviderForm");
+const platformTenantProviderTenantIdEl = document.querySelector("#platformTenantProviderTenantId");
+const platformTenantProviderCodeEl = document.querySelector("#platformTenantProviderCode");
+const platformTenantProviderLabelEl = document.querySelector("#platformTenantProviderLabel");
+const platformTenantProviderDisplayNameEl = document.querySelector("#platformTenantProviderDisplayName");
+const platformTenantProviderStatusEl = document.querySelector("#platformTenantProviderStatus");
+const platformTenantProviderBankBinEl = document.querySelector("#platformTenantProviderBankBin");
+const platformTenantProviderAccountNumberEl = document.querySelector("#platformTenantProviderAccountNumber");
+const platformTenantProviderAccountNameEl = document.querySelector("#platformTenantProviderAccountName");
+const platformTenantProviderClientIdEl = document.querySelector("#platformTenantProviderClientId");
+const platformTenantProviderApiKeyEl = document.querySelector("#platformTenantProviderApiKey");
+const platformTenantProviderChecksumKeyEl = document.querySelector("#platformTenantProviderChecksumKey");
+const platformTenantProviderReturnUrlEl = document.querySelector("#platformTenantProviderReturnUrl");
+const platformTenantProviderCancelUrlEl = document.querySelector("#platformTenantProviderCancelUrl");
+const platformTenantProviderApiBaseUrlEl = document.querySelector("#platformTenantProviderApiBaseUrl");
+const platformTenantProviderSetDefaultEl = document.querySelector("#platformTenantProviderSetDefault");
+const refreshPlatformTenantEmailConfigBtn = document.querySelector("#refreshPlatformTenantEmailConfig");
+const editPlatformTenantEmailConfigBtn = document.querySelector("#editPlatformTenantEmailConfig");
+const platformTenantEmailSummaryEl = document.querySelector("#platformTenantEmailSummary");
+const platformTenantEmailDetailEl = document.querySelector("#platformTenantEmailDetail");
+const platformTenantEmailFormEl = document.querySelector("#platformTenantEmailForm");
+const platformTenantEmailTenantIdEl = document.querySelector("#platformTenantEmailTenantId");
+const platformTenantEmailProviderEl = document.querySelector("#platformTenantEmailProvider");
+const platformTenantGmailAddressEl = document.querySelector("#platformTenantGmailAddress");
+const platformTenantGmailAppPasswordEl = document.querySelector("#platformTenantGmailAppPassword");
+const platformTenantResendApiKeyEl = document.querySelector("#platformTenantResendApiKey");
+const platformTenantEmailFromEl = document.querySelector("#platformTenantEmailFrom");
+const platformTenantEmailReplyToEl = document.querySelector("#platformTenantEmailReplyTo");
+const platformTenantEmailSubjectEl = document.querySelector("#platformTenantEmailSubject");
+const platformTenantEmailSchoolNameEl = document.querySelector("#platformTenantEmailSchoolName");
+const platformTenantEmailSchoolNameEnEl = document.querySelector("#platformTenantEmailSchoolNameEn");
+const platformTenantPaymentPeriodEl = document.querySelector("#platformTenantPaymentPeriod");
+const platformTenantPublicBaseUrlEl = document.querySelector("#platformTenantPublicBaseUrl");
+const refreshPlatformTenantEmailCronBtn = document.querySelector("#refreshPlatformTenantEmailCron");
+const editPlatformTenantEmailCronBtn = document.querySelector("#editPlatformTenantEmailCron");
+const platformTenantEmailCronSummaryEl = document.querySelector("#platformTenantEmailCronSummary");
+const platformTenantEmailCronDetailEl = document.querySelector("#platformTenantEmailCronDetail");
+const platformTenantEmailCronFormEl = document.querySelector("#platformTenantEmailCronForm");
+const platformTenantEmailCronTenantIdEl = document.querySelector("#platformTenantEmailCronTenantId");
+const platformTenantEmailCronEnabledEl = document.querySelector("#platformTenantEmailCronEnabled");
+const platformTenantEmailCronSendTimeEl = document.querySelector("#platformTenantEmailCronSendTime");
+const platformTenantEmailCronDailyLimitEl = document.querySelector("#platformTenantEmailCronDailyLimit");
+const platformTenantEmailCronTemplateEl = document.querySelector("#platformTenantEmailCronTemplate");
+const refreshPlatformTenantSubscriptionRequestsBtn = document.querySelector("#refreshPlatformTenantSubscriptionRequests");
+const platformTenantSubscriptionRequestsSummaryEl = document.querySelector("#platformTenantSubscriptionRequestsSummary");
+const platformTenantSubscriptionRequestsListEl = document.querySelector("#platformTenantSubscriptionRequestsList");
+const platformSubscriptionRequestProcessFormEl = document.querySelector("#platformSubscriptionRequestProcessForm");
+const platformSubscriptionRequestIdEl = document.querySelector("#platformSubscriptionRequestId");
+const platformSubscriptionRequestTenantIdEl = document.querySelector("#platformSubscriptionRequestTenantId");
+const platformSubscriptionRequestStatusEl = document.querySelector("#platformSubscriptionRequestStatus");
+const platformSubscriptionRequestApplyEl = document.querySelector("#platformSubscriptionRequestApply");
+const platformSubscriptionRequestAdminNoteEl = document.querySelector("#platformSubscriptionRequestAdminNote");
 
 let banks = [];
 let currentItems = [];
@@ -506,6 +597,17 @@ let platformUsersLoaded = false;
 let platformUsersData = { users: [], roles: [], permissions: [] };
 let tenantsLoaded = false;
 let tenantsData = { tenants: [] };
+let platformIntakeLoaded = false;
+let platformIntakeData = [];
+let platformTenantProvidersLoadedFor = "";
+let platformTenantProvidersData = [];
+let platformTenantEmailLoadedFor = "";
+let platformTenantEmailConfig = null;
+let platformTenantEmailCronLoadedFor = "";
+let platformTenantEmailCronData = null;
+let platformTenantSubscriptionRequestsLoadedFor = "";
+let platformTenantSubscriptionRequestsData = [];
+let publicSubscriptionPlansData = [];
 let subscriptionPlansLoaded = false;
 let subscriptionPlansData = [];
 let subscriptionBillingLoaded = false;
@@ -517,6 +619,8 @@ let subscriptionAutomationData = { scope: "active", scheduler: {}, latestRun: { 
 let authSession = null;
 let subscriptionPurchaseLoaded = false;
 let subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
+let subscriptionChangeRequestsLoaded = false;
+let subscriptionChangeRequestsData = [];
 let refreshAuthPromise = null;
 let appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
 let appContextApplyTimer = 0;
@@ -648,9 +752,9 @@ const tabMetadata = {
   },
   subscriptionTab: {
     kicker: "Subscription",
-    title: "Gói và thanh toán",
-    description: "Owner tenant tự chọn gói, tạo checkout QR/link và theo dõi invoice subscription.",
-    breadcrumbs: ["Subscription", "Checkout"],
+    title: "Gói dịch vụ",
+    description: "Trường theo dõi trạng thái gói, hạn dùng, invoice và hướng dẫn gia hạn bằng tiếng Việt.",
+    breadcrumbs: ["Subscription", "Trạng thái gói"],
   },
   tenantUsersTab: {
     kicker: "Tenant Access",
@@ -661,7 +765,7 @@ const tabMetadata = {
   platformTenantsTab: {
     kicker: "Platform",
     title: "Tenants",
-    description: "Quản lý tenant, subscription, billing config và invoice lane của từng tenant.",
+    description: "Quản lý intake, tenant, subscription, payment provider và email delivery của từng trường.",
     breadcrumbs: ["Platform", "Tenants"],
   },
   platformFinanceTab: {
@@ -692,8 +796,8 @@ const tabAccess = {
   reconciliationTab: ["payment.view"],
   paymentsTab: ["payment.create"],
   notificationTab: ["notification.view"],
-  emailTab: { any: ["email_config.view", "email_config.update", "notification.send", "email_cron.view", "email_cron.update"] },
-  subscriptionTab: { any: ["subscription.view", "subscription.update"] },
+  emailTab: { any: ["notification.send"] },
+  subscriptionTab: { any: ["subscription.view"] },
   reportsTab: ["report.view"],
   operationsTab: ["operation_log.view"],
   tenantUsersTab: { any: ["user.view", "user.create", "user.update", "user.assign_role", "role.view"] },
@@ -759,7 +863,7 @@ const permissionAliases = {
   "subscription.update": ["billing.subscriptions.write"],
 };
 
-const sessionRecoveryStorageKey = "abcsun.sessionRecovery.v1";
+const sessionRecoveryStorageKey = "dekisugi.sessionRecovery.v1";
 const permissionSummaryGroups = [
   { key: "view", label: "View", verbs: ["view", "read"] },
   { key: "create", label: "Create", verbs: ["create"] },
@@ -1024,12 +1128,20 @@ function currentActorLabel() {
 
 async function init() {
   showLogin("Đang kiểm tra phiên");
+  void loadLandingSubscriptionPlans();
   const bootstrapStatus = await loadAuthBootstrapStatus();
   if (!bootstrapStatus) {
     return;
   }
   if (bootstrapStatus.needsBootstrap) {
     showBootstrap("Tạo Admin để bắt đầu sử dụng hệ thống");
+    return;
+  }
+  const resetToken = new URLSearchParams(window.location.search).get("resetToken");
+  if (resetToken) {
+    showPasswordReset("Nhập mật khẩu mới để hoàn tất đặt lại mật khẩu");
+    if (passwordResetTokenEl) passwordResetTokenEl.value = resetToken;
+    window.history.replaceState({}, document.title, window.location.pathname);
     return;
   }
   const session = await loadCurrentAuthSession();
@@ -1140,7 +1252,138 @@ async function authAwareFetch(input, options = {}) {
 }
 
 function authPathSkipsRefresh(path) {
-  return ["/api/v1/auth/login", "/api/v1/auth/bootstrap", "/api/v1/auth/tenant-signup", "/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout"].includes(path);
+  return [
+    "/api/v1/auth/login",
+    "/api/v1/auth/bootstrap",
+    "/api/v1/auth/tenant-signup",
+    "/api/v1/auth/password-reset/request",
+    "/api/v1/auth/password-reset/confirm",
+    "/api/v1/intake",
+    "/api/v1/public/subscription-plans",
+    "/api/v1/auth/session",
+    "/api/v1/auth/refresh",
+    "/api/v1/auth/logout",
+  ].includes(path);
+}
+
+async function loadLandingSubscriptionPlans(force = false) {
+  if (!landingPlanGridEl) return [];
+  if (!force && publicSubscriptionPlansData.length) {
+    renderLandingSubscriptionPlans(publicSubscriptionPlansData);
+    populateSignupDesiredPlans(publicSubscriptionPlansData);
+    return publicSubscriptionPlansData;
+  }
+  setLandingPlanStatus("Đang tải gói dịch vụ", "busy");
+  const res = await nativeFetch("/api/v1/public/subscription-plans");
+  const text = await res.text();
+  if (!res.ok) {
+    publicSubscriptionPlansData = [];
+    renderLandingSubscriptionPlans([]);
+    populateSignupDesiredPlans([]);
+    setLandingPlanStatus(text || "Không tải được gói dịch vụ từ Platform Admin", "error");
+    return [];
+  }
+  let data = {};
+  try {
+    data = JSON.parse(text || "{}");
+  } catch {
+    publicSubscriptionPlansData = [];
+    renderLandingSubscriptionPlans([]);
+    populateSignupDesiredPlans([]);
+    setLandingPlanStatus("Subscription plans API trả về dữ liệu không hợp lệ", "error");
+    return [];
+  }
+  publicSubscriptionPlansData = data.plans || [];
+  renderLandingSubscriptionPlans(publicSubscriptionPlansData);
+  populateSignupDesiredPlans(publicSubscriptionPlansData);
+  setLandingPlanStatus(
+    publicSubscriptionPlansData.length ? `${publicSubscriptionPlansData.length} gói đang được cấu hình` : "Chưa có subscription plan active",
+    publicSubscriptionPlansData.length ? "ready" : "",
+  );
+  return publicSubscriptionPlansData;
+}
+
+function setLandingPlanStatus(message, tone = "") {
+  if (!landingPlanStatusEl) return;
+  landingPlanStatusEl.textContent = message;
+  landingPlanStatusEl.dataset.tone = tone;
+}
+
+function renderLandingSubscriptionPlans(plans = []) {
+  if (!landingPlanGridEl) return;
+  const rows = (plans || []).filter(Boolean);
+  if (!rows.length) {
+    landingPlanGridEl.innerHTML = `
+      <article class="landing-plan-card landing-hover-card">
+        ${muiIcon("info")}
+        <h3>Chưa có plan hiển thị</h3>
+        <p>Platform Admin cần cấu hình subscription plans trước khi landing page có dữ liệu để hiển thị.</p>
+      </article>
+    `;
+    return;
+  }
+  landingPlanGridEl.innerHTML = rows
+    .map((plan) => {
+      const code = plan.code || "";
+      return `
+        <article class="landing-plan-card landing-hover-card">
+          ${muiIcon(subscriptionPlanLandingIcon(code))}
+          <header>
+            <div>
+              <h3>${escapeHtml(plan.name || code || "Subscription plan")}</h3>
+              <p>${escapeHtml(plan.description || "Được cấu hình trong Platform Admin.")}</p>
+            </div>
+            <code>${escapeHtml(code || "-")}</code>
+          </header>
+          ${landingPlanLimitsTemplate(plan.limits || {})}
+          <span class="tag ${plan.status === "active" ? "tag-ready" : ""}">${escapeHtml(plan.status || "-")}</span>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function subscriptionPlanLandingIcon(code = "") {
+  switch (code) {
+    case "free_trial":
+      return "pending_actions";
+    case "standard":
+      return "workspace_premium";
+    default:
+      return "verified";
+  }
+}
+
+function landingPlanLimitsTemplate(limits = {}) {
+  const entries = Object.entries(limits)
+    .filter(([, value]) => value !== null && value !== undefined && typeof value !== "object")
+    .slice(0, 6);
+  if (!entries.length) {
+    return `<ul class="landing-plan-limits"><li>Limits do Platform Admin cấu hình</li></ul>`;
+  }
+  return `
+    <ul class="landing-plan-limits">
+      ${entries
+        .map(([key, value]) => `<li>${escapeHtml(formatLandingLimitKey(key))}: ${escapeHtml(String(value))}</li>`)
+        .join("")}
+    </ul>
+  `;
+}
+
+function formatLandingLimitKey(key = "") {
+  return String(key || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function populateSignupDesiredPlans(plans = []) {
+  if (!signupDesiredPlanEl) return;
+  const selected = signupDesiredPlanEl.value || "standard";
+  const rows = (plans || []).filter((plan) => plan?.code);
+  signupDesiredPlanEl.innerHTML = rows.length
+    ? rows.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    : `<option value="">Platform Admin chọn gói</option>`;
+  signupDesiredPlanEl.value = optionValueOrEmpty(signupDesiredPlanEl, selected) || rows[0]?.code || "";
 }
 
 function requestPath(input) {
@@ -1176,10 +1419,14 @@ function showLogin(message = "", options = {}) {
   loginFormEl.hidden = false;
   bootstrapFormEl.hidden = true;
   signupFormEl.hidden = true;
+  if (passwordResetFormEl) passwordResetFormEl.hidden = true;
   if (showLoginModeBtn) showLoginModeBtn.hidden = false;
+  if (showPasswordResetModeBtn) showPasswordResetModeBtn.hidden = false;
   setLoginMode("login", allowSignup);
+  if (showLoginModeBtn) showLoginModeBtn.setAttribute("aria-controls", "loginForm");
   if (message) setLoginStatus(message, message.includes("hết hạn") ? "error" : "");
   loginSubmitBtn.disabled = false;
+  if (options.scrollToAccess) scrollLandingAccess(loginEmailEl);
 }
 
 function showBootstrap(message = "") {
@@ -1189,24 +1436,55 @@ function showBootstrap(message = "") {
   loginFormEl.hidden = true;
   bootstrapFormEl.hidden = false;
   signupFormEl.hidden = true;
+  if (passwordResetFormEl) passwordResetFormEl.hidden = true;
   if (showLoginModeBtn) showLoginModeBtn.hidden = true;
   if (showSignupModeBtn) showSignupModeBtn.hidden = true;
+  if (showPasswordResetModeBtn) showPasswordResetModeBtn.hidden = true;
   setLoginMode("bootstrap", false);
   setBootstrapStatus(message, "");
   bootstrapSubmitBtn.disabled = false;
 }
 
-function showSignup(message = "") {
+function showSignup(message = "", options = {}) {
   authSession = null;
   loginScreenEl.hidden = false;
   appShellEl.hidden = true;
   loginFormEl.hidden = true;
   bootstrapFormEl.hidden = true;
   signupFormEl.hidden = false;
+  if (passwordResetFormEl) passwordResetFormEl.hidden = true;
   if (showLoginModeBtn) showLoginModeBtn.hidden = false;
+  if (showPasswordResetModeBtn) showPasswordResetModeBtn.hidden = false;
   setLoginMode("signup", true);
+  if (showLoginModeBtn) showLoginModeBtn.setAttribute("aria-controls", "loginForm");
   setSignupStatus(message, "");
   signupSubmitBtn.disabled = false;
+  if (options.scrollToAccess) scrollLandingAccess(signupTenantNameEl);
+}
+
+function showPasswordReset(message = "") {
+  authSession = null;
+  loginScreenEl.hidden = false;
+  appShellEl.hidden = true;
+  loginFormEl.hidden = true;
+  bootstrapFormEl.hidden = true;
+  signupFormEl.hidden = true;
+  if (passwordResetFormEl) passwordResetFormEl.hidden = false;
+  if (showLoginModeBtn) showLoginModeBtn.hidden = false;
+  if (showSignupModeBtn) showSignupModeBtn.hidden = false;
+  if (showPasswordResetModeBtn) showPasswordResetModeBtn.hidden = false;
+  setLoginMode("login", true);
+  if (showLoginModeBtn) showLoginModeBtn.setAttribute("aria-controls", "passwordResetForm");
+  setPasswordResetStatus(message, "");
+  if (passwordResetSubmitBtn) passwordResetSubmitBtn.disabled = false;
+}
+
+function scrollLandingAccess(focusEl = null) {
+  if (!landingAccessEl) return;
+  landingAccessEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (focusEl) {
+    window.setTimeout(() => focusEl.focus({ preventScroll: true }), 260);
+  }
 }
 
 function showApp(session) {
@@ -1343,7 +1621,7 @@ function updateAppContextVisibility(targetId) {
 }
 
 function setTenantDetailTab(tabId = "overview") {
-  const nextTab = ["overview", "billing", "invoices"].includes(tabId) ? tabId : "overview";
+  const nextTab = ["overview", "billing", "invoices", "requests", "providers", "email", "cron"].includes(tabId) ? tabId : "overview";
   tenantDetailActiveTab = nextTab;
   tenantDetailTabButtons.forEach((button) => {
     const isActive = button.dataset.tenantDetailTab === nextTab;
@@ -1353,6 +1631,18 @@ function setTenantDetailTab(tabId = "overview") {
   tenantDetailPanels.forEach((panel) => {
     panel.hidden = panel.dataset.tenantDetailPanel !== nextTab;
   });
+  if (nextTab === "providers") {
+    loadPlatformTenantProviders();
+  }
+  if (nextTab === "email") {
+    loadPlatformTenantEmailConfig();
+  }
+  if (nextTab === "cron") {
+    loadPlatformTenantEmailCron();
+  }
+  if (nextTab === "requests") {
+    loadPlatformTenantSubscriptionRequests();
+  }
 }
 
 function setElementAllowed(el, allowed) {
@@ -1422,18 +1712,26 @@ function applyPermissionUI() {
   setElementAllowed(exportAdminReportInvoicesBtn, hasPermission("report.export"));
   setElementAllowed(exportAdminReportTransactionsBtn, hasPermission("report.export"));
   setElementAllowed(refreshSubscriptionPurchaseBtn, hasPermission("subscription.view"));
-  setElementAllowed(startSubscriptionCheckoutBtn, hasPermission("subscription.update"));
+  setElementAllowed(startSubscriptionCheckoutBtn, isPlatformAdmin() && hasPermission("subscription.update"));
+  setElementAllowed(openSubscriptionChangeRequestBtn, hasPermission("subscription.view"));
   setElementAllowed(newAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
   setElementAllowed(saveAdminUserBtn, hasPermission("user.create") || hasPermission("user.update"));
   setElementAllowed(assignAdminUserRolesBtn, hasPermission("user.assign_role"));
   setElementAllowed(refreshTenantsBtn, hasPermission("tenant.view"));
   setElementAllowed(newTenantBtn, hasPermission("tenant.create"));
   setElementAllowed(editActiveTenantBtn, hasPermission("tenant.update"));
-  setElementAllowed(editActiveTenantSubscriptionBtn, hasPermission("subscription.view") || hasPermission("subscription.update"));
+  setElementAllowed(refreshPlatformIntakeRequestsBtn, isPlatformAdmin() && hasPermission("tenant.view"));
+  setElementAllowed(refreshPlatformTenantProvidersBtn, isPlatformAdmin() && hasPermission("tenant.update"));
+  setElementAllowed(refreshPlatformTenantEmailConfigBtn, isPlatformAdmin() && hasPermission("tenant.update"));
+  setElementAllowed(editPlatformTenantEmailConfigBtn, isPlatformAdmin() && hasPermission("tenant.update"));
+  setElementAllowed(refreshPlatformTenantEmailCronBtn, isPlatformAdmin() && hasPermission("tenant.update"));
+  setElementAllowed(editPlatformTenantEmailCronBtn, isPlatformAdmin() && hasPermission("tenant.update"));
+  setElementAllowed(refreshPlatformTenantSubscriptionRequestsBtn, isPlatformAdmin() && hasPermission("subscription.update"));
+  setElementAllowed(editActiveTenantSubscriptionBtn, isPlatformAdmin() && (hasPermission("subscription.view") || hasPermission("subscription.update")));
   setElementAllowed(refreshSubscriptionBillingBtn, hasPermission("subscription.view"));
-  setElementAllowed(generateSubscriptionInvoiceBtn, hasPermission("subscription.update"));
-  setElementAllowed(runSubscriptionDunningBtn, hasPermission("subscription.update"));
-  setElementAllowed(saveSubscriptionBillingConfigBtn, hasPermission("subscription.update"));
+  setElementAllowed(generateSubscriptionInvoiceBtn, isPlatformAdmin() && hasPermission("subscription.update"));
+  setElementAllowed(runSubscriptionDunningBtn, isPlatformAdmin() && hasPermission("subscription.update"));
+  setElementAllowed(saveSubscriptionBillingConfigBtn, isPlatformAdmin() && hasPermission("subscription.update"));
   setElementAllowed(exportSubscriptionInvoicesCsvBtn, hasPermission("report.export"));
   setElementAllowed(exportSubscriptionOverdueCsvBtn, hasPermission("report.export"));
   setElementAllowed(exportSubscriptionPaidCsvBtn, hasPermission("report.export"));
@@ -1456,6 +1754,9 @@ function applyPermissionUI() {
   setElementAllowed(saveCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(disableCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(runCronNowBtn, hasPermission("email_cron.update"));
+  if (emailConfigStatusEl && !hasPermission("email_config.view") && hasPermission("notification.send")) {
+    emailConfigStatusEl.textContent = "Do Platform Admin cấu hình";
+  }
   updateVisibleMenuGroups();
   updateLegacyPaymentActions();
   setTenantDetailTab(tenantDetailActiveTab);
@@ -1541,14 +1842,30 @@ function setSignupStatus(message, tone = "") {
   signupStatusEl.dataset.tone = tone;
 }
 
+function setPasswordResetStatus(message, tone = "") {
+  if (!passwordResetStatusEl) return;
+  passwordResetStatusEl.textContent = message;
+  passwordResetStatusEl.dataset.tone = tone;
+}
+
 function setLoginMode(mode = "login", allowSignup = true) {
-  if (showLoginModeBtn) {
-    showLoginModeBtn.classList.toggle("primary", mode === "login");
-  }
+  const setTabState = (button, active) => {
+    if (!button) return;
+    button.classList.toggle("primary", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+    button.tabIndex = 0;
+  };
+
+  setTabState(showLoginModeBtn, mode === "login");
   if (showSignupModeBtn) {
-    showSignupModeBtn.classList.toggle("primary", mode === "signup");
     showSignupModeBtn.hidden = !allowSignup;
+    setTabState(showSignupModeBtn, mode === "signup" && allowSignup);
   }
+  landingModeButtons.forEach((button) => {
+    if (button.dataset.landingMode === "signup") {
+      button.hidden = !allowSignup;
+    }
+  });
 }
 
 async function submitLogin(event) {
@@ -1612,42 +1929,95 @@ async function submitBootstrap(event) {
 
 async function submitSignup(event) {
   event.preventDefault();
-  const password = signupPasswordEl.value;
-  if (password !== signupPasswordConfirmEl.value) {
-    setSignupStatus("Password xác nhận không khớp", "error");
-    return;
-  }
   if (!signupOwnerEmailEl.value.trim() && !signupOwnerPhoneEl.value.trim()) {
-    setSignupStatus("Nhập Email hoặc SĐT owner", "error");
+    setSignupStatus("Nhập Email hoặc SĐT người phụ trách", "error");
     return;
   }
   signupSubmitBtn.disabled = true;
-  setSignupStatus("Đang tạo tenant", "busy");
-  const res = await nativeFetch("/api/v1/auth/tenant-signup", {
+  setSignupStatus("Đang gửi thông tin", "busy");
+  const res = await nativeFetch("/api/v1/intake", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tenantName: signupTenantNameEl.value.trim(),
-      tenantCode: signupTenantCodeEl.value.trim(),
-      initialSchoolName: signupSchoolNameEl.value.trim(),
-      initialSchoolCode: signupSchoolCodeEl.value.trim(),
-      ownerDisplayName: signupOwnerDisplayNameEl.value.trim(),
-      ownerEmail: signupOwnerEmailEl.value.trim(),
-      ownerPhone: signupOwnerPhoneEl.value.trim(),
-      password,
+      schoolName: signupTenantNameEl.value.trim(),
+      contactName: signupOwnerDisplayNameEl.value.trim(),
+      contactEmail: signupOwnerEmailEl.value.trim(),
+      contactPhone: signupOwnerPhoneEl.value.trim(),
+      desiredPlanCode: signupDesiredPlanEl?.value || "",
+      note: signupNoteEl?.value.trim() || "",
     }),
   });
   const text = await res.text();
   if (!res.ok) {
     signupSubmitBtn.disabled = false;
-    setSignupStatus(text || "Không tạo được tenant", "error");
+    setSignupStatus(text || "Không gửi được thông tin", "error");
     return;
   }
-  const session = JSON.parse(text);
-  signupPasswordEl.value = "";
-  signupPasswordConfirmEl.value = "";
-  showApp(session);
-  await initializeAppData();
+  signupTenantNameEl.value = "";
+  signupOwnerDisplayNameEl.value = "";
+  signupOwnerEmailEl.value = "";
+  signupOwnerPhoneEl.value = "";
+  if (signupNoteEl) signupNoteEl.value = "";
+  setSignupStatus("Đã gửi thông tin. Platform Admin sẽ liên hệ và tạo tài khoản cho trường.", "ready");
+  signupSubmitBtn.disabled = false;
+}
+
+async function requestPasswordReset() {
+  if (!passwordResetIdentifierEl?.value.trim()) {
+    setPasswordResetStatus("Nhập Email hoặc SĐT", "error");
+    return false;
+  }
+  passwordResetRequestBtn.disabled = true;
+  setPasswordResetStatus("Đang tạo yêu cầu", "busy");
+  const res = await nativeFetch("/api/v1/auth/password-reset/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier: passwordResetIdentifierEl.value.trim() }),
+  });
+  const text = await res.text();
+  passwordResetRequestBtn.disabled = false;
+  if (!res.ok) {
+    setPasswordResetStatus(text || "Không tạo được yêu cầu", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  if (data.resetToken && passwordResetTokenEl) {
+    passwordResetTokenEl.value = data.resetToken;
+  }
+  setPasswordResetStatus(data.message || "Nếu tài khoản tồn tại, hệ thống đã tạo hướng dẫn đặt lại mật khẩu.", "ready");
+  return true;
+}
+
+async function submitPasswordReset(event) {
+  event.preventDefault();
+  if (!passwordResetTokenEl?.value.trim()) {
+    setPasswordResetStatus("Nhập token đặt lại mật khẩu", "error");
+    return;
+  }
+  if (passwordResetNewPasswordEl.value !== passwordResetConfirmPasswordEl.value) {
+    setPasswordResetStatus("Password xác nhận không khớp", "error");
+    return;
+  }
+  passwordResetSubmitBtn.disabled = true;
+  setPasswordResetStatus("Đang cập nhật mật khẩu", "busy");
+  const res = await nativeFetch("/api/v1/auth/password-reset/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token: passwordResetTokenEl.value.trim(),
+      password: passwordResetNewPasswordEl.value,
+    }),
+  });
+  const text = await res.text();
+  passwordResetSubmitBtn.disabled = false;
+  if (!res.ok) {
+    setPasswordResetStatus(text || "Không cập nhật được mật khẩu", "error");
+    return;
+  }
+  passwordResetTokenEl.value = "";
+  passwordResetNewPasswordEl.value = "";
+  passwordResetConfirmPasswordEl.value = "";
+  showLogin("Mật khẩu đã được cập nhật. Vui lòng đăng nhập.");
 }
 
 async function logout() {
@@ -1812,7 +2182,7 @@ function renderAppContextControls() {
   if (!appContextSchoolEl || !appContextYearEl) return;
   const schools = contextSchoolOptions();
   appContextSchoolEl.innerHTML = [
-    `<option value="">${schools.length ? "Tất cả trường" : "ABC SUN"}</option>`,
+    `<option value="">${schools.length ? "Tất cả trường" : "DEKISUGI"}</option>`,
     ...schools.map((item) => {
       const label = [item.code, item.name && item.name !== item.code ? item.name : ""].filter(Boolean).join(" · ");
       return `<option value="${escapeAttr(item.id)}">${escapeHtml(label || item.id)}</option>`;
@@ -2145,7 +2515,10 @@ async function generate() {
 
 async function loadEmailConfig() {
   const res = await fetch("/api/v1/email/config");
-  if (!res.ok) return;
+  if (!res.ok) {
+    if (emailConfigStatusEl) emailConfigStatusEl.textContent = "Do Platform Admin cấu hình";
+    return;
+  }
   const config = await res.json();
   savedEmailConfig = config;
   emailProviderEl.value = config.provider || "gmail";
@@ -3153,15 +3526,10 @@ function renderAdminFilters(kind) {
 
 function renderAdminReportProviderFilter() {
   if (!adminReportsProviderEl) return;
-  const selected = adminReportsProviderEl.value;
-  adminReportsProviderEl.innerHTML = [
-    `<option value="">Tất cả provider</option>`,
-    ...adminReportProviders.map((provider) => {
-      const suffix = provider.configured ? "" : " · thiếu cấu hình";
-      return `<option value="${escapeAttr(provider.code)}">${escapeHtml(provider.displayName || provider.code)}${suffix}</option>`;
-    }),
-  ].join("");
-  adminReportsProviderEl.value = optionValueOrEmpty(adminReportsProviderEl, selected);
+  adminReportsProviderEl.innerHTML = `<option value="">Platform Admin cấu hình</option>`;
+  adminReportsProviderEl.value = "";
+  const field = adminReportsProviderEl.closest("label");
+  if (field) field.hidden = true;
 }
 
 function adminFilterParams(kind) {
@@ -3174,7 +3542,6 @@ function adminFilterParams(kind) {
   if (elements.period.value.trim()) params.set("periodCode", elements.period.value.trim());
   if (elements.month.value) params.set("month", elements.month.value);
   if (elements.status.value) params.set("status", elements.status.value);
-  if (elements.provider?.value) params.set("provider", elements.provider.value);
   return params;
 }
 
@@ -3842,7 +4209,7 @@ function renderAdminReportTransactions(rows) {
     .map(
       (transaction) => `
         <tr>
-          <td><strong>${escapeHtml(transaction.provider || transaction.providerCode || "")}</strong><small>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</small></td>
+          <td><strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "-")}</strong><small>${escapeHtml(transaction.bankName || transaction.accountNumber || "")}</small></td>
           <td class="money">${formatMoney(transaction.amount || 0)}<small>${escapeHtml(formatDateTime(transaction.transactionTime))}</small></td>
           <td>${escapeHtml(transaction.matchReason || transaction.description || "-")}<small>${escapeHtml(paymentMatchMeta(transaction) || transaction.accountNumber || "")}</small></td>
           <td>${escapeHtml(transaction.invoiceCode || "Chưa match")}<small>${escapeHtml([transaction.studentCode || "", transaction.studentName || ""].filter(Boolean).join(" · "))}</small></td>
@@ -4244,9 +4611,24 @@ async function loadTenants(force = false) {
   tenantsLoaded = true;
   renderTenantSwitcher();
   renderTenantAdmin(tenantsData);
+  if (isPlatformAdmin()) {
+    await loadPlatformIntakeRequests(force);
+  }
   if (activeTenantSummary().id) {
     await loadSubscriptionFinanceConsole(force);
     await loadSubscriptionAutomationStatus(force);
+    if (tenantDetailActiveTab === "providers") {
+      await loadPlatformTenantProviders(force);
+    }
+    if (tenantDetailActiveTab === "email") {
+      await loadPlatformTenantEmailConfig(force);
+    }
+    if (tenantDetailActiveTab === "cron") {
+      await loadPlatformTenantEmailCron(force);
+    }
+    if (tenantDetailActiveTab === "requests") {
+      await loadPlatformTenantSubscriptionRequests(force);
+    }
   }
   setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
 }
@@ -4334,6 +4716,619 @@ function renderTenantAdmin(data) {
   renderPlatformEntitlements(tenants);
 }
 
+async function loadPlatformIntakeRequests(force = false) {
+  if (!isPlatformAdmin() || !hasPermission("tenant.view")) {
+    platformIntakeLoaded = false;
+    platformIntakeData = [];
+    renderPlatformIntakeRequests([]);
+    return;
+  }
+  if (!force && platformIntakeLoaded) {
+    renderPlatformIntakeRequests(platformIntakeData);
+    return;
+  }
+  const res = await fetch("/api/v1/platform/intake-requests");
+  const text = await res.text();
+  if (!res.ok) {
+    platformIntakeLoaded = false;
+    platformIntakeData = [];
+    renderPlatformIntakeRequests([]);
+    setAdminStatus(tenantStatusEl, text || "Không tải được intake", "error");
+    return;
+  }
+  platformIntakeData = JSON.parse(text).requests || [];
+  platformIntakeLoaded = true;
+  renderPlatformIntakeRequests(platformIntakeData);
+}
+
+function renderPlatformIntakeRequests(requests) {
+  if (!platformIntakeListEl) return;
+  if (!isPlatformAdmin()) {
+    platformIntakeListEl.textContent = "";
+    return;
+  }
+  platformIntakeListEl.innerHTML = (requests || []).length
+    ? requests.map((request) => `
+      <div class="tenant-list-row intake-row" data-intake-id="${escapeAttr(request.id || "")}">
+        <span>${muiIcon(request.status === "converted" ? "task_alt" : "assignment_ind")}</span>
+        <strong>${escapeHtml(request.schoolName || "-")}</strong>
+        <small>${escapeHtml(request.contactName || "-")} · ${escapeHtml(request.contactEmail || request.contactPhone || "-")} · ${escapeHtml(request.desiredPlanCode || "standard")} · ${escapeHtml(request.status || "-")}</small>
+        <button type="button" data-onboard-intake="${escapeAttr(request.id || "")}">${muiIcon("add_business")}<span>Onboard</span></button>
+      </div>
+    `).join("")
+    : "Chưa có yêu cầu đăng ký mới.";
+  platformIntakeListEl.querySelectorAll("[data-onboard-intake]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const request = platformIntakeData.find((item) => item.id === button.dataset.onboardIntake);
+      openTenantOnboardDialog(request || null);
+    });
+  });
+}
+
+async function openTenantOnboardDialog(intake = null) {
+  const plans = await loadSubscriptionPlans(true);
+  tenantOnboardIntakeIdEl.value = intake?.id || "";
+  tenantOnboardTenantNameEl.value = intake?.schoolName || "";
+  tenantOnboardTenantCodeEl.value = tenantCodeFromName(intake?.schoolName || "");
+  tenantOnboardInitialSchoolNameEl.value = intake?.schoolName || "";
+  tenantOnboardInitialSchoolCodeEl.value = tenantOnboardTenantCodeEl.value;
+  tenantOnboardOwnerDisplayNameEl.value = intake?.contactName || "";
+  tenantOnboardOwnerEmailEl.value = intake?.contactEmail || "";
+  tenantOnboardOwnerPhoneEl.value = intake?.contactPhone || "";
+  tenantOnboardOwnerPasswordEl.value = randomTempPassword();
+  tenantOnboardTenantStatusEl.value = intake?.desiredPlanCode === "free_trial" ? "trial" : "active";
+  tenantOnboardSubscriptionStatusEl.value = intake?.desiredPlanCode === "free_trial" ? "trial" : "active";
+  tenantOnboardPlanEl.innerHTML = plans.length
+    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    : `<option value="standard">Standard</option>`;
+  tenantOnboardPlanEl.value = optionValueOrEmpty(tenantOnboardPlanEl, intake?.desiredPlanCode || "standard") || plans[0]?.code || "standard";
+  tenantOnboardTrialEndsAtEl.value = "";
+  tenantOnboardCurrentPeriodEndsAtEl.value = "";
+  openAppDialog({
+    title: intake?.id ? "Onboard trường từ intake" : "Onboard tenant mới",
+    kicker: "Platform Admin",
+    icon: "add_business",
+    nodes: [tenantOnboardFormEl],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Tạo tenant và owner", icon: "save", variant: "primary", onClick: saveTenantOnboarding, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function saveTenantOnboarding() {
+  setAdminStatus(tenantStatusEl, "Đang onboard tenant", "busy");
+  const res = await fetch("/api/v1/platform/tenants/onboard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      intakeRequestId: tenantOnboardIntakeIdEl.value,
+      tenantCode: tenantOnboardTenantCodeEl.value,
+      tenantName: tenantOnboardTenantNameEl.value,
+      tenantStatus: tenantOnboardTenantStatusEl.value,
+      initialSchoolCode: tenantOnboardInitialSchoolCodeEl.value,
+      initialSchoolName: tenantOnboardInitialSchoolNameEl.value,
+      ownerDisplayName: tenantOnboardOwnerDisplayNameEl.value,
+      ownerEmail: tenantOnboardOwnerEmailEl.value,
+      ownerPhone: tenantOnboardOwnerPhoneEl.value,
+      ownerPassword: tenantOnboardOwnerPasswordEl.value,
+      planCode: tenantOnboardPlanEl.value,
+      subscriptionStatus: tenantOnboardSubscriptionStatusEl.value,
+      trialEndsAt: tenantOnboardTrialEndsAtEl.value,
+      currentPeriodEndsAt: tenantOnboardCurrentPeriodEndsAtEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không onboard được tenant", "error");
+    return false;
+  }
+  const data = JSON.parse(text);
+  tenantsData = { tenants: data.tenants || [] };
+  tenantsLoaded = true;
+  platformIntakeLoaded = false;
+  renderTenantSwitcher();
+  renderTenantAdmin(tenantsData);
+  await loadPlatformIntakeRequests(true);
+  setAdminStatus(tenantStatusEl, "Đã onboard tenant", "ready");
+  return true;
+}
+
+function tenantCodeFromName(name) {
+  const code = headerKeyClient(name || "")
+    .replace(/_/g, "")
+    .toUpperCase()
+    .slice(0, 24);
+  return code || "SCHOOL";
+}
+
+function randomTempPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  return [...bytes].map((value) => chars[value % chars.length]).join("");
+}
+
+async function loadPlatformTenantProviders(force = false) {
+  const tenant = activeTenantSummary();
+  if (!isPlatformAdmin() || !tenant.id || !hasPermission("tenant.update")) {
+    platformTenantProvidersLoadedFor = "";
+    platformTenantProvidersData = [];
+    renderPlatformTenantProviders([]);
+    return;
+  }
+  if (!force && platformTenantProvidersLoadedFor === tenant.id) {
+    renderPlatformTenantProviders(platformTenantProvidersData);
+    return;
+  }
+  const res = await fetch(`/api/v1/platform/tenants/payment-providers?tenantId=${encodeURIComponent(tenant.id)}`);
+  const text = await res.text();
+  if (!res.ok) {
+    platformTenantProvidersLoadedFor = "";
+    platformTenantProvidersData = [];
+    renderPlatformTenantProviders([]);
+    setAdminStatus(tenantStatusEl, text || "Không tải được payment providers", "error");
+    return;
+  }
+  platformTenantProvidersData = JSON.parse(text).providers || [];
+  platformTenantProvidersLoadedFor = tenant.id;
+  renderPlatformTenantProviders(platformTenantProvidersData);
+}
+
+function renderPlatformTenantProviders(providers) {
+  if (!platformTenantProvidersSummaryEl || !platformTenantProvidersListEl) return;
+  const tenant = activeTenantSummary();
+  if (!tenant.id) {
+    platformTenantProvidersSummaryEl.innerHTML = `<div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>Chưa chọn tenant</strong></div>`;
+    platformTenantProvidersListEl.textContent = "Chọn tenant ở danh sách bên trái.";
+    return;
+  }
+  platformTenantProvidersSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>${escapeHtml(tenant.code || tenant.name || tenant.id)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("account_balance_wallet")}Providers</span><strong>${Number((providers || []).length)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Configured</span><strong>${Number((providers || []).filter((provider) => provider.configured).length)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("star")}Default</span><strong>${escapeHtml((providers || []).find((provider) => provider.defaultProvider)?.displayName || (providers || []).find((provider) => provider.defaultProvider)?.code || "-")}</strong></div>
+  `;
+  platformTenantProvidersListEl.innerHTML = (providers || []).length
+    ? providers.map((provider) => `
+      <article class="admin-role-card">
+        <div>
+          <h3>${escapeHtml(provider.displayName || provider.code || "-")}</h3>
+          <p>${escapeHtml(provider.code || "-")} · ${escapeHtml(provider.status || "-")} · ${provider.configured ? "Đã cấu hình" : "Chưa đủ cấu hình"}${provider.defaultProvider ? " · mặc định" : ""}</p>
+          <small>${escapeHtml(provider.webhookPath || provider.accountNumber || provider.returnUrl || "")}</small>
+        </div>
+        <button type="button" data-edit-platform-provider="${escapeAttr(provider.code || "")}">${muiIcon("tune")}<span>Cấu hình</span></button>
+      </article>
+    `).join("")
+    : "Tenant chưa có provider mặc định.";
+  platformTenantProvidersListEl.querySelectorAll("[data-edit-platform-provider]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const provider = platformTenantProvidersData.find((item) => item.code === button.dataset.editPlatformProvider);
+      openPlatformPaymentProviderDialog(provider || null);
+    });
+  });
+}
+
+function openPlatformPaymentProviderDialog(provider) {
+  const tenant = activeTenantSummary();
+  if (!tenant.id || !provider) return;
+  platformTenantProviderTenantIdEl.value = tenant.id;
+  platformTenantProviderCodeEl.value = provider.code || "";
+  platformTenantProviderLabelEl.value = provider.displayName || provider.code || "";
+  platformTenantProviderDisplayNameEl.value = provider.displayName || "";
+  platformTenantProviderStatusEl.value = optionValueOrEmpty(platformTenantProviderStatusEl, provider.status || "active") || "active";
+  platformTenantProviderBankBinEl.value = provider.bankBin || "";
+  platformTenantProviderAccountNumberEl.value = provider.accountNumber || "";
+  platformTenantProviderAccountNameEl.value = provider.accountName || "";
+  platformTenantProviderClientIdEl.value = provider.clientId || "";
+  platformTenantProviderApiKeyEl.value = "";
+  platformTenantProviderApiKeyEl.placeholder = provider.apiKeyMasked || "Giữ nguyên nếu để trống";
+  platformTenantProviderChecksumKeyEl.value = "";
+  platformTenantProviderChecksumKeyEl.placeholder = provider.checksumKeyMasked || "Giữ nguyên nếu để trống";
+  platformTenantProviderReturnUrlEl.value = provider.returnUrl || "";
+  platformTenantProviderCancelUrlEl.value = provider.cancelUrl || "";
+  platformTenantProviderApiBaseUrlEl.value = provider.apiBaseUrl || "";
+  if (platformTenantProviderSetDefaultEl) platformTenantProviderSetDefaultEl.checked = Boolean(provider.defaultProvider);
+  openAppDialog({
+    title: `Cấu hình ${provider.displayName || provider.code}`,
+    kicker: "Payment provider",
+    icon: "account_balance_wallet",
+    nodes: [platformTenantProviderFormEl],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu provider", icon: "save", variant: "primary", onClick: savePlatformPaymentProviderConfig, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function savePlatformPaymentProviderConfig() {
+  setAdminStatus(tenantStatusEl, "Đang lưu provider", "busy");
+  const res = await fetch("/api/v1/platform/tenants/payment-providers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: platformTenantProviderTenantIdEl.value,
+      code: platformTenantProviderCodeEl.value,
+      displayName: platformTenantProviderDisplayNameEl.value,
+      status: platformTenantProviderStatusEl.value,
+      bankBin: platformTenantProviderBankBinEl.value,
+      accountNumber: platformTenantProviderAccountNumberEl.value,
+      accountName: platformTenantProviderAccountNameEl.value,
+      clientId: platformTenantProviderClientIdEl.value,
+      apiKey: platformTenantProviderApiKeyEl.value,
+      checksumKey: platformTenantProviderChecksumKeyEl.value,
+      returnUrl: platformTenantProviderReturnUrlEl.value,
+      cancelUrl: platformTenantProviderCancelUrlEl.value,
+      apiBaseUrl: platformTenantProviderApiBaseUrlEl.value,
+      setDefault: Boolean(platformTenantProviderSetDefaultEl?.checked),
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không lưu được provider", "error");
+    return false;
+  }
+  platformTenantProvidersData = JSON.parse(text).providers || [];
+  platformTenantProvidersLoadedFor = platformTenantProviderTenantIdEl.value;
+  renderPlatformTenantProviders(platformTenantProvidersData);
+  setAdminStatus(tenantStatusEl, "Đã lưu provider", "ready");
+  return true;
+}
+
+async function loadPlatformTenantEmailConfig(force = false) {
+  const tenant = activeTenantSummary();
+  if (!isPlatformAdmin() || !tenant.id || !hasPermission("tenant.update")) {
+    platformTenantEmailLoadedFor = "";
+    platformTenantEmailConfig = null;
+    renderPlatformTenantEmailConfig(null);
+    return;
+  }
+  if (!force && platformTenantEmailLoadedFor === tenant.id && platformTenantEmailConfig) {
+    renderPlatformTenantEmailConfig(platformTenantEmailConfig);
+    return;
+  }
+  const res = await fetch(`/api/v1/platform/tenants/email-config?tenantId=${encodeURIComponent(tenant.id)}`);
+  const text = await res.text();
+  if (!res.ok) {
+    platformTenantEmailLoadedFor = "";
+    platformTenantEmailConfig = null;
+    renderPlatformTenantEmailConfig(null);
+    setAdminStatus(tenantStatusEl, text || "Không tải được email config", "error");
+    return;
+  }
+  platformTenantEmailConfig = JSON.parse(text);
+  platformTenantEmailLoadedFor = tenant.id;
+  renderPlatformTenantEmailConfig(platformTenantEmailConfig);
+}
+
+function renderPlatformTenantEmailConfig(config) {
+  if (!platformTenantEmailSummaryEl || !platformTenantEmailDetailEl) return;
+  const tenant = activeTenantSummary();
+  if (!tenant.id) {
+    platformTenantEmailSummaryEl.innerHTML = `<div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>Chưa chọn tenant</strong></div>`;
+    platformTenantEmailDetailEl.textContent = "Chọn tenant ở danh sách bên trái.";
+    return;
+  }
+  const provider = config?.provider || "gmail";
+  const ready = provider === "resend" ? Boolean(config?.hasApiKey) : Boolean(config?.gmailAddress && config?.hasGmailAppPassword);
+  platformTenantEmailSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>${escapeHtml(tenant.code || tenant.name || tenant.id)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("outgoing_mail")}Provider</span><strong>${escapeHtml(provider)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon(ready ? "task_alt" : "warning")}Trạng thái</span><strong>${ready ? "Sẵn sàng gửi" : "Thiếu cấu hình"}</strong></div>
+  `;
+  platformTenantEmailDetailEl.innerHTML = `
+    <div><strong>From:</strong> ${escapeHtml(config?.from || "-")}</div>
+    <div><strong>Reply-To:</strong> ${escapeHtml(config?.replyTo || "-")}</div>
+    <div><strong>Subject:</strong> ${escapeHtml(config?.subject || "-")}</div>
+    <div><strong>Trường:</strong> ${escapeHtml(config?.schoolName || "-")}</div>
+    <div><strong>Kỳ thu:</strong> ${escapeHtml(config?.paymentPeriod || "-")}</div>
+    <div><strong>Public URL:</strong> ${escapeHtml(config?.publicBaseUrl || "-")}</div>
+  `;
+}
+
+function openPlatformTenantEmailDialog() {
+  const tenant = activeTenantSummary();
+  if (!tenant.id) return;
+  const config = platformTenantEmailConfig || {};
+  platformTenantEmailTenantIdEl.value = tenant.id;
+  platformTenantEmailProviderEl.value = optionValueOrEmpty(platformTenantEmailProviderEl, config.provider || "gmail") || "gmail";
+  platformTenantGmailAddressEl.value = config.gmailAddress || "";
+  platformTenantGmailAppPasswordEl.value = "";
+  platformTenantGmailAppPasswordEl.placeholder = config.gmailAppPasswordMasked || "Giữ nguyên nếu để trống";
+  platformTenantResendApiKeyEl.value = "";
+  platformTenantResendApiKeyEl.placeholder = config.apiKeyMasked || "Giữ nguyên nếu để trống";
+  platformTenantEmailFromEl.value = config.from || "";
+  platformTenantEmailReplyToEl.value = config.replyTo || "";
+  platformTenantEmailSubjectEl.value = config.subject || "";
+  platformTenantEmailSchoolNameEl.value = config.schoolName || tenant.name || "";
+  platformTenantEmailSchoolNameEnEl.value = config.schoolNameEn || "";
+  platformTenantPaymentPeriodEl.value = config.paymentPeriod || "";
+  platformTenantPublicBaseUrlEl.value = config.publicBaseUrl || "";
+  openAppDialog({
+    title: "Cấu hình Gmail/Resend",
+    kicker: "Email delivery",
+    icon: "outgoing_mail",
+    nodes: [platformTenantEmailFormEl],
+    size: "lg",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu email config", icon: "save", variant: "primary", onClick: savePlatformTenantEmailConfig, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function savePlatformTenantEmailConfig() {
+  setAdminStatus(tenantStatusEl, "Đang lưu email config", "busy");
+  const res = await fetch("/api/v1/platform/tenants/email-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: platformTenantEmailTenantIdEl.value,
+      provider: platformTenantEmailProviderEl.value,
+      gmailAddress: platformTenantGmailAddressEl.value,
+      gmailAppPassword: platformTenantGmailAppPasswordEl.value,
+      apiKey: platformTenantResendApiKeyEl.value,
+      from: platformTenantEmailFromEl.value,
+      replyTo: platformTenantEmailReplyToEl.value,
+      subject: platformTenantEmailSubjectEl.value,
+      schoolName: platformTenantEmailSchoolNameEl.value,
+      schoolNameEn: platformTenantEmailSchoolNameEnEl.value,
+      paymentPeriod: platformTenantPaymentPeriodEl.value,
+      publicBaseUrl: platformTenantPublicBaseUrlEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không lưu được email config", "error");
+    return false;
+  }
+  platformTenantEmailConfig = JSON.parse(text);
+  platformTenantEmailLoadedFor = platformTenantEmailTenantIdEl.value;
+  renderPlatformTenantEmailConfig(platformTenantEmailConfig);
+  setAdminStatus(tenantStatusEl, "Đã lưu email config", "ready");
+  return true;
+}
+
+async function loadPlatformTenantEmailCron(force = false) {
+  const tenant = activeTenantSummary();
+  if (!isPlatformAdmin() || !tenant.id || !hasPermission("tenant.update")) {
+    platformTenantEmailCronLoadedFor = "";
+    platformTenantEmailCronData = null;
+    renderPlatformTenantEmailCron(null);
+    return;
+  }
+  if (!force && platformTenantEmailCronLoadedFor === tenant.id && platformTenantEmailCronData) {
+    renderPlatformTenantEmailCron(platformTenantEmailCronData);
+    return;
+  }
+  const res = await fetch(`/api/v1/platform/tenants/email-cron?tenantId=${encodeURIComponent(tenant.id)}`);
+  const text = await res.text();
+  if (!res.ok) {
+    platformTenantEmailCronLoadedFor = "";
+    platformTenantEmailCronData = null;
+    renderPlatformTenantEmailCron(null);
+    setAdminStatus(tenantStatusEl, text || "Không tải được email cron", "error");
+    return;
+  }
+  platformTenantEmailCronData = JSON.parse(text);
+  platformTenantEmailCronLoadedFor = tenant.id;
+  renderPlatformTenantEmailCron(platformTenantEmailCronData);
+}
+
+function renderPlatformTenantEmailCron(data) {
+  if (!platformTenantEmailCronSummaryEl || !platformTenantEmailCronDetailEl) return;
+  const tenant = activeTenantSummary();
+  if (!tenant.id) {
+    platformTenantEmailCronSummaryEl.innerHTML = `<div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>Chưa chọn tenant</strong></div>`;
+    platformTenantEmailCronDetailEl.textContent = "Chọn tenant ở danh sách bên trái.";
+    return;
+  }
+  platformTenantEmailCronSummaryEl.innerHTML = data
+    ? `
+      <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>${escapeHtml(tenant.code || tenant.name || tenant.id)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon(data.enabled ? "toggle_on" : "toggle_off")}Trạng thái</span><strong>${data.enabled ? "Đang bật" : "Đang tắt"}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("schedule")}Giờ gửi</span><strong>${escapeHtml(data.sendTime || "-")}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("mark_email_read")}Quota</span><strong>${Number(data.sentLast24h || 0)} / ${Number(data.dailyLimit || 0)}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("outbox")}Queue</span><strong>${Number(data.queued || 0)} chờ / ${Number(data.sent || 0)} đã gửi</strong></div>
+    `
+    : `<div class="tenant-summary-item"><span>${muiIcon("schedule_send")}Email cron</span><strong>Chưa tải</strong></div>`;
+  platformTenantEmailCronDetailEl.innerHTML = data
+    ? `
+      <div><strong>Template:</strong> ${escapeHtml(data.template || "-")}</div>
+      <div><strong>Next run:</strong> ${escapeHtml(data.nextRunAt ? formatDateTime(data.nextRunAt) : "-")}</div>
+      <div><strong>Last run:</strong> ${escapeHtml(data.lastRunAt ? formatDateTime(data.lastRunAt) : "-")}</div>
+      <div><strong>Lỗi:</strong> ${Number(data.errors || 0)} · <strong>Bỏ qua:</strong> ${Number(data.skipped || 0)}</div>
+    `
+    : "Chưa tải email cron.";
+}
+
+function openPlatformTenantEmailCronDialog() {
+  const tenant = activeTenantSummary();
+  if (!tenant.id) return;
+  const data = platformTenantEmailCronData || {};
+  platformTenantEmailCronTenantIdEl.value = tenant.id;
+  platformTenantEmailCronEnabledEl.value = String(Boolean(data.enabled));
+  platformTenantEmailCronSendTimeEl.value = data.sendTime || "08:00";
+  platformTenantEmailCronDailyLimitEl.value = Number(data.dailyLimit || 500);
+  platformTenantEmailCronTemplateEl.value = optionValueOrEmpty(platformTenantEmailCronTemplateEl, data.template || "payment_due") || "payment_due";
+  openAppDialog({
+    title: "Cấu hình email cron",
+    kicker: "Tenant email delivery",
+    icon: "schedule_send",
+    nodes: [platformTenantEmailCronFormEl],
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu cron", icon: "save", variant: "primary", onClick: savePlatformTenantEmailCron, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function savePlatformTenantEmailCron() {
+  setAdminStatus(tenantStatusEl, "Đang lưu email cron", "busy");
+  const res = await fetch("/api/v1/platform/tenants/email-cron", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tenantId: platformTenantEmailCronTenantIdEl.value,
+      enabled: platformTenantEmailCronEnabledEl.value === "true",
+      sendTime: platformTenantEmailCronSendTimeEl.value,
+      dailyLimit: Number(platformTenantEmailCronDailyLimitEl.value || 0),
+      template: platformTenantEmailCronTemplateEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không lưu được email cron", "error");
+    return false;
+  }
+  platformTenantEmailCronData = JSON.parse(text);
+  platformTenantEmailCronLoadedFor = platformTenantEmailCronTenantIdEl.value;
+  renderPlatformTenantEmailCron(platformTenantEmailCronData);
+  setAdminStatus(tenantStatusEl, "Đã lưu email cron", "ready");
+  return true;
+}
+
+async function loadPlatformTenantSubscriptionRequests(force = false) {
+  const tenant = activeTenantSummary();
+  if (!isPlatformAdmin() || !tenant.id || !hasPermission("subscription.update")) {
+    platformTenantSubscriptionRequestsLoadedFor = "";
+    platformTenantSubscriptionRequestsData = [];
+    renderPlatformTenantSubscriptionRequests([]);
+    return;
+  }
+  if (!force && platformTenantSubscriptionRequestsLoadedFor === tenant.id) {
+    renderPlatformTenantSubscriptionRequests(platformTenantSubscriptionRequestsData);
+    return;
+  }
+  const res = await fetch(`/api/v1/platform/tenants/subscription-requests?tenantId=${encodeURIComponent(tenant.id)}`);
+  const text = await res.text();
+  if (!res.ok) {
+    platformTenantSubscriptionRequestsLoadedFor = "";
+    platformTenantSubscriptionRequestsData = [];
+    renderPlatformTenantSubscriptionRequests([]);
+    setAdminStatus(tenantStatusEl, text || "Không tải được subscription requests", "error");
+    return;
+  }
+  platformTenantSubscriptionRequestsData = JSON.parse(text).requests || [];
+  platformTenantSubscriptionRequestsLoadedFor = tenant.id;
+  renderPlatformTenantSubscriptionRequests(platformTenantSubscriptionRequestsData);
+}
+
+function renderPlatformTenantSubscriptionRequests(requests) {
+  if (!platformTenantSubscriptionRequestsSummaryEl || !platformTenantSubscriptionRequestsListEl) return;
+  const tenant = activeTenantSummary();
+  if (!tenant.id) {
+    platformTenantSubscriptionRequestsSummaryEl.innerHTML = `<div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>Chưa chọn tenant</strong></div>`;
+    platformTenantSubscriptionRequestsListEl.textContent = "Chọn tenant ở danh sách bên trái.";
+    return;
+  }
+  const rows = requests || [];
+  platformTenantSubscriptionRequestsSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>${escapeHtml(tenant.code || tenant.name || tenant.id)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("new_releases")}Mới</span><strong>${rows.filter((item) => item.status === "new").length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Đã xử lý</span><strong>${rows.filter((item) => item.status === "processed").length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("payments")}Refund</span><strong>${formatMoney(rows.reduce((sum, item) => sum + Number(item.refundAmount || 0), 0))}</strong></div>
+  `;
+  platformTenantSubscriptionRequestsListEl.innerHTML = rows.length
+    ? rows.map((item) => `
+      <article class="admin-role-card">
+        <div>
+          <h3>${escapeHtml(subscriptionRequestTypeLabel(item.requestType))} · ${escapeHtml(subscriptionRequestStatusLabel(item.status))}</h3>
+          <p>${escapeHtml(item.desiredPlanName || item.desiredPlanCode || "Không đổi gói")} · hiệu lực ${escapeHtml(item.effectiveAt || "-")}${item.refundAmount ? ` · ${formatMoney(item.refundAmount)}` : ""}</p>
+          <small>${escapeHtml(item.reason || "-")} · ${escapeHtml(item.requestedByName || item.requestedByEmail || "tenant")} · ${escapeHtml(formatDateTime(item.createdAt))}</small>
+        </div>
+        <button type="button" data-process-subscription-request="${escapeAttr(item.id || "")}">${muiIcon("rule")}<span>Xử lý</span></button>
+      </article>
+    `).join("")
+    : "Tenant chưa gửi yêu cầu subscription.";
+  platformTenantSubscriptionRequestsListEl.querySelectorAll("[data-process-subscription-request]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const request = platformTenantSubscriptionRequestsData.find((item) => item.id === button.dataset.processSubscriptionRequest);
+      openPlatformSubscriptionRequestProcessDialog(request || null);
+    });
+  });
+}
+
+function openPlatformSubscriptionRequestProcessDialog(request) {
+  if (!request) return;
+  platformSubscriptionRequestIdEl.value = request.id || "";
+  platformSubscriptionRequestTenantIdEl.value = request.tenantId || activeTenantSummary().id || "";
+  platformSubscriptionRequestStatusEl.value = optionValueOrEmpty(platformSubscriptionRequestStatusEl, request.status === "new" ? "approved" : request.status || "approved") || "approved";
+  platformSubscriptionRequestApplyEl.checked = ["upgrade", "downgrade", "cancel"].includes(request.requestType) && request.status !== "processed";
+  platformSubscriptionRequestAdminNoteEl.value = request.adminNote || "";
+  openAppDialog({
+    title: subscriptionRequestTypeLabel(request.requestType),
+    kicker: "Subscription request",
+    icon: "published_with_changes",
+    nodes: [platformSubscriptionRequestProcessFormEl],
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu xử lý", icon: "save", variant: "primary", onClick: savePlatformSubscriptionRequestProcess, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function savePlatformSubscriptionRequestProcess() {
+  setAdminStatus(tenantStatusEl, "Đang xử lý subscription request", "busy");
+  const res = await fetch("/api/v1/platform/tenants/subscription-requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: platformSubscriptionRequestIdEl.value,
+      tenantId: platformSubscriptionRequestTenantIdEl.value,
+      status: platformSubscriptionRequestStatusEl.value,
+      apply: Boolean(platformSubscriptionRequestApplyEl.checked),
+      adminNote: platformSubscriptionRequestAdminNoteEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(tenantStatusEl, text || "Không xử lý được subscription request", "error");
+    return false;
+  }
+  const updated = JSON.parse(text).request;
+  platformTenantSubscriptionRequestsData = platformTenantSubscriptionRequestsData.map((item) => (item.id === updated?.id ? updated : item));
+  renderPlatformTenantSubscriptionRequests(platformTenantSubscriptionRequestsData);
+  subscriptionBillingLoaded = false;
+  tenantsLoaded = false;
+  await loadTenants(true);
+  setAdminStatus(tenantStatusEl, "Đã xử lý subscription request", "ready");
+  return true;
+}
+
+function subscriptionRequestTypeLabel(value) {
+  switch (value) {
+    case "upgrade":
+      return "Nâng cấp gói";
+    case "downgrade":
+      return "Hạ cấp gói";
+    case "cancel":
+      return "Hủy subscription";
+    case "refund":
+      return "Hoàn tiền";
+    default:
+      return value || "-";
+  }
+}
+
+function subscriptionRequestStatusLabel(value) {
+  switch (value) {
+    case "new":
+      return "Mới";
+    case "approved":
+      return "Đã duyệt";
+    case "rejected":
+      return "Từ chối";
+    case "processed":
+      return "Đã xử lý";
+    default:
+      return value || "-";
+  }
+}
+
 function usageMetricValue(metrics, metricCode) {
   const item = (metrics || []).find((metric) => metric.metricCode === metricCode);
   if (!item) return "-";
@@ -4419,11 +5414,15 @@ async function loadSubscriptionPurchase(force = false) {
   if (!hasPermission("subscription.view")) {
     subscriptionPurchaseLoaded = false;
     subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
+    subscriptionChangeRequestsLoaded = false;
+    subscriptionChangeRequestsData = [];
     renderSubscriptionPurchase(null);
+    renderSubscriptionChangeRequests([]);
     return;
   }
   if (!force && subscriptionPurchaseLoaded) {
     renderSubscriptionPurchase(subscriptionPurchaseData);
+    renderSubscriptionChangeRequests(subscriptionChangeRequestsData);
     return;
   }
   const res = await fetch("/api/v1/subscriptions/purchase");
@@ -4431,14 +5430,43 @@ async function loadSubscriptionPurchase(force = false) {
   if (!res.ok) {
     subscriptionPurchaseLoaded = false;
     subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
+    subscriptionChangeRequestsLoaded = false;
+    subscriptionChangeRequestsData = [];
     renderSubscriptionPurchase(null);
+    renderSubscriptionChangeRequests([]);
     setAdminStatus(subscriptionPurchaseStatusEl, text || "Không tải được subscription purchase", "error");
     return;
   }
   subscriptionPurchaseData = JSON.parse(text);
   subscriptionPurchaseLoaded = true;
+  await loadSubscriptionChangeRequests(force);
   renderSubscriptionPurchase(subscriptionPurchaseData);
   setAdminStatus(subscriptionPurchaseStatusEl, "Sẵn sàng", "ready");
+}
+
+async function loadSubscriptionChangeRequests(force = false) {
+  if (!hasPermission("subscription.view")) {
+    subscriptionChangeRequestsLoaded = false;
+    subscriptionChangeRequestsData = [];
+    renderSubscriptionChangeRequests([]);
+    return;
+  }
+  if (!force && subscriptionChangeRequestsLoaded) {
+    renderSubscriptionChangeRequests(subscriptionChangeRequestsData);
+    return;
+  }
+  const res = await fetch("/api/v1/subscriptions/requests");
+  const text = await res.text();
+  if (!res.ok) {
+    subscriptionChangeRequestsLoaded = false;
+    subscriptionChangeRequestsData = [];
+    renderSubscriptionChangeRequests([]);
+    setAdminStatus(subscriptionPurchaseStatusEl, text || "Không tải được subscription requests", "error");
+    return;
+  }
+  subscriptionChangeRequestsData = JSON.parse(text).requests || [];
+  subscriptionChangeRequestsLoaded = true;
+  renderSubscriptionChangeRequests(subscriptionChangeRequestsData);
 }
 
 function renderSubscriptionPurchase(data) {
@@ -4447,7 +5475,6 @@ function renderSubscriptionPurchase(data) {
   const hasActiveTenant = Boolean(tenant?.id);
   const currentPlan = data?.currentPlan || {};
   const suggested = data?.suggested || {};
-  const providers = data?.providers || [];
   const plans = data?.plans || [];
   subscriptionPurchaseSummaryEl.innerHTML = hasActiveTenant
     ? `
@@ -4466,10 +5493,10 @@ function renderSubscriptionPurchase(data) {
     ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
     : `<option value="">Chưa có plan</option>`;
   subscriptionPurchasePlanEl.value = optionValueOrEmpty(subscriptionPurchasePlanEl, currentPlan.planCode || tenant.planCode || "") || plans[0]?.code || "";
-  subscriptionPurchaseProviderEl.innerHTML = providers.length
-    ? providers.map((provider) => `<option value="${escapeAttr(provider.code || "")}">${escapeHtml(provider.displayName || provider.code || "")}</option>`).join("")
-    : `<option value="">Chưa có provider</option>`;
-  subscriptionPurchaseProviderEl.value = optionValueOrEmpty(subscriptionPurchaseProviderEl, providers[0]?.code || "") || "";
+  if (subscriptionPurchaseProviderEl) {
+    subscriptionPurchaseProviderEl.innerHTML = `<option value="">Platform Admin cấu hình</option>`;
+    subscriptionPurchaseProviderEl.value = "";
+  }
   subscriptionPurchasePeriodStartEl.value = suggested.periodStartsAt || "";
   subscriptionPurchasePeriodEndEl.value = suggested.periodEndsAt || "";
   subscriptionPurchaseDueAtEl.value = suggested.dueAt || "";
@@ -4489,13 +5516,103 @@ function renderSubscriptionPurchase(data) {
         <td><span class="tag ${paymentReconStatusTone(invoice.status)}">${escapeHtml(invoice.status || "")}</span></td>
         <td>${escapeHtml(invoice.dueAt || "-")}</td>
         <td>${escapeHtml(invoice.paidAt || "-")}</td>
+        <td>${invoice.status === "paid" ? `<button type="button" data-subscription-receipt="${escapeAttr(invoice.id || "")}">${muiIcon("receipt")}<span>Receipt</span></button>` : "-"}</td>
       </tr>
     `).join("")
-    : `<tr><td colspan="6">${hasActiveTenant ? "Chưa có subscription invoice" : "Chưa có tenant active để hiển thị invoice subscription."}</td></tr>`;
+    : `<tr><td colspan="7">${hasActiveTenant ? "Chưa có subscription invoice" : "Chưa có tenant active để hiển thị invoice subscription."}</td></tr>`;
   [subscriptionPurchasePlanEl, subscriptionPurchaseProviderEl, subscriptionPurchasePeriodStartEl, subscriptionPurchasePeriodEndEl, subscriptionPurchaseDueAtEl, subscriptionPurchaseAmountEl, startSubscriptionCheckoutBtn]
     .forEach((el) => {
       if (el) el.disabled = !hasActiveTenant;
     });
+  subscriptionPurchaseInvoicesEl.querySelectorAll("[data-subscription-receipt]").forEach((button) => {
+    button.addEventListener("click", () => openSubscriptionReceipt(button.dataset.subscriptionReceipt || ""));
+  });
+}
+
+function renderSubscriptionChangeRequests(requests) {
+  if (!subscriptionChangeRequestsListEl) return;
+  const rows = requests || [];
+  subscriptionChangeRequestsListEl.innerHTML = rows.length
+    ? rows.map((item) => `
+      <article class="admin-role-card">
+        <div>
+          <h3>${escapeHtml(subscriptionRequestTypeLabel(item.requestType))} · ${escapeHtml(subscriptionRequestStatusLabel(item.status))}</h3>
+          <p>${escapeHtml(item.desiredPlanName || item.desiredPlanCode || "Không đổi gói")} · hiệu lực ${escapeHtml(item.effectiveAt || "-")}${item.refundAmount ? ` · ${formatMoney(item.refundAmount)}` : ""}</p>
+          <small>${escapeHtml(item.reason || "-")} · ${escapeHtml(formatDateTime(item.createdAt))}${item.adminNote ? ` · Admin: ${escapeHtml(item.adminNote)}` : ""}</small>
+        </div>
+      </article>
+    `).join("")
+    : "Chưa có yêu cầu subscription.";
+}
+
+async function openSubscriptionChangeRequestDialog() {
+  const tenant = activeTenantSummary();
+  if (!tenant.id) return;
+  const plans = subscriptionPurchaseData?.plans?.length ? subscriptionPurchaseData.plans : await loadSubscriptionPlansData(true);
+  subscriptionChangeRequestTypeEl.value = "upgrade";
+  subscriptionChangeRequestPlanEl.innerHTML = plans.length
+    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    : `<option value="">Chưa có plan</option>`;
+  subscriptionChangeRequestPlanEl.value = optionValueOrEmpty(subscriptionChangeRequestPlanEl, subscriptionPurchaseData?.currentPlan?.planCode || tenant.planCode || "") || plans[0]?.code || "";
+  subscriptionChangeRequestEffectiveAtEl.value = "";
+  subscriptionChangeRequestRefundAmountEl.value = "0";
+  subscriptionChangeRequestReasonEl.value = "";
+  updateSubscriptionChangeRequestFormState();
+  openAppDialog({
+    title: "Gửi yêu cầu subscription",
+    kicker: "Tenant request",
+    icon: "published_with_changes",
+    nodes: [subscriptionChangeRequestFormEl],
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Gửi yêu cầu", icon: "send", variant: "primary", onClick: submitSubscriptionChangeRequest, closeOnSuccess: true },
+    ],
+  });
+}
+
+function updateSubscriptionChangeRequestFormState() {
+  const type = subscriptionChangeRequestTypeEl?.value || "";
+  if (subscriptionChangeRequestPlanEl) {
+    subscriptionChangeRequestPlanEl.disabled = !["upgrade", "downgrade"].includes(type);
+  }
+  if (subscriptionChangeRequestRefundAmountEl) {
+    subscriptionChangeRequestRefundAmountEl.disabled = type !== "refund";
+    if (type !== "refund") subscriptionChangeRequestRefundAmountEl.value = "0";
+  }
+}
+
+async function submitSubscriptionChangeRequest() {
+  if (!subscriptionChangeRequestReasonEl.value.trim()) {
+    setAdminStatus(subscriptionPurchaseStatusEl, "Nhập lý do yêu cầu", "error");
+    return false;
+  }
+  setAdminStatus(subscriptionPurchaseStatusEl, "Đang gửi yêu cầu", "busy");
+  const res = await fetch("/api/v1/subscriptions/requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestType: subscriptionChangeRequestTypeEl.value,
+      desiredPlanCode: subscriptionChangeRequestPlanEl.disabled ? "" : subscriptionChangeRequestPlanEl.value,
+      effectiveAt: subscriptionChangeRequestEffectiveAtEl.value,
+      refundAmount: Number(subscriptionChangeRequestRefundAmountEl.value || 0),
+      reason: subscriptionChangeRequestReasonEl.value,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    setAdminStatus(subscriptionPurchaseStatusEl, text || "Không gửi được yêu cầu", "error");
+    return false;
+  }
+  subscriptionChangeRequestsLoaded = false;
+  await loadSubscriptionChangeRequests(true);
+  setAdminStatus(subscriptionPurchaseStatusEl, "Đã gửi yêu cầu subscription", "ready");
+  return true;
+}
+
+function openSubscriptionReceipt(invoiceId) {
+  invoiceId = String(invoiceId || "").trim();
+  if (!invoiceId) return;
+  window.open(`/api/v1/subscriptions/invoices/receipt?invoiceId=${encodeURIComponent(invoiceId)}`, "_blank", "noopener");
 }
 
 async function startSubscriptionCheckout() {
@@ -4506,7 +5623,6 @@ async function startSubscriptionCheckout() {
     body: JSON.stringify({
       tenantId: activeTenantSummary().id || "",
       planCode: subscriptionPurchasePlanEl.value,
-      provider: subscriptionPurchaseProviderEl.value,
       periodStartsAt: subscriptionPurchasePeriodStartEl.value,
       periodEndsAt: subscriptionPurchasePeriodEndEl.value,
       dueAt: subscriptionPurchaseDueAtEl.value,
@@ -4604,6 +5720,7 @@ function renderSubscriptionBilling(data) {
               <td>
                 <div class="table-actions">
                   <button type="button" data-mark-subscription-paid="${escapeAttr(invoice.id || "")}" ${invoice.status === "paid" ? "disabled" : ""}>${muiIcon("payments")}<span>Mark paid</span></button>
+                  ${invoice.status === "paid" ? `<button type="button" data-subscription-receipt="${escapeAttr(invoice.id || "")}">${muiIcon("receipt")}<span>Receipt</span></button>` : ""}
                 </div>
               </td>
             </tr>
@@ -4617,6 +5734,9 @@ function renderSubscriptionBilling(data) {
     });
   subscriptionBillingListEl.querySelectorAll("[data-mark-subscription-paid]").forEach((button) => {
     button.addEventListener("click", () => openSubscriptionBillingPaidDialog(button.dataset.markSubscriptionPaid || ""));
+  });
+  subscriptionBillingListEl.querySelectorAll("[data-subscription-receipt]").forEach((button) => {
+    button.addEventListener("click", () => openSubscriptionReceipt(button.dataset.subscriptionReceipt || ""));
   });
 }
 
@@ -5155,12 +6275,22 @@ function resetTenantScopedState() {
   appContext = { schoolId: "", schoolYearId: "", periodCode: "", month: "" };
   tenantsLoaded = false;
   tenantsData = { tenants: [] };
+  platformTenantProvidersLoadedFor = "";
+  platformTenantProvidersData = [];
+  platformTenantEmailLoadedFor = "";
+  platformTenantEmailConfig = null;
+  platformTenantEmailCronLoadedFor = "";
+  platformTenantEmailCronData = null;
+  platformTenantSubscriptionRequestsLoadedFor = "";
+  platformTenantSubscriptionRequestsData = [];
   subscriptionPlansLoaded = false;
   subscriptionPlansData = [];
   subscriptionBillingLoaded = false;
   subscriptionBillingData = { invoices: [], summary: {}, suggestedPeriod: {}, tenant: null, tenants: [] };
   subscriptionPurchaseLoaded = false;
   subscriptionPurchaseData = { plans: [], providers: [], tenant: null, currentPlan: null, suggested: {}, openInvoice: null, checkout: null };
+  subscriptionChangeRequestsLoaded = false;
+  subscriptionChangeRequestsData = [];
   subscriptionFinanceConsoleLoaded = false;
   subscriptionFinanceConsoleData = { summary: {}, rows: [], scope: "active" };
   subscriptionAutomationLoaded = false;
@@ -7404,7 +8534,7 @@ async function openPaymentIntentFromInvoice(invoice) {
   }
   await activateTab("reconciliationTab");
   await loadPaymentReconciliation(true);
-  await createPaymentIntent(invoice.id, "manual_vietqr");
+  await createPaymentIntent(invoice.id);
 }
 
 async function openNotificationFromInvoice(invoice) {
@@ -7556,9 +8686,6 @@ async function loadPaymentReconciliation(force = false) {
   if (paymentReconPeriodFilterEl.value.trim()) {
     params.set("periodCode", paymentReconPeriodFilterEl.value.trim());
   }
-  if (paymentProviderFilterEl.value) {
-    params.set("provider", paymentProviderFilterEl.value);
-  }
   if (paymentInvoiceStatusFilterEl.value) {
     params.set("invoiceStatus", paymentInvoiceStatusFilterEl.value);
   }
@@ -7648,15 +8775,11 @@ function renderPaymentReconFilters(data = paymentReconciliationData) {
 }
 
 function renderPaymentProviderFilter(providers) {
-  const selected = paymentProviderFilterEl.value;
-  paymentProviderFilterEl.innerHTML = [
-    `<option value="">Tất cả</option>`,
-    ...providers.map((provider) => {
-      const suffix = provider.configured ? "" : " · thiếu cấu hình";
-      return `<option value="${escapeAttr(provider.code)}">${escapeHtml(provider.displayName || provider.code)}${suffix}</option>`;
-    }),
-  ].join("");
-  paymentProviderFilterEl.value = optionValueOrEmpty(paymentProviderFilterEl, selected);
+  if (!paymentProviderFilterEl) return;
+  paymentProviderFilterEl.innerHTML = `<option value="">Platform Admin cấu hình</option>`;
+  paymentProviderFilterEl.value = "";
+  const field = paymentProviderFilterEl.closest("label");
+  if (field) field.hidden = true;
 }
 
 function renderPaymentReconSummary(summary) {
@@ -7682,7 +8805,6 @@ function renderPaymentReconSummary(summary) {
 
 function renderPaymentReconInvoices(invoices, intents) {
   paymentReconInvoiceCountEl.textContent = `${invoices.length} hóa đơn`;
-  const hasPayOS = (paymentReconciliationData.providers || []).some((provider) => provider.code === "payos");
   const canWritePayments = hasPermission("payment.create");
   const canNotify = hasPermission("notification.view") || hasPermission("notification.send");
   paymentReconInvoiceRowsEl.innerHTML = invoices
@@ -7691,15 +8813,14 @@ function renderPaymentReconInvoices(invoices, intents) {
       const total = Number(invoice.totalAmount || 0);
       const outstanding = Number(invoice.outstandingAmount ?? Math.max(total - paid, 0));
       const intent = intents?.[invoice.id];
-      const intentLabel = intent?.provider ? `${intent.provider}: ${intent.status}` : "";
+      const intentLabel = intent?.status ? `Intent: ${intent.status}` : "";
       const matches = paymentReconMatchesForInvoice(invoice.id);
       const matchLabel = matches.length ? `${matches.length} match` : invoice.matchedPaymentCount ? `${Number(invoice.matchedPaymentCount || 0)} matched` : "Chưa match";
       const notifyAction = canNotify && isInvoiceNotificationCandidate(invoice) ? `<button type="button" data-recon-notify="${escapeAttr(invoice.id || "")}">${muiIcon("campaign")}<span>Notify</span></button>` : "";
       const paidConfirmationAction = isPaidConfirmationCandidate(invoice) ? `<button type="button" data-recon-paid-confirm="${escapeAttr(invoice.id || "")}">${muiIcon("mark_email_read")}<span>Confirm</span></button>` : "";
       const paymentActions = canWritePayments
         ? `
-          <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR</span></button>
-          ${hasPayOS ? `<button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}" data-recon-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
+          <button type="button" data-recon-intent="${escapeAttr(invoice.id || "")}">${muiIcon("qr_code")}<span>QR/Intent</span></button>
           <button type="button" data-recon-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Cash</span></button>
         `
         : "";
@@ -7732,7 +8853,7 @@ function renderPaymentReconInvoices(invoices, intents) {
     button.addEventListener("click", () => showPaymentReconInvoiceDetail(button.dataset.reconDetail, { focusDetail: true }));
   });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-intent]").forEach((button) => {
-    button.addEventListener("click", () => createPaymentIntent(button.dataset.reconIntent, button.dataset.reconProvider));
+    button.addEventListener("click", () => createPaymentIntent(button.dataset.reconIntent));
   });
   paymentReconInvoiceRowsEl.querySelectorAll("[data-recon-cash]").forEach((button) => {
     button.addEventListener("click", () => recordManualCashReceipt(button.dataset.reconCash, Number(button.dataset.reconDefaultAmount || 0)));
@@ -7758,7 +8879,6 @@ function renderPaymentReconTransactions(transactions) {
     .map(
       (transaction) => `
         <tr data-recon-transaction-row="${escapeAttr(transaction.id || "")}">
-          <td><strong>${escapeHtml(transaction.provider || "")}</strong><small>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</small></td>
           <td>${escapeHtml(formatDateTime(transaction.transactionTime))}</td>
           <td class="money">${formatMoney(transaction.amount || 0)}</td>
           <td>${escapeHtml(transaction.accountNumber || "")}<small>${escapeHtml(transaction.bankName || "")}</small></td>
@@ -7770,7 +8890,7 @@ function renderPaymentReconTransactions(transactions) {
     )
     .join("");
   if (!transactions.length) {
-    paymentReconTransactionRowsEl.innerHTML = `<tr><td colspan="7" class="empty-cell">Chưa có giao dịch vào</td></tr>`;
+    paymentReconTransactionRowsEl.innerHTML = `<tr><td colspan="6" class="empty-cell">Chưa có giao dịch vào</td></tr>`;
   }
   paymentReconTransactionRowsEl.querySelectorAll("[data-recon-transaction-row]").forEach((row) => {
     row.classList.toggle("is-selected", paymentReconSelection.type === "transaction" && paymentReconSelection.id === row.dataset.reconTransactionRow);
@@ -7883,7 +9003,7 @@ function paymentMatchMeta(item) {
   return parts.join(" · ");
 }
 
-async function createPaymentIntent(invoiceId, provider) {
+async function createPaymentIntent(invoiceId) {
   if (!invoiceId) return;
   paymentReconSelection = { type: "invoice", id: invoiceId };
   updatePaymentReconActiveRows();
@@ -7891,7 +9011,7 @@ async function createPaymentIntent(invoiceId, provider) {
   const res = await fetch("/api/v1/payments/intents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ invoiceId, provider }),
+    body: JSON.stringify({ invoiceId }),
   });
   const text = await res.text();
   let data = null;
@@ -8045,7 +9165,7 @@ function updatePaymentReconActiveRows() {
 
 function bindPaymentReconDetailActions() {
   paymentReconDetailEl.querySelectorAll("[data-recon-detail-intent]").forEach((button) => {
-    button.addEventListener("click", () => createPaymentIntent(button.dataset.reconDetailIntent, button.dataset.reconDetailProvider || "manual_vietqr"));
+    button.addEventListener("click", () => createPaymentIntent(button.dataset.reconDetailIntent));
   });
   paymentReconDetailEl.querySelectorAll("[data-recon-detail-cash]").forEach((button) => {
     button.addEventListener("click", () => recordManualCashReceipt(button.dataset.reconDetailCash, Number(button.dataset.reconDefaultAmount || 0)));
@@ -8065,11 +9185,9 @@ function invoiceDetailTemplate(invoice) {
   const outstanding = Number(invoice.outstandingAmount ?? Math.max(total - paid, 0));
   const intent = paymentReconciliationData.intents?.[invoice.id];
   const matches = paymentReconMatchesForInvoice(invoice.id);
-  const hasPayOS = (paymentReconciliationData.providers || []).some((provider) => provider.code === "payos");
   const paymentActions = hasPermission("payment.create")
     ? `
-      <button type="button" data-recon-detail-intent="${escapeAttr(invoice.id || "")}" data-recon-detail-provider="manual_vietqr">${muiIcon("qr_code")}<span>QR/Intent</span></button>
-      ${hasPayOS ? `<button type="button" data-recon-detail-intent="${escapeAttr(invoice.id || "")}" data-recon-detail-provider="payos">${muiIcon("link")}<span>payOS</span></button>` : ""}
+      <button type="button" data-recon-detail-intent="${escapeAttr(invoice.id || "")}">${muiIcon("qr_code")}<span>QR/Intent</span></button>
       <button type="button" data-recon-detail-cash="${escapeAttr(invoice.id || "")}" data-recon-default-amount="${escapeAttr(outstanding || total)}">${muiIcon("payments")}<span>Cash receipt</span></button>
     `
     : "";
@@ -8078,7 +9196,6 @@ function invoiceDetailTemplate(invoice) {
   const intentDetail = intent
     ? `
       <div class="reconciliation-detail-grid">
-        <span>Provider</span><strong>${escapeHtml(intent.provider || "")}</strong>
         <span>Intent</span><strong>${escapeHtml(intent.intentCode || "")}</strong>
         <span>Reference</span><strong>${escapeHtml(intent.providerReference || "-")}</strong>
         <span>Status</span><strong>${escapeHtml(intent.status || "")}</strong>
@@ -8092,7 +9209,7 @@ function invoiceDetailTemplate(invoice) {
         .map(
           (match) => `
             <li>
-              <strong>${escapeHtml(match.provider || "")} · ${escapeHtml(match.providerTransactionId || match.transactionId || "")}</strong>
+              <strong>${escapeHtml(match.providerTransactionId || match.transactionId || match.reason || "Match")}</strong>
               <span>${escapeHtml(match.reason || match.matchType || "Matched")}</span>
               <small>${escapeHtml(match.status || "")} · score ${Number(match.score || 0)} · ${formatMoney(match.amountApplied || 0)} · ${escapeHtml(formatDateTime(match.createdAt))}</small>
             </li>
@@ -8148,12 +9265,11 @@ function transactionDetailTemplate(transaction) {
     <div class="detail-hero">
       ${muiIcon("sync_alt")}
       <div>
-        <strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || transaction.provider || "-")}</strong>
+        <strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "-")}</strong>
         <span>${escapeHtml(transaction.description || "Giao dịch vào")}</span>
       </div>
     </div>
     <div class="reconciliation-detail-grid">
-      <span>Provider</span><strong>${escapeHtml(transaction.provider || "")}</strong>
       <span>Reference</span><strong>${escapeHtml(transaction.providerTransactionId || transaction.referenceCode || "")}</strong>
       <span>Hóa đơn</span><strong>${escapeHtml(transaction.invoiceCode || "Chưa match")}</strong>
       <span>Số tiền</span><strong>${formatMoney(transaction.amount || 0)}</strong>
@@ -8177,7 +9293,6 @@ function paymentIntentDetailTemplate(data) {
     <div class="reconciliation-intent-detail">
       ${image}
       <div class="reconciliation-detail-grid">
-        <span>Provider</span><strong>${escapeHtml(intent.provider || "")}</strong>
         <span>Intent</span><strong>${escapeHtml(intent.intentCode || "")}</strong>
         <span>Reference</span><strong>${escapeHtml(intent.providerReference || "")}</strong>
         <span>Số tiền</span><strong>${formatMoney(intent.amount || 0)}</strong>
@@ -8890,7 +10005,6 @@ async function previewEmail() {
     body: JSON.stringify({
       rows: [rows[0]],
       template: emailTemplateEl.value,
-      config: collectEmailConfig(),
     }),
   });
   const text = await res.text();
@@ -9258,20 +10372,27 @@ function escapeAttr(value) {
 loginFormEl.addEventListener("submit", submitLogin);
 bootstrapFormEl.addEventListener("submit", submitBootstrap);
 signupFormEl.addEventListener("submit", submitSignup);
+passwordResetFormEl?.addEventListener("submit", submitPasswordReset);
+passwordResetRequestBtn?.addEventListener("click", requestPasswordReset);
 logoutButton.addEventListener("click", logout);
+landingModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!bootstrapFormEl.hidden) {
+      scrollLandingAccess(bootstrapDisplayNameEl);
+      return;
+    }
+    if (button.dataset.landingMode === "signup") {
+      showSignup("Gửi thông tin để Platform Admin tạo tài khoản cho trường", { scrollToAccess: true });
+      return;
+    }
+    showLogin("Vui lòng đăng nhập", { scrollToAccess: true });
+  });
+});
 showLoginModeBtn?.addEventListener("click", () => showLogin(loginStatusEl.textContent || "Vui lòng đăng nhập"));
-showSignupModeBtn?.addEventListener("click", () => showSignup("Tạo tenant và owner đầu tiên để bắt đầu"));
+showSignupModeBtn?.addEventListener("click", () => showSignup("Gửi thông tin để Platform Admin tạo tài khoản cho trường"));
+showPasswordResetModeBtn?.addEventListener("click", () => showPasswordReset("Nhập Email hoặc SĐT để lấy token đặt lại mật khẩu"));
+passwordResetBackToLoginBtn?.addEventListener("click", () => showLogin("Vui lòng đăng nhập"));
 tenantSwitcherEl?.addEventListener("change", () => switchTenant(tenantSwitcherEl.value));
-signupTenantNameEl?.addEventListener("input", () => {
-  if (!signupSchoolNameEl.value.trim()) {
-    signupSchoolNameEl.value = signupTenantNameEl.value;
-  }
-});
-signupTenantCodeEl?.addEventListener("input", () => {
-  if (!signupSchoolCodeEl.value.trim()) {
-    signupSchoolCodeEl.value = signupTenantCodeEl.value;
-  }
-});
 tenantCodeEl?.addEventListener("input", () => {
   if (!tenantIdEl.value && !tenantInitialSchoolCodeEl.value.trim()) {
     tenantInitialSchoolCodeEl.value = tenantCodeEl.value;
@@ -9463,7 +10584,16 @@ refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
 refreshTenantsBtn?.addEventListener("click", () => loadTenants(true));
 refreshSubscriptionBillingBtn?.addEventListener("click", () => loadSubscriptionBilling(true));
 refreshSubscriptionFinanceConsoleBtn?.addEventListener("click", () => loadSubscriptionFinanceConsole(true));
-newTenantBtn?.addEventListener("click", () => openTenantDialog("create"));
+refreshPlatformIntakeRequestsBtn?.addEventListener("click", () => loadPlatformIntakeRequests(true));
+refreshPlatformTenantProvidersBtn?.addEventListener("click", () => loadPlatformTenantProviders(true));
+refreshPlatformTenantEmailConfigBtn?.addEventListener("click", () => loadPlatformTenantEmailConfig(true));
+editPlatformTenantEmailConfigBtn?.addEventListener("click", openPlatformTenantEmailDialog);
+refreshPlatformTenantEmailCronBtn?.addEventListener("click", () => loadPlatformTenantEmailCron(true));
+editPlatformTenantEmailCronBtn?.addEventListener("click", openPlatformTenantEmailCronDialog);
+refreshPlatformTenantSubscriptionRequestsBtn?.addEventListener("click", () => loadPlatformTenantSubscriptionRequests(true));
+openSubscriptionChangeRequestBtn?.addEventListener("click", openSubscriptionChangeRequestDialog);
+subscriptionChangeRequestTypeEl?.addEventListener("change", updateSubscriptionChangeRequestFormState);
+newTenantBtn?.addEventListener("click", () => openTenantOnboardDialog(null));
 editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
 editActiveTenantSubscriptionBtn?.addEventListener("click", openTenantSubscriptionDialog);
 generateSubscriptionInvoiceBtn?.addEventListener("click", openSubscriptionBillingGenerateDialog);
