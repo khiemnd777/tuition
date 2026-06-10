@@ -236,6 +236,9 @@ type tenantSubscriptionBillingProfile struct {
 	SubscriptionStatus    string
 	PlanCode              string
 	PlanName              string
+	ContactPrice          bool
+	BasePriceVND          int
+	PromotionalPriceVND   *int
 	CurrentPeriodStartsAt sql.NullTime
 	CurrentPeriodEndsAt   sql.NullTime
 	BillingMetadata       map[string]any
@@ -853,22 +856,26 @@ func validateSubscriptionBillingConfig(input subscriptionBillingConfigSaveInput)
 
 func loadTenantSubscriptionBillingProfile(ctx context.Context, exec masterDataExecutor, tenantID string) (tenantSubscriptionBillingProfile, error) {
 	var profile tenantSubscriptionBillingProfile
+	var promotionalPrice sql.NullInt64
 	var billingMetadataBytes []byte
 	err := exec.QueryRowContext(ctx, `
-SELECT tenant.id::text,
-	tenant.code,
-	tenant.name,
-	ts.id::text,
-	ts.status,
-	COALESCE(plan.code, ''),
-	COALESCE(plan.name, ''),
-	ts.current_period_starts_at,
-	ts.current_period_ends_at,
-	COALESCE(ts.billing_metadata, '{}'::jsonb)
-FROM tenants tenant
-JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
-LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
-WHERE tenant.id = $1::uuid`, tenantID).Scan(
+		SELECT tenant.id::text,
+			tenant.code,
+			tenant.name,
+		ts.id::text,
+		ts.status,
+		COALESCE(plan.code, ''),
+		COALESCE(plan.name, ''),
+		COALESCE(plan.contact_price, false),
+		COALESCE(plan.base_price_vnd, 0),
+		plan.promotional_price_vnd,
+		ts.current_period_starts_at,
+			ts.current_period_ends_at,
+			COALESCE(ts.billing_metadata, '{}'::jsonb)
+		FROM tenants tenant
+		JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
+		LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
+		WHERE tenant.id = $1::uuid`, tenantID).Scan(
 		&profile.TenantID,
 		&profile.TenantCode,
 		&profile.TenantName,
@@ -876,6 +883,9 @@ WHERE tenant.id = $1::uuid`, tenantID).Scan(
 		&profile.SubscriptionStatus,
 		&profile.PlanCode,
 		&profile.PlanName,
+		&profile.ContactPrice,
+		&profile.BasePriceVND,
+		&promotionalPrice,
 		&profile.CurrentPeriodStartsAt,
 		&profile.CurrentPeriodEndsAt,
 		&billingMetadataBytes,
@@ -883,6 +893,7 @@ WHERE tenant.id = $1::uuid`, tenantID).Scan(
 	if err != nil {
 		return profile, err
 	}
+	profile.PromotionalPriceVND = intPtrFromNullInt64(promotionalPrice)
 	profile.BillingMetadata = decodeMetadata(billingMetadataBytes)
 	return profile, nil
 }
@@ -903,7 +914,7 @@ func filterSubscriptionCheckoutProviders(providers []paymentProvider) []paymentP
 
 func subscriptionBillingConfigFromProfile(profile tenantSubscriptionBillingProfile) subscriptionBillingConfig {
 	cfg := subscriptionBillingConfig{
-		Amount:              parseSubscriptionLimitValue(profile.BillingMetadata["amount"]),
+		Amount:              firstPositiveInt(parseSubscriptionLimitValue(profile.BillingMetadata["amount"]), subscriptionPlanBillingAmount(profile)),
 		IntervalMonths:      parseSubscriptionLimitValue(profile.BillingMetadata["interval_months"]),
 		DueDays:             parseSubscriptionLimitValue(profile.BillingMetadata["due_days"]),
 		AutoRenew:           boolValueFromAny(profile.BillingMetadata["auto_renew"]),
@@ -937,6 +948,13 @@ func subscriptionBillingConfigFromProfile(profile tenantSubscriptionBillingProfi
 	return cfg
 }
 
+func subscriptionPlanBillingAmount(profile tenantSubscriptionBillingProfile) int {
+	if profile.ContactPrice {
+		return 0
+	}
+	return subscriptionPlanDisplayPrice(profile.BasePriceVND, profile.PromotionalPriceVND)
+}
+
 func suggestSubscriptionBillingPeriod(profile tenantSubscriptionBillingProfile, now time.Time) subscriptionBillingPeriodSuggestion {
 	config := subscriptionBillingConfigFromProfile(profile)
 	intervalMonths := config.IntervalMonths
@@ -954,6 +972,15 @@ func suggestSubscriptionBillingPeriod(profile tenantSubscriptionBillingProfile, 
 		DueAt:          dueAt.Format("2006-01-02"),
 		Amount:         config.Amount,
 	}
+}
+
+func firstPositiveInt(values ...int) int {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 func boolValueFromAny(value any) bool {
@@ -1127,24 +1154,27 @@ func listSubscriptionFinanceConsoleRows(ctx context.Context, db *sql.DB, filters
 		conditions = append(conditions, "COALESCE(latest_invoice.status, '') = "+addArg(filters.InvoiceStatus))
 	}
 	query := `
-SELECT tenant.id::text,
-	tenant.code,
-	tenant.name,
+	SELECT tenant.id::text,
+		tenant.code,
+		tenant.name,
 	COALESCE(plan.code, ''),
 	COALESCE(plan.name, ''),
 	COALESCE(ts.status, ''),
 	COALESCE(latest_invoice.invoice_code, ''),
 	COALESCE(latest_invoice.status, ''),
-	latest_invoice.due_at,
-	COALESCE(stats.open_count, 0),
-	COALESCE(stats.past_due_count, 0),
-	COALESCE(stats.paid_count, 0),
-	COALESCE(last_dunning.last_status, ''),
-	last_dunning.last_created_at,
-	COALESCE(ts.billing_metadata, '{}'::jsonb),
-	ts.current_period_starts_at,
-	ts.current_period_ends_at
-FROM tenants tenant
+		latest_invoice.due_at,
+		COALESCE(stats.open_count, 0),
+		COALESCE(stats.past_due_count, 0),
+		COALESCE(stats.paid_count, 0),
+		COALESCE(last_dunning.last_status, ''),
+		last_dunning.last_created_at,
+		COALESCE(plan.contact_price, false),
+		COALESCE(plan.base_price_vnd, 0),
+		plan.promotional_price_vnd,
+		COALESCE(ts.billing_metadata, '{}'::jsonb),
+		ts.current_period_starts_at,
+		ts.current_period_ends_at
+	FROM tenants tenant
 JOIN tenant_subscriptions ts ON ts.tenant_id = tenant.id
 LEFT JOIN subscription_plans plan ON plan.id = ts.plan_id
 LEFT JOIN LATERAL (
@@ -1181,6 +1211,9 @@ ORDER BY tenant.code`
 		var item subscriptionFinanceConsoleRow
 		var latestDueAt sql.NullTime
 		var lastDunningAt sql.NullTime
+		var contactPrice bool
+		var profileBasePrice int
+		var promotionalPrice sql.NullInt64
 		var billingMetadataBytes []byte
 		var currentPeriodStartsAt sql.NullTime
 		var currentPeriodEndsAt sql.NullTime
@@ -1199,6 +1232,9 @@ ORDER BY tenant.code`
 			&item.PaidCount,
 			&item.LastDunningStatus,
 			&lastDunningAt,
+			&contactPrice,
+			&profileBasePrice,
+			&promotionalPrice,
 			&billingMetadataBytes,
 			&currentPeriodStartsAt,
 			&currentPeriodEndsAt,
@@ -1211,6 +1247,9 @@ ORDER BY tenant.code`
 			TenantName:            item.TenantName,
 			PlanCode:              item.PlanCode,
 			PlanName:              item.PlanName,
+			ContactPrice:          contactPrice,
+			BasePriceVND:          profileBasePrice,
+			PromotionalPriceVND:   intPtrFromNullInt64(promotionalPrice),
 			SubscriptionStatus:    item.SubscriptionStatus,
 			BillingMetadata:       decodeMetadata(billingMetadataBytes),
 			CurrentPeriodStartsAt: currentPeriodStartsAt,

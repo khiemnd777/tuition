@@ -217,6 +217,15 @@ func handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	platformAdminCount, err := countPlatformAdminUsers(r.Context(), db)
+	if err != nil {
+		http.Error(w, "cannot inspect platform admins", http.StatusInternalServerError)
+		return
+	}
+	if platformAdminCount == 0 {
+		http.Error(w, "platform admin bootstrap is required", http.StatusForbidden)
+		return
+	}
 	user, passwordHash, err := loadAuthUserForLogin(r.Context(), db, identifier)
 	if err != nil {
 		http.Error(w, "invalid email/phone or password", http.StatusUnauthorized)
@@ -275,7 +284,7 @@ func handleAuthBootstrapStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	count, err := countAppUsers(r.Context(), db)
+	count, err := countPlatformAdminUsers(r.Context(), db)
 	if err != nil {
 		http.Error(w, "cannot inspect users", http.StatusInternalServerError)
 		return
@@ -705,15 +714,21 @@ func createInitialAdminUser(ctx context.Context, db *sql.DB, input adminUserSave
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `LOCK TABLE app_users IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE app_users, app_user_roles IN SHARE ROW EXCLUSIVE MODE`); err != nil {
 		return "", err
 	}
 	var count int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM app_users`).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM app_users user_item
+JOIN app_user_roles user_role ON user_role.user_id = user_item.id
+JOIN app_roles role ON role.id = user_role.role_id
+WHERE role.code = 'platform_admin'
+	AND user_item.status = 'active'`).Scan(&count); err != nil {
 		return "", err
 	}
 	if count > 0 {
-		return "", fmt.Errorf("admin bootstrap is only available before the first user exists")
+		return "", fmt.Errorf("admin bootstrap is only available before the first platform admin exists")
 	}
 
 	var userID string
@@ -916,9 +931,15 @@ ON CONFLICT (tenant_id, user_id, role_id) DO NOTHING`, tenantID, userID, roleCod
 	return err
 }
 
-func countAppUsers(ctx context.Context, db *sql.DB) (int, error) {
+func countPlatformAdminUsers(ctx context.Context, db *sql.DB) (int, error) {
 	var count int
-	err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM app_users`).Scan(&count)
+	err := db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM app_users user_item
+JOIN app_user_roles user_role ON user_role.user_id = user_item.id
+JOIN app_roles role ON role.id = user_role.role_id
+WHERE role.code = 'platform_admin'
+	AND user_item.status = 'active'`).Scan(&count)
 	return count, err
 }
 

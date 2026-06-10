@@ -72,6 +72,51 @@ func TestSubscriptionBillingConfigFromProfileDefaults(t *testing.T) {
 	}
 }
 
+func TestSubscriptionBillingConfigFallsBackToPlanDisplayPrice(t *testing.T) {
+	promotionalPrice := 1500000
+	got := subscriptionBillingConfigFromProfile(tenantSubscriptionBillingProfile{
+		BasePriceVND:        2000000,
+		PromotionalPriceVND: &promotionalPrice,
+		BillingMetadata:     map[string]any{},
+	})
+	if got.Amount != 1500000 {
+		t.Fatalf("expected promotional plan price fallback, got %d", got.Amount)
+	}
+
+	manualOverride := subscriptionBillingConfigFromProfile(tenantSubscriptionBillingProfile{
+		BasePriceVND:        2000000,
+		PromotionalPriceVND: &promotionalPrice,
+		BillingMetadata: map[string]any{
+			"amount": 1800000,
+		},
+	})
+	if manualOverride.Amount != 1800000 {
+		t.Fatalf("expected billing metadata amount to override plan price, got %d", manualOverride.Amount)
+	}
+
+	contactPrice := subscriptionBillingConfigFromProfile(tenantSubscriptionBillingProfile{
+		ContactPrice:        true,
+		BasePriceVND:        2000000,
+		PromotionalPriceVND: &promotionalPrice,
+		BillingMetadata:     map[string]any{},
+	})
+	if contactPrice.Amount != 0 {
+		t.Fatalf("expected contact-price plan to skip plan price fallback, got %d", contactPrice.Amount)
+	}
+
+	contactPriceManualOverride := subscriptionBillingConfigFromProfile(tenantSubscriptionBillingProfile{
+		ContactPrice:        true,
+		BasePriceVND:        2000000,
+		PromotionalPriceVND: &promotionalPrice,
+		BillingMetadata: map[string]any{
+			"amount": 1900000,
+		},
+	})
+	if contactPriceManualOverride.Amount != 1900000 {
+		t.Fatalf("expected manual amount to override contact-price plan, got %d", contactPriceManualOverride.Amount)
+	}
+}
+
 func TestValidateSubscriptionBillingConfig(t *testing.T) {
 	err := validateSubscriptionBillingConfig(subscriptionBillingConfigSaveInput{
 		TenantID:            "tenant-1",

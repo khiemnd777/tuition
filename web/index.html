@@ -336,6 +336,7 @@
           <div class="menu-group">
             <p class="menu-group-title">Platform</p>
             <button class="tab-button" type="button" data-tab-target="platformTenantsTab" aria-controls="platformTenantsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenants</span></button>
+            <button class="tab-button" type="button" data-tab-target="platformSubscriptionsTab" aria-controls="platformSubscriptionsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Subscriptions</span></button>
             <button class="tab-button" type="button" data-tab-target="platformFinanceTab" aria-controls="platformFinanceTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">account_balance</span><span>Finance Console</span></button>
             <button class="tab-button" type="button" data-tab-target="platformEntitlementsTab" aria-controls="platformEntitlementsTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">monitoring</span><span>Entitlements</span></button>
             <button class="tab-button" type="button" data-tab-target="platformUsersTab" aria-controls="platformUsersTab" aria-selected="false"><span class="mui-icon" aria-hidden="true">shield_person</span><span>Platform Users</span></button>
@@ -2043,6 +2044,55 @@
               <input id="tenantSubscriptionCurrentPeriodEndsAt" type="date" />
             </label>
           </div>
+          <div id="platformSubscriptionPlanForm" class="tenant-form platform-subscription-plan-form" hidden>
+            <input id="platformSubscriptionPlanId" type="hidden" />
+            <div class="form-section-label">Plan info</div>
+            <label>
+              <span>Plan code</span>
+              <input id="platformSubscriptionPlanCode" placeholder="plus" />
+            </label>
+            <label>
+              <span>Plan name</span>
+              <input id="platformSubscriptionPlanName" placeholder="Plus" />
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="platformSubscriptionPlanStatus">
+                <option value="active">active</option>
+                <option value="archived">archived</option>
+              </select>
+            </label>
+            <label>
+              <span>Display order</span>
+              <input id="platformSubscriptionPlanDisplayOrder" type="number" min="0" step="1" />
+            </label>
+            <div class="form-section-label">Pricing</div>
+            <label class="checkbox-label platform-plan-contact-toggle">
+              <input id="platformSubscriptionPlanContactPrice" type="checkbox" />
+              <span>Giá liên hệ</span>
+            </label>
+            <label>
+              <span>Giá base</span>
+              <input id="platformSubscriptionPlanBasePrice" type="number" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Giá chiết khấu partner</span>
+              <input id="platformSubscriptionPlanPartnerPrice" type="number" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Giá khuyến mãi</span>
+              <input id="platformSubscriptionPlanPromotionalPrice" type="number" min="0" step="1000" />
+            </label>
+            <div class="form-section-label">Details</div>
+            <label class="form-wide">
+              <span>Description</span>
+              <textarea id="platformSubscriptionPlanDescription" rows="3"></textarea>
+            </label>
+            <label class="form-wide">
+              <span>Limits JSON</span>
+              <textarea id="platformSubscriptionPlanLimits" rows="7" spellcheck="false"></textarea>
+            </label>
+          </div>
           <div id="platformTenantProviderForm" class="tenant-form" hidden>
             <input id="platformTenantProviderTenantId" type="hidden" />
             <input id="platformTenantProviderCode" type="hidden" />
@@ -2129,11 +2179,166 @@
               </select>
             </label>
           </div>
-      </div>
-    </section>
+	      </div>
+	    </section>
 
-    <section id="platformFinanceTab" class="tab-panel" role="tabpanel" hidden>
-      <div class="admin-workspace platform-admin-shell">
+	    <section id="platformSubscriptionsTab" class="tab-panel" role="tabpanel" hidden>
+	      <div class="admin-workspace platform-admin-shell">
+	          <div class="platform-admin-stack">
+	            <section class="panel tenant-admin-panel">
+	              <div class="panel-head">
+	                <div>
+	                  <p class="section-kicker">Plan catalog</p>
+	                  <h2 class="section-title"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Subscription plans</span></h2>
+	                </div>
+	                <div class="panel-actions">
+	                  <button id="refreshPlatformSubscriptions" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
+	                  <button id="newPlatformSubscriptionPlan" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Tạo plan</span></button>
+	                  <span id="platformSubscriptionsStatus" class="status-pill">Chưa tải</span>
+	                </div>
+	              </div>
+		              <div id="platformSubscriptionPlanSummary" class="tenant-summary"></div>
+		              <div class="table-wrap admin-table-wrap">
+		                <table class="admin-table" aria-label="Platform subscription plans">
+		                  <thead>
+		                    <tr>
+			                      <th>Code</th>
+			                      <th>Name</th>
+			                      <th>Status</th>
+			                      <th>Order</th>
+			                      <th>Giá</th>
+			                      <th>Limits</th>
+			                      <th>Updated</th>
+			                      <th>Action</th>
+		                    </tr>
+			                  </thead>
+			                  <tbody id="platformSubscriptionPlanRows">
+			                    <tr><td colspan="8">Chưa tải subscription plans</td></tr>
+			                  </tbody>
+		                </table>
+		              </div>
+	            </section>
+
+	            <section class="panel tenant-admin-panel">
+	              <div class="panel-head">
+	                <div>
+	                  <p class="section-kicker">Tenant subscriptions</p>
+	                  <h3 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Gói đang gán cho tenant</span></h3>
+	                </div>
+	              </div>
+	              <div class="tenant-form">
+	                <label>
+	                  <span>Tenant search</span>
+	                  <input id="platformSubscriptionTenantQuery" placeholder="SUNRISE" />
+	                </label>
+	                <label>
+	                  <span>Plan</span>
+	                  <select id="platformSubscriptionPlanFilter"><option value="">all</option></select>
+	                </label>
+	                <label>
+	                  <span>Status</span>
+	                  <select id="platformSubscriptionStatusFilter">
+	                    <option value="">all</option>
+	                    <option value="trial">trial</option>
+	                    <option value="active">active</option>
+	                    <option value="past_due">past_due</option>
+	                    <option value="suspended">suspended</option>
+	                    <option value="cancelled">cancelled</option>
+	                  </select>
+	                </label>
+	              </div>
+	              <div id="platformTenantSubscriptionSummary" class="tenant-summary"></div>
+	              <div class="table-wrap admin-table-wrap">
+	                <table class="admin-table" aria-label="Platform tenant subscriptions">
+	                  <thead>
+	                    <tr>
+	                      <th>Tenant</th>
+	                      <th>Plan</th>
+	                      <th>Status</th>
+	                      <th>Trial ends</th>
+	                      <th>Period ends</th>
+	                      <th>Usage</th>
+	                      <th>Action</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody id="platformTenantSubscriptionRows">
+	                    <tr><td colspan="7">Chưa tải tenant subscriptions</td></tr>
+	                  </tbody>
+	                </table>
+	              </div>
+	            </section>
+
+	            <section class="panel tenant-admin-panel">
+	              <div class="panel-head">
+	                <div>
+	                  <p class="section-kicker">Billing & invoices</p>
+	                  <h3 class="section-title"><span class="mui-icon" aria-hidden="true">receipt_long</span><span>Subscription billing snapshot</span></h3>
+	                </div>
+	              </div>
+	              <div id="platformSubscriptionFinanceSummary" class="tenant-summary"></div>
+	              <div class="table-wrap admin-table-wrap">
+	                <table class="admin-table" aria-label="Platform subscription billing snapshot">
+	                  <thead>
+	                    <tr>
+	                      <th>Tenant</th>
+	                      <th>Plan</th>
+	                      <th>Subscription</th>
+	                      <th>Latest invoice</th>
+	                      <th>Billing</th>
+	                      <th>Counts</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody id="platformSubscriptionFinanceRows">
+	                    <tr><td colspan="6">Chưa tải billing snapshot</td></tr>
+	                  </tbody>
+	                </table>
+	              </div>
+	            </section>
+
+	            <section class="panel tenant-admin-panel">
+	              <div class="panel-head">
+	                <div>
+	                  <p class="section-kicker">Requests</p>
+	                  <h3 class="section-title"><span class="mui-icon" aria-hidden="true">published_with_changes</span><span>Yêu cầu subscription</span></h3>
+	                </div>
+	                <div class="panel-actions">
+	                  <label class="inline-filter">
+	                    <span>Status</span>
+	                    <select id="platformSubscriptionRequestStatusFilter">
+	                      <option value="">all</option>
+	                      <option value="new">new</option>
+	                      <option value="approved">approved</option>
+	                      <option value="processed">processed</option>
+	                      <option value="rejected">rejected</option>
+	                    </select>
+	                  </label>
+	                </div>
+	              </div>
+	              <div id="platformSubscriptionRequestsSummary" class="tenant-summary"></div>
+	              <div class="table-wrap admin-table-wrap">
+	                <table class="admin-table" aria-label="Platform subscription requests">
+	                  <thead>
+	                    <tr>
+	                      <th>Tenant</th>
+	                      <th>Request</th>
+	                      <th>Target</th>
+	                      <th>Status</th>
+	                      <th>Submitted</th>
+	                      <th>Action</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody id="platformSubscriptionRequestsRows">
+	                    <tr><td colspan="6">Chưa tải requests</td></tr>
+	                  </tbody>
+	                </table>
+	              </div>
+	            </section>
+	          </div>
+	      </div>
+	    </section>
+
+	    <section id="platformFinanceTab" class="tab-panel" role="tabpanel" hidden>
+	      <div class="admin-workspace platform-admin-shell">
           <div class="platform-admin-stack">
             <section class="panel tenant-admin-panel">
               <div class="panel-head">

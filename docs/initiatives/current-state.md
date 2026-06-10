@@ -1,6 +1,6 @@
 # DEKISUGI Initiative State
 
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 ## Current Status
 
@@ -8,9 +8,9 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, cross-tenant finance operations, and subscription background automation complete.
 
-Current phase: `platform_admin_tenant_subscription_control_hardening_complete`
+Current phase: `platform_admin_subscription_management_complete`
 
-Current initiative: Platform Admin/Tenant subscription control hardening is complete. Tenant users can view subscription status, invoices, receipts, and submit upgrade/downgrade/cancel/refund requests; Platform Admin owns tenant subscription mutation, subscription invoices, payment provider defaults, tenant email delivery config, and tenant email cron.
+Current initiative: Platform Admin subscription management is complete. Tenant users can view subscription status, invoices, receipts, and submit upgrade/downgrade/cancel/refund requests; Platform Admin owns plan catalog management, tenant subscription mutation, subscription invoices, payment provider defaults, tenant email delivery config, tenant email cron, and plan price governance.
 
 Next recommended initiative: Run a full authenticated browser QA pass in an environment with browser automation available and seeded Platform Admin/Tenant accounts.
 
@@ -145,6 +145,15 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Updated tenant subscription UI so schools do not self-checkout or choose payment providers; they can submit upgrade, downgrade, cancel, or refund requests in Vietnamese and open paid subscription receipts.
   - Updated payment intent and subscription checkout creation to use the Platform Admin configured default provider instead of client-selected providers.
   - Scoped email send quotas, tenant cron state, password reset delivery, notification sends, and subscription dunning to tenant email configuration.
+- Platform Admin subscription management is complete:
+  - Added a first-class `Subscriptions` control-plane tab for plan catalog, tenant subscription assignments, billing snapshot, and cross-tenant change requests.
+  - Added Platform Admin plan catalog APIs to list active/archived plans and create, update, or archive subscription plans without touching tenant-facing checkout.
+  - Allowed Platform Admin to update a tenant subscription by `tenantId` from a platform-only session while keeping tenant users out of direct subscription mutation.
+  - Allowed Platform Admin to adjust an existing subscription plan code by `id` without breaking tenant assignments that reference the plan row.
+  - Added migration `0029_subscription_plan_prices` and Platform Admin plan fields for base price, partner discount price, and promotional price.
+  - Added migration `0030_subscription_plan_display_controls` and Platform Admin controls for contact-price plans and display-order sorting.
+  - Kept partner price control-plane only; public/tenant plan responses and UI expose base, promotional, display price, contact-price flag, and display order without `partnerPriceVnd`.
+  - Made subscription billing suggestions fall back to plan display price when tenant billing metadata has no manual amount override, while contact-price plans require an explicit manual billing amount.
 - README now links to the production roadmap.
 - Initiative 1: Foundation And Persistence is complete:
   - Added PostgreSQL configuration through environment variables for local, staging, and production.

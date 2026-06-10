@@ -46,10 +46,11 @@ func appAPIRoutes() []appAPIRoute {
 		{Method: http.MethodGet, Path: "/api/v1/tenants", Permission: "tenant.view", AllowPlatformOnly: true, Handler: handleTenants},
 		{Method: http.MethodPost, Path: "/api/v1/tenants/save", PermissionResolver: tenantSavePermission, AllowPlatformOnly: true, Handler: handleTenantSave},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/plans", Permission: "subscription.view", Handler: handleSubscriptionPlans},
+		{Path: "/api/v1/platform/subscription-plans", PermissionResolver: platformSubscriptionPlansPermission, AllowPlatformOnly: true, Handler: handlePlatformSubscriptionPlans},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/purchase", Permission: "subscription.view", Handler: handleSubscriptionPurchase},
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/purchase/checkout", Permission: "subscription.update", Handler: handleSubscriptionPurchaseCheckout},
 		{Path: "/api/v1/subscriptions/requests", Permission: "subscription.view", Handler: handleSubscriptionChangeRequests},
-		{Method: http.MethodPost, Path: "/api/v1/tenants/subscription/save", Permission: "subscription.update", Handler: handleTenantSubscriptionSave},
+		{Method: http.MethodPost, Path: "/api/v1/tenants/subscription/save", Permission: "subscription.update", AllowPlatformOnly: true, Handler: handleTenantSubscriptionSave},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/invoices", Permission: "subscription.view", Handler: handleSubscriptionInvoices},
 		{Method: http.MethodGet, Path: "/api/v1/subscriptions/invoices/receipt", Permission: "subscription.view", AllowPlatformOnly: true, Handler: handleSubscriptionInvoiceReceipt},
 		{Method: http.MethodPost, Path: "/api/v1/subscriptions/invoices/generate", Permission: "subscription.update", Handler: handleSubscriptionInvoiceGenerate},
@@ -148,6 +149,17 @@ func (route appAPIRoute) wrap() http.HandlerFunc {
 
 func requirePermission(permission string, allowPlatformOnly bool, next http.HandlerFunc) http.HandlerFunc {
 	return requireAuthenticated(requirePermissionForAuthenticated(permission, allowPlatformOnly, next))
+}
+
+func platformSubscriptionPlansPermission(r *http.Request) (string, error) {
+	switch r.Method {
+	case http.MethodGet:
+		return "subscription.view", nil
+	case http.MethodPost:
+		return "subscription.update", nil
+	default:
+		return "subscription.view", nil
+	}
 }
 
 func requireResolvedPermission(resolve routePermissionResolver, allowPlatformOnly bool, next http.HandlerFunc) http.HandlerFunc {

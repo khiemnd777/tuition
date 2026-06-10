@@ -304,6 +304,33 @@ const platformUserCountEl = document.querySelector("#platformUserCount");
 const platformUserRowsEl = document.querySelector("#platformUserRows");
 const platformRoleCountEl = document.querySelector("#platformRoleCount");
 const platformRoleListEl = document.querySelector("#platformRoleList");
+const platformSubscriptionsStatusEl = document.querySelector("#platformSubscriptionsStatus");
+const refreshPlatformSubscriptionsBtn = document.querySelector("#refreshPlatformSubscriptions");
+const newPlatformSubscriptionPlanBtn = document.querySelector("#newPlatformSubscriptionPlan");
+const platformSubscriptionPlanSummaryEl = document.querySelector("#platformSubscriptionPlanSummary");
+const platformSubscriptionPlanRowsEl = document.querySelector("#platformSubscriptionPlanRows");
+const platformSubscriptionTenantQueryEl = document.querySelector("#platformSubscriptionTenantQuery");
+const platformSubscriptionPlanFilterEl = document.querySelector("#platformSubscriptionPlanFilter");
+const platformSubscriptionStatusFilterEl = document.querySelector("#platformSubscriptionStatusFilter");
+const platformTenantSubscriptionSummaryEl = document.querySelector("#platformTenantSubscriptionSummary");
+const platformTenantSubscriptionRowsEl = document.querySelector("#platformTenantSubscriptionRows");
+const platformSubscriptionFinanceSummaryEl = document.querySelector("#platformSubscriptionFinanceSummary");
+const platformSubscriptionFinanceRowsEl = document.querySelector("#platformSubscriptionFinanceRows");
+const platformSubscriptionRequestStatusFilterEl = document.querySelector("#platformSubscriptionRequestStatusFilter");
+const platformSubscriptionRequestsSummaryEl = document.querySelector("#platformSubscriptionRequestsSummary");
+const platformSubscriptionRequestsRowsEl = document.querySelector("#platformSubscriptionRequestsRows");
+const platformSubscriptionPlanFormEl = document.querySelector("#platformSubscriptionPlanForm");
+const platformSubscriptionPlanIdEl = document.querySelector("#platformSubscriptionPlanId");
+const platformSubscriptionPlanCodeEl = document.querySelector("#platformSubscriptionPlanCode");
+const platformSubscriptionPlanNameEl = document.querySelector("#platformSubscriptionPlanName");
+const platformSubscriptionPlanStatusEl = document.querySelector("#platformSubscriptionPlanStatus");
+const platformSubscriptionPlanDisplayOrderEl = document.querySelector("#platformSubscriptionPlanDisplayOrder");
+const platformSubscriptionPlanContactPriceEl = document.querySelector("#platformSubscriptionPlanContactPrice");
+const platformSubscriptionPlanBasePriceEl = document.querySelector("#platformSubscriptionPlanBasePrice");
+const platformSubscriptionPlanPartnerPriceEl = document.querySelector("#platformSubscriptionPlanPartnerPrice");
+const platformSubscriptionPlanPromotionalPriceEl = document.querySelector("#platformSubscriptionPlanPromotionalPrice");
+const platformSubscriptionPlanDescriptionEl = document.querySelector("#platformSubscriptionPlanDescription");
+const platformSubscriptionPlanLimitsEl = document.querySelector("#platformSubscriptionPlanLimits");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 const legacyPaymentActionsEl = document.querySelector(".legacy-payment-actions");
@@ -621,6 +648,10 @@ let platformTenantEmailCronLoadedFor = "";
 let platformTenantEmailCronData = null;
 let platformTenantSubscriptionRequestsLoadedFor = "";
 let platformTenantSubscriptionRequestsData = [];
+let platformSubscriptionPlansLoaded = false;
+let platformSubscriptionPlansData = [];
+let platformSubscriptionRequestsLoaded = false;
+let platformSubscriptionRequestsData = [];
 let publicSubscriptionPlansData = [];
 let landingPlanCarouselIndex = 0;
 let landingPlanSwipe = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0, swiping: false };
@@ -784,6 +815,12 @@ const tabMetadata = {
     description: "Quản lý intake, tenant, subscription, payment provider và email delivery của từng trường.",
     breadcrumbs: ["Platform", "Tenants"],
   },
+  platformSubscriptionsTab: {
+    kicker: "Platform",
+    title: "Subscriptions",
+    description: "Quản lý plan catalog, gói của tenant, billing snapshot và yêu cầu đổi gói.",
+    breadcrumbs: ["Platform", "Subscriptions"],
+  },
   platformFinanceTab: {
     kicker: "Platform",
     title: "Finance Console",
@@ -818,6 +855,7 @@ const tabAccess = {
   operationsTab: ["operation_log.view"],
   tenantUsersTab: { any: ["user.view", "user.create", "user.update", "user.assign_role", "role.view"] },
   platformTenantsTab: { any: ["tenant.view", "tenant.create", "tenant.update"] },
+  platformSubscriptionsTab: { any: ["subscription.view", "subscription.update", "tenant.view"] },
   platformFinanceTab: { any: ["subscription.view", "subscription.update", "operation_log.cross_tenant_view", "audit_log.cross_tenant_view"] },
   platformEntitlementsTab: { any: ["tenant.view", "subscription.view"] },
   platformUsersTab: { any: ["user.view", "user.create", "user.update", "user.assign_role", "role.view"] },
@@ -838,7 +876,7 @@ const tenantWorkspaceTabIds = new Set([
   "tenantUsersTab",
 ]);
 
-const platformControlPlaneTabIds = new Set(["platformTenantsTab", "platformFinanceTab", "platformEntitlementsTab", "platformUsersTab"]);
+const platformControlPlaneTabIds = new Set(["platformTenantsTab", "platformSubscriptionsTab", "platformFinanceTab", "platformEntitlementsTab", "platformUsersTab"]);
 
 const permissionAliases = {
   "dashboard.view": ["admin.dashboard.read"],
@@ -1325,9 +1363,87 @@ function setLandingPlanStatus(message, tone = "") {
   landingPlanStatusEl.dataset.tone = tone;
 }
 
+function subscriptionPlanBasePrice(plan = {}) {
+  const amount = Number(plan.basePriceVnd || 0);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function subscriptionPlanDisplayOrder(plan = {}) {
+  const order = Number(plan.displayOrder ?? 100);
+  return Number.isFinite(order) ? order : 100;
+}
+
+function sortSubscriptionPlansForDisplay(plans = [], statusFirst = false) {
+  const statusRank = (plan) => (statusFirst && plan?.status !== "active" ? 1 : 0);
+  return [...(plans || [])].sort((left, right) => {
+    const statusDelta = statusRank(left) - statusRank(right);
+    if (statusDelta !== 0) return statusDelta;
+    const orderDelta = subscriptionPlanDisplayOrder(left) - subscriptionPlanDisplayOrder(right);
+    if (orderDelta !== 0) return orderDelta;
+    return String(left?.code || "").localeCompare(String(right?.code || ""));
+  });
+}
+
+function subscriptionPlanOptionalPrice(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function subscriptionPlanDisplayPrice(plan = {}) {
+  const promotionalPrice = subscriptionPlanOptionalPrice(plan.promotionalPriceVnd);
+  return promotionalPrice === null ? subscriptionPlanBasePrice(plan) : promotionalPrice;
+}
+
+function subscriptionPlanOptionLabel(plan = {}) {
+  const name = plan.name || plan.code || "Gói dịch vụ";
+  return `${name} - ${subscriptionPlanPublicPriceText(plan)}`;
+}
+
+function subscriptionPlanPublicPriceText(plan = {}) {
+  if (plan.contactPrice) return "Liên hệ";
+  const displayPrice = subscriptionPlanDisplayPrice(plan);
+  return displayPrice > 0 ? formatMoney(displayPrice) : "Liên hệ";
+}
+
+function landingPlanPriceTemplate(plan = {}) {
+  if (plan.contactPrice) {
+    return `
+      <div class="landing-plan-price">
+        <strong>Liên hệ tư vấn</strong>
+        <span>Đội ngũ phụ trách sẽ báo giá theo quy mô trường.</span>
+      </div>
+    `;
+  }
+  const basePrice = subscriptionPlanBasePrice(plan);
+  const promotionalPrice = subscriptionPlanOptionalPrice(plan.promotionalPriceVnd);
+  const displayPrice = subscriptionPlanDisplayPrice(plan);
+  if (displayPrice <= 0) {
+    return `
+      <div class="landing-plan-price">
+        <strong>Liên hệ tư vấn</strong>
+        <span>Đội ngũ phụ trách sẽ báo giá theo quy mô trường.</span>
+      </div>
+    `;
+  }
+  if (promotionalPrice !== null && basePrice > 0 && promotionalPrice !== basePrice) {
+    return `
+      <div class="landing-plan-price">
+        <strong>${formatMoney(promotionalPrice)} / tháng</strong>
+        <span>Giá gốc ${formatMoney(basePrice)} / tháng</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="landing-plan-price">
+      <strong>${formatMoney(displayPrice)} / tháng</strong>
+    </div>
+  `;
+}
+
 function renderLandingSubscriptionPlans(plans = []) {
   if (!landingPlanGridEl) return;
-  const rows = (plans || []).filter(Boolean);
+  const rows = sortSubscriptionPlansForDisplay((plans || []).filter(Boolean));
   if (!rows.length) {
     landingPlanCarouselIndex = 0;
     landingPlanGridEl.innerHTML = `
@@ -1355,6 +1471,7 @@ function renderLandingSubscriptionPlans(plans = []) {
             <h3>${escapeHtml(plan.name || code || "Gói dịch vụ")}</h3>
             <p>${escapeHtml(landingPlanDescription(plan))}</p>
           </div>
+          ${landingPlanPriceTemplate(plan)}
           ${landingPlanBenefitsTemplate(plan.limits || {})}
         </article>
       `;
@@ -1479,13 +1596,7 @@ function landingPlanBenefitsTemplate(limits = {}) {
   if (!benefits.length) {
     return `
       <ul class="landing-plan-benefits">
-        <li>
-          ${muiIcon("support_agent")}
-          <span>
-            <strong>Được tư vấn theo nhu cầu</strong>
-            <small>Đội ngũ phụ trách sẽ xác nhận quy mô trường trước khi thiết lập.</small>
-          </span>
-        </li>
+        ${landingPlanEnterpriseBenefitItems().map(landingPlanBenefitItemTemplate).join("")}
       </ul>
     `;
   }
@@ -1506,6 +1617,43 @@ function landingPlanBenefitsTemplate(limits = {}) {
         .join("")}
     </ul>
   `;
+}
+
+function landingPlanBenefitItemTemplate(item) {
+  return `
+    <li>
+      ${muiIcon(item.icon)}
+      <span>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.detail)}</small>
+      </span>
+    </li>
+  `;
+}
+
+function landingPlanEnterpriseBenefitItems() {
+  return [
+    {
+      icon: "support_agent",
+      title: "Được tư vấn theo nhu cầu",
+      detail: "Đội ngũ phụ trách xác nhận quy mô, số cơ sở và luồng vận hành trước khi thiết lập.",
+    },
+    {
+      icon: "tune",
+      title: "Không giới hạn theo mẫu cố định",
+      detail: "Quota học sinh, thông báo và người phụ trách được cấu hình theo hợp đồng triển khai.",
+    },
+    {
+      icon: "domain",
+      title: "Hỗ trợ nhiều cơ sở",
+      detail: "Phù hợp cho chuỗi trường cần quản lý nhiều cơ sở, nhiều bộ phận và phân quyền riêng.",
+    },
+    {
+      icon: "rocket_launch",
+      title: "Onboarding & cấu hình riêng",
+      detail: "Hỗ trợ thiết lập dữ liệu ban đầu, mẫu thông báo, cấu hình thanh toán và quy trình đối soát.",
+    },
+  ];
 }
 
 function landingPlanBenefitItems(limits = {}) {
@@ -1588,9 +1736,9 @@ function landingPlanPublicText(value = "") {
 function populateSignupDesiredPlans(plans = []) {
   if (!signupDesiredPlanEl) return;
   const selected = signupDesiredPlanEl.value || "standard";
-  const rows = (plans || []).filter((plan) => plan?.code);
+  const rows = sortSubscriptionPlansForDisplay((plans || []).filter((plan) => plan?.code));
   signupDesiredPlanEl.innerHTML = rows.length
-    ? rows.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    ? rows.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(subscriptionPlanOptionLabel(plan))}</option>`).join("")
     : `<option value="">Đội ngũ phụ trách sẽ tư vấn gói</option>`;
   signupDesiredPlanEl.value = optionValueOrEmpty(signupDesiredPlanEl, selected) || rows[0]?.code || "";
 }
@@ -1951,6 +2099,8 @@ function applyPermissionUI() {
   setElementAllowed(refreshPlatformTenantEmailCronBtn, isPlatformAdmin() && hasPermission("tenant.update"));
   setElementAllowed(editPlatformTenantEmailCronBtn, isPlatformAdmin() && hasPermission("tenant.update"));
   setElementAllowed(refreshPlatformTenantSubscriptionRequestsBtn, isPlatformAdmin() && hasPermission("subscription.update"));
+  setElementAllowed(refreshPlatformSubscriptionsBtn, isPlatformAdmin() && hasPermission("subscription.view"));
+  setElementAllowed(newPlatformSubscriptionPlanBtn, isPlatformAdmin() && hasPermission("subscription.update"));
   setElementAllowed(editActiveTenantSubscriptionBtn, isPlatformAdmin() && (hasPermission("subscription.view") || hasPermission("subscription.update")));
   setElementAllowed(refreshSubscriptionBillingBtn, hasPermission("subscription.view"));
   setElementAllowed(generateSubscriptionInvoiceBtn, isPlatformAdmin() && hasPermission("subscription.update"));
@@ -2327,6 +2477,9 @@ async function loadActiveTabData(targetId) {
   if (targetId === "platformTenantsTab") {
     setTenantAdminView("directory");
     await loadTenants();
+  }
+  if (targetId === "platformSubscriptionsTab") {
+    await loadPlatformSubscriptions(true);
   }
   if (targetId === "platformFinanceTab") {
     await loadSubscriptionFinanceConsole(true);
@@ -5046,7 +5199,7 @@ async function openTenantOnboardDialog(intake = null) {
   tenantOnboardTenantStatusEl.value = intake?.desiredPlanCode === "free_trial" ? "trial" : "active";
   tenantOnboardSubscriptionStatusEl.value = intake?.desiredPlanCode === "free_trial" ? "trial" : "active";
   tenantOnboardPlanEl.innerHTML = plans.length
-    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(subscriptionPlanOptionLabel(plan))}</option>`).join("")
     : `<option value="standard">Standard</option>`;
   tenantOnboardPlanEl.value = optionValueOrEmpty(tenantOnboardPlanEl, intake?.desiredPlanCode || "standard") || plans[0]?.code || "standard";
   tenantOnboardTrialEndsAtEl.value = "";
@@ -5558,10 +5711,14 @@ async function savePlatformSubscriptionRequestProcess() {
   const updated = JSON.parse(text).request;
   platformTenantSubscriptionRequestsData = platformTenantSubscriptionRequestsData.map((item) => (item.id === updated?.id ? updated : item));
   renderPlatformTenantSubscriptionRequests(platformTenantSubscriptionRequestsData);
+  platformSubscriptionRequestsLoaded = false;
   subscriptionBillingLoaded = false;
   tenantsLoaded = false;
   await loadTenants(true);
+  await loadPlatformSubscriptionRequests(true);
+  renderPlatformSubscriptions();
   setAdminStatus(tenantStatusEl, "Đã xử lý subscription request", "ready");
+  setAdminStatus(platformSubscriptionsStatusEl, "Đã xử lý subscription request", "ready");
   return true;
 }
 
@@ -5742,10 +5899,19 @@ function renderSubscriptionPurchase(data) {
   const currentPlan = data?.currentPlan || {};
   const suggested = data?.suggested || {};
   const plans = data?.plans || [];
+  const currentPlanCode = currentPlan.planCode || tenant.planCode || "";
+  const currentCatalogPlan = plans.find((plan) => plan.code === currentPlanCode) || null;
+  const suggestedAmount = Number(suggested.amount || 0);
+  const currentDisplayPrice = currentCatalogPlan
+    ? subscriptionPlanPublicPriceText(currentCatalogPlan)
+    : suggestedAmount > 0
+      ? formatMoney(suggestedAmount)
+      : "Liên hệ";
   subscriptionPurchaseSummaryEl.innerHTML = hasActiveTenant
     ? `
       <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenant</span><strong>${escapeHtml([tenant.code, tenant.name].filter(Boolean).join(" · "))}</strong></div>
       <div class="tenant-summary-item"><span>${muiIcon("workspace_premium")}Plan</span><strong>${escapeHtml(currentPlan.planName || tenant.planName || "-")}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("payments")}Giá hiển thị</span><strong>${escapeHtml(currentDisplayPrice)}</strong></div>
       <div class="tenant-summary-item"><span>${muiIcon("pending_actions")}Status</span><strong>${escapeHtml(currentPlan.status || tenant.subscriptionStatus || "-")}</strong></div>
       <div class="tenant-summary-item"><span>${muiIcon("event")}Current period</span><strong>${escapeHtml(currentPlan.currentPeriodEndsAt || tenant.currentPeriodEndsAt || "-")}</strong></div>
     `
@@ -5756,9 +5922,9 @@ function renderSubscriptionPurchase(data) {
       `
       : "Chưa có dữ liệu subscription";
   subscriptionPurchasePlanEl.innerHTML = plans.length
-    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(subscriptionPlanOptionLabel(plan))}</option>`).join("")
     : `<option value="">Chưa có plan</option>`;
-  subscriptionPurchasePlanEl.value = optionValueOrEmpty(subscriptionPurchasePlanEl, currentPlan.planCode || tenant.planCode || "") || plans[0]?.code || "";
+  subscriptionPurchasePlanEl.value = optionValueOrEmpty(subscriptionPurchasePlanEl, currentPlanCode) || plans[0]?.code || "";
   if (subscriptionPurchaseProviderEl) {
     subscriptionPurchaseProviderEl.innerHTML = `<option value="">Theo cấu hình hệ thống</option>`;
     subscriptionPurchaseProviderEl.value = "";
@@ -5766,7 +5932,12 @@ function renderSubscriptionPurchase(data) {
   subscriptionPurchasePeriodStartEl.value = suggested.periodStartsAt || "";
   subscriptionPurchasePeriodEndEl.value = suggested.periodEndsAt || "";
   subscriptionPurchaseDueAtEl.value = suggested.dueAt || "";
-  subscriptionPurchaseAmountEl.value = Number(suggested.amount || 0);
+  const selectedPlan = plans.find((plan) => plan.code === subscriptionPurchasePlanEl.value) || null;
+  const selectedPlanSuggestedAmount = Number(suggested.amount || 0);
+  const selectedPlanPrice = selectedPlan?.contactPrice ? 0 : selectedPlan ? subscriptionPlanDisplayPrice(selectedPlan) : 0;
+  subscriptionPurchaseAmountEl.value = selectedPlan?.contactPrice && selectedPlanSuggestedAmount <= 0
+    ? ""
+    : Number(selectedPlanSuggestedAmount || selectedPlanPrice || 0);
   subscriptionCheckoutResultEl.innerHTML = data?.checkout
     ? paymentIntentDetailTemplate({ intent: data.checkout.intent, qr: data.checkout.qr || {} })
     : hasActiveTenant
@@ -5795,6 +5966,18 @@ function renderSubscriptionPurchase(data) {
   });
 }
 
+function updateSubscriptionPurchaseAmountFromSelectedPlan() {
+  const selectedPlan = (subscriptionPurchaseData?.plans || []).find((plan) => plan.code === subscriptionPurchasePlanEl?.value);
+  if (selectedPlan?.contactPrice) {
+    subscriptionPurchaseAmountEl.value = "";
+    return;
+  }
+  const displayPrice = selectedPlan ? subscriptionPlanDisplayPrice(selectedPlan) : 0;
+  if (displayPrice > 0 && subscriptionPurchaseAmountEl) {
+    subscriptionPurchaseAmountEl.value = displayPrice;
+  }
+}
+
 function renderSubscriptionChangeRequests(requests) {
   if (!subscriptionChangeRequestsListEl) return;
   const rows = requests || [];
@@ -5817,7 +6000,7 @@ async function openSubscriptionChangeRequestDialog() {
   const plans = subscriptionPurchaseData?.plans?.length ? subscriptionPurchaseData.plans : await loadSubscriptionPlansData(true);
   subscriptionChangeRequestTypeEl.value = "upgrade";
   subscriptionChangeRequestPlanEl.innerHTML = plans.length
-    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
+    ? plans.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(subscriptionPlanOptionLabel(plan))}</option>`).join("")
     : `<option value="">Chưa có plan</option>`;
   subscriptionChangeRequestPlanEl.value = optionValueOrEmpty(subscriptionChangeRequestPlanEl, subscriptionPurchaseData?.currentPlan?.planCode || tenant.planCode || "") || plans[0]?.code || "";
   subscriptionChangeRequestEffectiveAtEl.value = "";
@@ -6068,11 +6251,344 @@ async function saveTenant() {
   return true;
 }
 
+async function loadPlatformSubscriptions(force = false) {
+  if (!isPlatformAdmin() || !hasPermission("subscription.view")) {
+    platformSubscriptionPlansLoaded = false;
+    platformSubscriptionPlansData = [];
+    platformSubscriptionRequestsLoaded = false;
+    platformSubscriptionRequestsData = [];
+    renderPlatformSubscriptions();
+    return;
+  }
+  setAdminStatus(platformSubscriptionsStatusEl, "Đang tải", "busy");
+  await loadPlatformSubscriptionPlans(force);
+  await loadTenants(force);
+  await loadPlatformSubscriptionRequests(force);
+  await loadSubscriptionFinanceConsole(force);
+  renderPlatformSubscriptions();
+  setAdminStatus(platformSubscriptionsStatusEl, "Sẵn sàng", "ready");
+}
+
+async function loadPlatformSubscriptionPlans(force = false) {
+  if (!isPlatformAdmin() || !hasPermission("subscription.view")) {
+    platformSubscriptionPlansLoaded = false;
+    platformSubscriptionPlansData = [];
+    renderPlatformSubscriptionPlans([]);
+    return [];
+  }
+  if (!force && platformSubscriptionPlansLoaded) {
+    renderPlatformSubscriptionPlans(platformSubscriptionPlansData);
+    return platformSubscriptionPlansData;
+  }
+  const res = await fetch("/api/v1/platform/subscription-plans");
+  const text = await res.text();
+  if (!res.ok) {
+    platformSubscriptionPlansLoaded = false;
+    platformSubscriptionPlansData = [];
+    renderPlatformSubscriptionPlans([]);
+    setAdminStatus(platformSubscriptionsStatusEl, text || "Không tải được subscription plans", "error");
+    return [];
+  }
+  platformSubscriptionPlansData = JSON.parse(text).plans || [];
+  platformSubscriptionPlansLoaded = true;
+  renderPlatformSubscriptionPlans(platformSubscriptionPlansData);
+  return platformSubscriptionPlansData;
+}
+
+async function loadPlatformSubscriptionRequests(force = false) {
+  if (!isPlatformAdmin() || !hasPermission("subscription.update")) {
+    platformSubscriptionRequestsLoaded = false;
+    platformSubscriptionRequestsData = [];
+    renderPlatformSubscriptionRequests([]);
+    return [];
+  }
+  if (!force && platformSubscriptionRequestsLoaded) {
+    renderPlatformSubscriptionRequests(platformSubscriptionRequestsData);
+    return platformSubscriptionRequestsData;
+  }
+  const params = new URLSearchParams();
+  if (platformSubscriptionRequestStatusFilterEl?.value) params.set("status", platformSubscriptionRequestStatusFilterEl.value);
+  const res = await fetch(`/api/v1/platform/tenants/subscription-requests?${params.toString()}`);
+  const text = await res.text();
+  if (!res.ok) {
+    platformSubscriptionRequestsLoaded = false;
+    platformSubscriptionRequestsData = [];
+    renderPlatformSubscriptionRequests([]);
+    setAdminStatus(platformSubscriptionsStatusEl, text || "Không tải được subscription requests", "error");
+    return [];
+  }
+  platformSubscriptionRequestsData = JSON.parse(text).requests || [];
+  platformSubscriptionRequestsLoaded = true;
+  renderPlatformSubscriptionRequests(platformSubscriptionRequestsData);
+  return platformSubscriptionRequestsData;
+}
+
+function renderPlatformSubscriptions() {
+  renderPlatformSubscriptionPlans(platformSubscriptionPlansData);
+  renderPlatformTenantSubscriptions();
+  renderPlatformSubscriptionRequests(platformSubscriptionRequestsData);
+  renderPlatformSubscriptionFinanceSnapshot(subscriptionFinanceConsoleData);
+}
+
+function renderPlatformSubscriptionPlans(plans) {
+  if (!platformSubscriptionPlanSummaryEl || !platformSubscriptionPlanRowsEl) return;
+  const rows = sortSubscriptionPlansForDisplay(plans || [], true);
+  const activeCount = rows.filter((plan) => plan.status === "active").length;
+  const archivedCount = rows.filter((plan) => plan.status === "archived").length;
+  platformSubscriptionPlanSummaryEl.innerHTML = rows.length
+    ? `
+      <div class="tenant-summary-item"><span>${muiIcon("workspace_premium")}Plans</span><strong>${rows.length}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Active</span><strong>${activeCount}</strong></div>
+      <div class="tenant-summary-item"><span>${muiIcon("archive")}Archived</span><strong>${archivedCount}</strong></div>
+    `
+    : `<div class="tenant-summary-item"><span>${muiIcon("workspace_premium")}Plans</span><strong>0</strong></div>`;
+  renderPlatformSubscriptionPlanFilter(rows);
+  platformSubscriptionPlanRowsEl.innerHTML = rows.length
+    ? rows.map((plan) => `
+	      <tr>
+	        <td><strong>${escapeHtml(plan.code || "-")}</strong></td>
+	        <td>${escapeHtml(plan.name || "-")}<br /><small>${escapeHtml(plan.description || "-")}</small></td>
+	        <td><span class="tag ${plan.status === "active" ? "tag-ready" : ""}">${escapeHtml(plan.status || "-")}</span></td>
+	        <td>${Number(plan.displayOrder ?? 100)}</td>
+	        <td>${platformSubscriptionPlanPriceTemplate(plan)}</td>
+	        <td><small>${escapeHtml(subscriptionPlanLimitsSummary(plan.limits || {}))}</small></td>
+	        <td>${escapeHtml(plan.updatedAt ? formatDateTime(plan.updatedAt) : "-")}</td>
+	        <td><button type="button" data-edit-platform-subscription-plan="${escapeAttr(plan.code || "")}">${muiIcon("edit")}<span>Sửa</span></button></td>
+	      </tr>
+    `).join("")
+    : `<tr><td colspan="8">Chưa có subscription plan.</td></tr>`;
+  platformSubscriptionPlanRowsEl.querySelectorAll("[data-edit-platform-subscription-plan]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const plan = platformSubscriptionPlansData.find((item) => item.code === button.dataset.editPlatformSubscriptionPlan);
+      openPlatformSubscriptionPlanDialog(plan || null);
+    });
+  });
+}
+
+function renderPlatformSubscriptionPlanFilter(plans) {
+  if (!platformSubscriptionPlanFilterEl) return;
+  const previous = platformSubscriptionPlanFilterEl.value || "";
+  platformSubscriptionPlanFilterEl.innerHTML = `<option value="">all</option>${sortSubscriptionPlansForDisplay(plans || [])
+    .map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`)
+    .join("")}`;
+  platformSubscriptionPlanFilterEl.value = optionValueOrEmpty(platformSubscriptionPlanFilterEl, previous) || "";
+}
+
+function subscriptionPlanLimitsSummary(limits) {
+  const entries = Object.entries(limits || {}).sort(([left], [right]) => left.localeCompare(right));
+  if (!entries.length) return "-";
+  return entries.map(([key, value]) => `${key}: ${value === null || value === undefined ? "-" : String(value)}`).join(" · ");
+}
+
+function platformSubscriptionPlanPriceTemplate(plan = {}) {
+  const partnerPrice = subscriptionPlanOptionalPrice(plan.partnerPriceVnd);
+  const promotionalPrice = subscriptionPlanOptionalPrice(plan.promotionalPriceVnd);
+  const displayPrice = plan.contactPrice ? "Liên hệ" : formatMoney(subscriptionPlanDisplayPrice(plan));
+  return `
+    <small>
+      Liên hệ: ${plan.contactPrice ? "true" : "false"}<br />
+      Base: ${formatMoney(subscriptionPlanBasePrice(plan))}<br />
+      Partner: ${partnerPrice === null ? "-" : formatMoney(partnerPrice)}<br />
+      Khuyến mãi: ${promotionalPrice === null ? "-" : formatMoney(promotionalPrice)}<br />
+      Hiển thị: ${displayPrice}
+    </small>
+  `;
+}
+
+function renderPlatformTenantSubscriptions() {
+  if (!platformTenantSubscriptionSummaryEl || !platformTenantSubscriptionRowsEl) return;
+  const query = String(platformSubscriptionTenantQueryEl?.value || "").trim().toLowerCase();
+  const planFilter = platformSubscriptionPlanFilterEl?.value || "";
+  const statusFilter = platformSubscriptionStatusFilterEl?.value || "";
+  const rows = (tenantsData.tenants || []).filter((tenant) => {
+    const label = [tenant.code, tenant.name].filter(Boolean).join(" ").toLowerCase();
+    if (query && !label.includes(query)) return false;
+    if (planFilter && tenant.planCode !== planFilter) return false;
+    if (statusFilter && tenant.subscriptionStatus !== statusFilter) return false;
+    return true;
+  });
+  platformTenantSubscriptionSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenants</span><strong>${rows.length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Active</span><strong>${rows.filter((tenant) => tenant.subscriptionStatus === "active").length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("pending_actions")}Trial</span><strong>${rows.filter((tenant) => tenant.subscriptionStatus === "trial").length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("warning")}Past due</span><strong>${rows.filter((tenant) => tenant.subscriptionStatus === "past_due").length}</strong></div>
+  `;
+  platformTenantSubscriptionRowsEl.innerHTML = rows.length
+    ? rows.map((tenant) => `
+      <tr>
+        <td><strong>${escapeHtml(tenant.code || "-")}</strong><br /><small>${escapeHtml(tenant.name || "-")}</small></td>
+        <td>${escapeHtml(tenant.planName || tenant.planCode || "-")}<br /><small>${escapeHtml(tenant.planCode || "-")}</small></td>
+        <td><span class="tag ${tenant.subscriptionStatus === "active" ? "tag-ready" : tenant.subscriptionStatus === "past_due" ? "tag-warning" : ""}">${escapeHtml(tenant.subscriptionStatus || "-")}</span></td>
+        <td>${escapeHtml(tenant.trialEndsAt || "-")}</td>
+        <td>${escapeHtml(tenant.currentPeriodEndsAt || "-")}</td>
+        <td><small>${escapeHtml(tenantUsageSummary(tenant, "metricCode") || "-")}</small></td>
+        <td><button type="button" data-edit-platform-tenant-subscription="${escapeAttr(tenant.id || "")}">${muiIcon("edit")}<span>Sửa</span></button></td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="7">Không có tenant subscription phù hợp.</td></tr>`;
+  platformTenantSubscriptionRowsEl.querySelectorAll("[data-edit-platform-tenant-subscription]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tenant = (tenantsData.tenants || []).find((item) => item.id === button.dataset.editPlatformTenantSubscription);
+      openTenantSubscriptionDialog(tenant || null);
+    });
+  });
+}
+
+function renderPlatformSubscriptionFinanceSnapshot(data) {
+  if (!platformSubscriptionFinanceSummaryEl || !platformSubscriptionFinanceRowsEl) return;
+  const summary = data?.summary || {};
+  const rows = data?.rows || [];
+  platformSubscriptionFinanceSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("domain")}Tenants</span><strong>${Number(summary.tenantCount || 0)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("warning")}Past due</span><strong>${Number(summary.pastDueTenantCount || 0)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("autorenew")}Renewals</span><strong>${Number(summary.renewalCandidateCount || 0)}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("settings_alert")}Missing config</span><strong>${Number(summary.missingConfigCount || 0)}</strong></div>
+  `;
+  platformSubscriptionFinanceRowsEl.innerHTML = rows.length
+    ? rows.slice(0, 20).map((row) => `
+      <tr>
+        <td><strong>${escapeHtml(row.tenantCode || "-")}</strong><br /><small>${escapeHtml(row.tenantName || "-")}</small></td>
+        <td>${escapeHtml(row.planCode || row.planName || "-")}</td>
+        <td><span class="tag ${row.subscriptionStatus === "active" ? "tag-ready" : row.subscriptionStatus === "past_due" ? "tag-warning" : ""}">${escapeHtml(row.subscriptionStatus || "-")}</span></td>
+        <td>${escapeHtml(row.latestInvoiceCode || "-")}<br /><small>${escapeHtml(row.latestInvoiceStatus || "-")} · ${escapeHtml(row.latestDueAt || "-")}</small></td>
+        <td>${formatMoney(Number(row.amount || 0))}<br /><small>${row.autoRenew ? "auto" : "manual"} · ${escapeHtml(row.renewalMode || "-")}</small></td>
+        <td>${Number(row.openCount || 0)} open / ${Number(row.pastDueCount || 0)} past due / ${Number(row.paidCount || 0)} paid</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="6">Chưa có billing snapshot.</td></tr>`;
+}
+
+function renderPlatformSubscriptionRequests(requests) {
+  if (!platformSubscriptionRequestsSummaryEl || !platformSubscriptionRequestsRowsEl) return;
+  const rows = requests || [];
+  platformSubscriptionRequestsSummaryEl.innerHTML = `
+    <div class="tenant-summary-item"><span>${muiIcon("published_with_changes")}Requests</span><strong>${rows.length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("new_releases")}New</span><strong>${rows.filter((item) => item.status === "new").length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("task_alt")}Processed</span><strong>${rows.filter((item) => item.status === "processed").length}</strong></div>
+    <div class="tenant-summary-item"><span>${muiIcon("payments")}Refund</span><strong>${formatMoney(rows.reduce((sum, item) => sum + Number(item.refundAmount || 0), 0))}</strong></div>
+  `;
+  platformSubscriptionRequestsRowsEl.innerHTML = rows.length
+    ? rows.map((item) => `
+      <tr>
+        <td><strong>${escapeHtml(item.tenantCode || "-")}</strong><br /><small>${escapeHtml(item.tenantName || "-")}</small></td>
+        <td>${escapeHtml(subscriptionRequestTypeLabel(item.requestType))}<br /><small>${escapeHtml(item.reason || "-")}</small></td>
+        <td>${escapeHtml(item.desiredPlanName || item.desiredPlanCode || "-")}<br /><small>${item.refundAmount ? formatMoney(item.refundAmount) : escapeHtml(item.effectiveAt || "-")}</small></td>
+        <td><span class="tag ${item.status === "processed" ? "tag-ready" : item.status === "new" ? "tag-warning" : ""}">${escapeHtml(subscriptionRequestStatusLabel(item.status))}</span></td>
+        <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+        <td><button type="button" data-process-platform-subscription-request="${escapeAttr(item.id || "")}">${muiIcon("rule")}<span>Xử lý</span></button></td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="6">Chưa có yêu cầu subscription.</td></tr>`;
+  platformSubscriptionRequestsRowsEl.querySelectorAll("[data-process-platform-subscription-request]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const request = platformSubscriptionRequestsData.find((item) => item.id === button.dataset.processPlatformSubscriptionRequest);
+      openPlatformSubscriptionRequestProcessDialog(request || null);
+    });
+  });
+}
+
+function openPlatformSubscriptionPlanDialog(plan = null) {
+  const editing = Boolean(plan?.code);
+  platformSubscriptionPlanIdEl.value = plan?.id || "";
+  platformSubscriptionPlanCodeEl.value = plan?.code || "";
+  platformSubscriptionPlanCodeEl.readOnly = false;
+  platformSubscriptionPlanNameEl.value = plan?.name || "";
+  platformSubscriptionPlanStatusEl.value = optionValueOrEmpty(platformSubscriptionPlanStatusEl, plan?.status || "active") || "active";
+  platformSubscriptionPlanDisplayOrderEl.value = Number(plan?.displayOrder ?? 100);
+  platformSubscriptionPlanContactPriceEl.checked = Boolean(plan?.contactPrice);
+  platformSubscriptionPlanBasePriceEl.value = Number(plan?.basePriceVnd || 0);
+  platformSubscriptionPlanPartnerPriceEl.value = plan?.partnerPriceVnd === null || plan?.partnerPriceVnd === undefined ? "" : Number(plan.partnerPriceVnd || 0);
+  platformSubscriptionPlanPromotionalPriceEl.value = plan?.promotionalPriceVnd === null || plan?.promotionalPriceVnd === undefined ? "" : Number(plan.promotionalPriceVnd || 0);
+  platformSubscriptionPlanDescriptionEl.value = plan?.description || "";
+  platformSubscriptionPlanLimitsEl.value = JSON.stringify(plan?.limits || {}, null, 2);
+  openAppDialog({
+    title: editing ? "Sửa subscription plan" : "Tạo subscription plan",
+    kicker: "Plan catalog",
+    icon: editing ? "edit" : "add",
+    nodes: [platformSubscriptionPlanFormEl],
+    size: "md",
+    actions: [
+      { label: "Đóng", icon: "close", onClick: closeAppDialog },
+      { label: "Lưu plan", icon: "save", variant: "primary", onClick: savePlatformSubscriptionPlan, closeOnSuccess: true },
+    ],
+  });
+}
+
+async function savePlatformSubscriptionPlan() {
+  const displayOrder = Number.parseInt(platformSubscriptionPlanDisplayOrderEl?.value || "100", 10);
+  if (!Number.isFinite(displayOrder) || displayOrder < 0) {
+    showDialogError("Display order phải là số không âm");
+    return false;
+  }
+  const basePriceVnd = parseMoneyInput(platformSubscriptionPlanBasePriceEl?.value || 0);
+  const partnerPriceVnd = optionalMoneyInputPayload(platformSubscriptionPlanPartnerPriceEl);
+  const promotionalPriceVnd = optionalMoneyInputPayload(platformSubscriptionPlanPromotionalPriceEl);
+  if (promotionalPriceVnd !== null && basePriceVnd > 0 && promotionalPriceVnd > basePriceVnd) {
+    showDialogError("Giá khuyến mãi không được lớn hơn giá base");
+    return false;
+  }
+  let limits = {};
+  try {
+    const rawLimits = platformSubscriptionPlanLimitsEl.value.trim();
+    limits = rawLimits ? JSON.parse(rawLimits) : {};
+  } catch {
+    showDialogError("Limits JSON không hợp lệ");
+    return false;
+  }
+  if (!limits || Array.isArray(limits) || typeof limits !== "object") {
+    showDialogError("Limits JSON phải là object");
+    return false;
+  }
+  setAdminStatus(platformSubscriptionsStatusEl, "Đang lưu plan", "busy");
+  const res = await fetch("/api/v1/platform/subscription-plans", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: platformSubscriptionPlanIdEl.value,
+      code: platformSubscriptionPlanCodeEl.value,
+      name: platformSubscriptionPlanNameEl.value,
+      status: platformSubscriptionPlanStatusEl.value,
+      description: platformSubscriptionPlanDescriptionEl.value,
+      contactPrice: Boolean(platformSubscriptionPlanContactPriceEl?.checked),
+      displayOrder,
+      basePriceVnd,
+      partnerPriceVnd,
+      promotionalPriceVnd,
+      limits,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    showDialogError(text || "Không lưu được subscription plan");
+    setAdminStatus(platformSubscriptionsStatusEl, text || "Không lưu được subscription plan", "error");
+    return false;
+  }
+  platformSubscriptionPlansData = JSON.parse(text).plans || [];
+  platformSubscriptionPlansLoaded = true;
+  subscriptionPlansLoaded = false;
+  subscriptionPlansData = [];
+  renderPlatformSubscriptions();
+  setAdminStatus(platformSubscriptionsStatusEl, "Đã lưu plan", "ready");
+  return true;
+}
+
+function optionalMoneyInputPayload(input) {
+  const raw = String(input?.value || "").trim();
+  if (!raw) return null;
+  return parseMoneyInput(raw);
+}
+
 async function loadSubscriptionPlans(force = false) {
   if (!hasPermission("subscription.view") && !hasPermission("subscription.update")) {
     subscriptionPlansLoaded = false;
     subscriptionPlansData = [];
     return [];
+  }
+  if (isPlatformAdmin()) {
+    const platformPlans = await loadPlatformSubscriptionPlans(force);
+    subscriptionPlansData = platformPlans.filter((plan) => plan.status === "active");
+    subscriptionPlansLoaded = true;
+    return subscriptionPlansData;
   }
   if (!force && subscriptionPlansLoaded && subscriptionPlansData.length) {
     return subscriptionPlansData;
@@ -6090,12 +6606,13 @@ async function loadSubscriptionPlans(force = false) {
   return subscriptionPlansData;
 }
 
-async function openTenantSubscriptionDialog() {
-  const activeTenant = tenantRowsForUI().find((tenant) => tenant.id === activeTenantSummary().id) || activeTenantSummary();
+async function openTenantSubscriptionDialog(tenant = null) {
+  const activeTenant = tenant || tenantRowsForUI().find((item) => item.id === activeTenantSummary().id) || activeTenantSummary();
+  if (!activeTenant?.id) return;
   const plans = await loadSubscriptionPlans();
   tenantSubscriptionTenantIdEl.value = activeTenant.id || "";
   tenantSubscriptionPlanEl.innerHTML = plans
-    .map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`)
+    .map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(subscriptionPlanOptionLabel(plan))}</option>`)
     .join("");
   tenantSubscriptionPlanEl.value = optionValueOrEmpty(tenantSubscriptionPlanEl, activeTenant.planCode || "") || plans[0]?.code || "";
   tenantSubscriptionStatusEl.value = optionValueOrEmpty(tenantSubscriptionStatusEl, activeTenant.subscriptionStatus || "active") || "active";
@@ -6116,6 +6633,7 @@ async function openTenantSubscriptionDialog() {
 
 async function saveTenantSubscription() {
   setAdminStatus(tenantStatusEl, "Đang lưu subscription", "busy");
+  setAdminStatus(platformSubscriptionsStatusEl, "Đang lưu subscription", "busy");
   const res = await fetch("/api/v1/tenants/subscription/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -6130,6 +6648,7 @@ async function saveTenantSubscription() {
   const text = await res.text();
   if (!res.ok) {
     setAdminStatus(tenantStatusEl, text || "Không lưu được subscription", "error");
+    setAdminStatus(platformSubscriptionsStatusEl, text || "Không lưu được subscription", "error");
     return false;
   }
   const data = JSON.parse(text);
@@ -6144,8 +6663,12 @@ async function saveTenantSubscription() {
     applyPermissionUI();
   }
   subscriptionBillingLoaded = false;
-  await loadSubscriptionBilling(true);
+  if (activeTenantSummary().id) {
+    await loadSubscriptionBilling(true);
+  }
+  renderPlatformSubscriptions();
   setAdminStatus(tenantStatusEl, "Đã lưu subscription", "ready");
+  setAdminStatus(platformSubscriptionsStatusEl, "Đã lưu subscription", "ready");
   return true;
 }
 
@@ -6453,6 +6976,7 @@ function renderSubscriptionFinanceConsole(data) {
       </tr>
     `).join("")
     : `<tr><td colspan="8">Chưa có finance console rows</td></tr>`;
+  renderPlatformSubscriptionFinanceSnapshot(data);
 }
 
 async function runSubscriptionFinanceBatch(kind, dryRun) {
@@ -6549,6 +7073,10 @@ function resetTenantScopedState() {
   platformTenantEmailCronData = null;
   platformTenantSubscriptionRequestsLoadedFor = "";
   platformTenantSubscriptionRequestsData = [];
+  platformSubscriptionPlansLoaded = false;
+  platformSubscriptionPlansData = [];
+  platformSubscriptionRequestsLoaded = false;
+  platformSubscriptionRequestsData = [];
   subscriptionPlansLoaded = false;
   subscriptionPlansData = [];
   subscriptionBillingLoaded = false;
@@ -10866,6 +11394,12 @@ backToTenantListBtn?.addEventListener("click", () => {
 });
 refreshSubscriptionBillingBtn?.addEventListener("click", () => loadSubscriptionBilling(true));
 refreshSubscriptionFinanceConsoleBtn?.addEventListener("click", () => loadSubscriptionFinanceConsole(true));
+refreshPlatformSubscriptionsBtn?.addEventListener("click", () => loadPlatformSubscriptions(true));
+newPlatformSubscriptionPlanBtn?.addEventListener("click", () => openPlatformSubscriptionPlanDialog(null));
+platformSubscriptionTenantQueryEl?.addEventListener("input", renderPlatformTenantSubscriptions);
+platformSubscriptionPlanFilterEl?.addEventListener("change", renderPlatformTenantSubscriptions);
+platformSubscriptionStatusFilterEl?.addEventListener("change", renderPlatformTenantSubscriptions);
+platformSubscriptionRequestStatusFilterEl?.addEventListener("change", () => loadPlatformSubscriptionRequests(true));
 refreshPlatformIntakeRequestsBtn?.addEventListener("click", () => loadPlatformIntakeRequests(true));
 refreshPlatformTenantProvidersBtn?.addEventListener("click", () => loadPlatformTenantProviders(true));
 refreshPlatformTenantEmailConfigBtn?.addEventListener("click", () => loadPlatformTenantEmailConfig(true));
@@ -10881,6 +11415,7 @@ landingPlanViewportEl?.addEventListener("pointerup", finishLandingPlanSwipe);
 landingPlanViewportEl?.addEventListener("pointercancel", finishLandingPlanSwipe);
 window.addEventListener("resize", updateLandingPlanCarousel);
 openSubscriptionChangeRequestBtn?.addEventListener("click", openSubscriptionChangeRequestDialog);
+subscriptionPurchasePlanEl?.addEventListener("change", updateSubscriptionPurchaseAmountFromSelectedPlan);
 subscriptionChangeRequestTypeEl?.addEventListener("change", updateSubscriptionChangeRequestFormState);
 refreshTenantDetailUsersBtn?.addEventListener("click", () => loadAdminUsers(true));
 newTenantDetailUserBtn?.addEventListener("click", () => {

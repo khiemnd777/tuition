@@ -4,10 +4,15 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -192,6 +197,28 @@ func TestPreferredAuthSessionTenantIDUsesActiveTenantWhenPresent(t *testing.T) {
 	}
 }
 
+func TestCountPlatformAdminUsersIgnoresTenantOnlyUsers(t *testing.T) {
+	db := openFakeAuthBootstrapDB(t, "tenant-only", 0)
+	count, err := countPlatformAdminUsers(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no platform admins when only tenant users exist, got %d", count)
+	}
+}
+
+func TestCountPlatformAdminUsersDetectsExistingPlatformAdmin(t *testing.T) {
+	db := openFakeAuthBootstrapDB(t, "platform-admin", 1)
+	count, err := countPlatformAdminUsers(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one platform admin, got %d", count)
+	}
+}
+
 func TestEnsureBootstrapAdminDoesNotOverwriteExistingPassword(t *testing.T) {
 	dbURL := os.Getenv("DEKISUGI_DATABASE_URL_LOCAL")
 	if dbURL == "" {
@@ -251,6 +278,92 @@ func TestEnsureBootstrapAdminDoesNotOverwriteExistingPassword(t *testing.T) {
 	if !user.IsPlatformAdmin {
 		t.Fatal("expected bootstrap user to keep platform_admin role")
 	}
+}
+
+var registerFakeAuthBootstrapDriver sync.Once
+var fakeAuthBootstrapStates sync.Map
+
+type fakeAuthBootstrapState struct {
+	platformAdminCount int
+}
+
+func openFakeAuthBootstrapDB(t *testing.T, name string, platformAdminCount int) *sql.DB {
+	t.Helper()
+
+	registerFakeAuthBootstrapDriver.Do(func() {
+		sql.Register("fake_auth_bootstrap", fakeAuthBootstrapDriver{})
+	})
+	fakeAuthBootstrapStates.Store(name, &fakeAuthBootstrapState{platformAdminCount: platformAdminCount})
+
+	db, err := sql.Open("fake_auth_bootstrap", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+		fakeAuthBootstrapStates.Delete(name)
+	})
+	return db
+}
+
+type fakeAuthBootstrapDriver struct{}
+
+func (fakeAuthBootstrapDriver) Open(name string) (driver.Conn, error) {
+	value, ok := fakeAuthBootstrapStates.Load(name)
+	if !ok {
+		return nil, errors.New("unknown fake auth bootstrap database")
+	}
+	return &fakeAuthBootstrapConn{state: value.(*fakeAuthBootstrapState)}, nil
+}
+
+type fakeAuthBootstrapConn struct {
+	state *fakeAuthBootstrapState
+}
+
+func (conn *fakeAuthBootstrapConn) Prepare(query string) (driver.Stmt, error) {
+	return nil, errors.New("prepared statements are not implemented")
+}
+
+func (conn *fakeAuthBootstrapConn) Close() error {
+	return nil
+}
+
+func (conn *fakeAuthBootstrapConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("transactions are not implemented")
+}
+
+func (conn *fakeAuthBootstrapConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	normalized := strings.Join(strings.Fields(query), " ")
+	if !strings.Contains(normalized, "JOIN app_user_roles") || !strings.Contains(normalized, "role.code = 'platform_admin'") {
+		return nil, errors.New("unexpected auth bootstrap query: " + query)
+	}
+	return &singleIntRow{
+		columns: []string{"count"},
+		value:   conn.state.platformAdminCount,
+	}, nil
+}
+
+type singleIntRow struct {
+	columns []string
+	value   int
+	read    bool
+}
+
+func (rows *singleIntRow) Columns() []string {
+	return rows.columns
+}
+
+func (rows *singleIntRow) Close() error {
+	return nil
+}
+
+func (rows *singleIntRow) Next(dest []driver.Value) error {
+	if rows.read {
+		return io.EOF
+	}
+	dest[0] = int64(rows.value)
+	rows.read = true
+	return nil
 }
 
 func cleanupBootstrapTestUser(t *testing.T, db *sql.DB, email string, phone string) {

@@ -585,6 +585,62 @@ func TestLoadEmbeddedMigrationsIncludesPlatformAuthSessionsNullableTenant(t *tes
 	}
 }
 
+func TestLoadEmbeddedMigrationsIncludesSubscriptionPlanPrices(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var item migration
+	for _, current := range migrations {
+		if current.Version == "0029" {
+			item = current
+			break
+		}
+	}
+	if item.Name != "subscription_plan_prices" {
+		t.Fatalf("expected subscription plan prices migration 0029, got %+v", item)
+	}
+	for _, want := range []string{
+		"base_price_vnd integer NOT NULL DEFAULT 0",
+		"partner_price_vnd integer",
+		"promotional_price_vnd integer",
+		"subscription_plans_promotional_price_not_above_base",
+	} {
+		if !strings.Contains(item.SQL, want) {
+			t.Fatalf("expected subscription plan prices migration to contain %q", want)
+		}
+	}
+}
+
+func TestLoadEmbeddedMigrationsIncludesSubscriptionPlanDisplayControls(t *testing.T) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var item migration
+	for _, current := range migrations {
+		if current.Version == "0030" {
+			item = current
+			break
+		}
+	}
+	if item.Name != "subscription_plan_display_controls" {
+		t.Fatalf("expected subscription plan display controls migration 0030, got %+v", item)
+	}
+	for _, want := range []string{
+		"contact_price boolean NOT NULL DEFAULT false",
+		"display_order integer NOT NULL DEFAULT 100",
+		"subscription_plans_display_order_non_negative",
+		"subscription_plans_display_order_idx",
+	} {
+		if !strings.Contains(item.SQL, want) {
+			t.Fatalf("expected subscription plan display controls migration to contain %q", want)
+		}
+	}
+}
+
 func TestLoadEmbeddedMigrationsIncludesTenantDataIsolation(t *testing.T) {
 	migrations, err := loadEmbeddedMigrations()
 	if err != nil {

@@ -122,6 +122,7 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 		"POST /api/v1/auth/tenant/switch":                     "tenant.switch",
 		"GET /api/v1/tenants":                                 "tenant.view",
 		"GET /api/v1/subscriptions/plans":                     "subscription.view",
+		" /api/v1/platform/subscription-plans":                "",
 		"GET /api/v1/subscriptions/purchase":                  "subscription.view",
 		"POST /api/v1/subscriptions/purchase/checkout":        "subscription.update",
 		" /api/v1/subscriptions/requests":                     "subscription.view",
@@ -173,6 +174,15 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 	}
 	if routes["POST /api/v1/admin/users/save"].PermissionResolver == nil {
 		t.Fatal("admin user save must resolve create/update permission from request body")
+	}
+	if routes[" /api/v1/platform/subscription-plans"].PermissionResolver == nil {
+		t.Fatal("platform subscription plans endpoint must resolve view/update permission from request method")
+	}
+	if !routes[" /api/v1/platform/subscription-plans"].AllowPlatformOnly {
+		t.Fatal("platform subscription plans endpoint must allow platform-only authenticated access")
+	}
+	if !routes["POST /api/v1/tenants/subscription/save"].AllowPlatformOnly {
+		t.Fatal("platform tenant subscription save endpoint must allow platform-only authenticated access")
 	}
 	if !routes["GET /api/v1/platform/users"].AllowPlatformOnly {
 		t.Fatal("platform users endpoint must allow platform-only authenticated access")
@@ -228,6 +238,15 @@ func TestAppAPIRoutePermissionMapCoversSensitiveRoutes(t *testing.T) {
 }
 
 func TestDynamicPermissionResolvers(t *testing.T) {
+	platformPlansGet := httptest.NewRequest(http.MethodGet, "/api/v1/platform/subscription-plans", nil)
+	if got, err := platformSubscriptionPlansPermission(platformPlansGet); err != nil || got != "subscription.view" {
+		t.Fatalf("expected platform subscription GET to require subscription.view, got %q, %v", got, err)
+	}
+	platformPlansPost := httptest.NewRequest(http.MethodPost, "/api/v1/platform/subscription-plans", nil)
+	if got, err := platformSubscriptionPlansPermission(platformPlansPost); err != nil || got != "subscription.update" {
+		t.Fatalf("expected platform subscription POST to require subscription.update, got %q, %v", got, err)
+	}
+
 	masterReq := httptest.NewRequest(http.MethodPost, "/api/v1/import/fields?target=master_data", nil)
 	if got, err := importFieldsPermission(masterReq); err != nil || got != "student.create" {
 		t.Fatalf("expected master import fields permission, got %q, %v", got, err)
