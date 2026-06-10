@@ -164,10 +164,10 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
   - Added production schema for `school_years`, `classes`, `students`, `parents`, and `student_parents`.
   - Made `student_code` the mandatory durable student identifier; duplicate student names are supported.
   - Added parent contact delivery flags for primary, active, and billing email behavior.
-  - Added CSV master data import preview/apply with conflict reporting and no silent overwrite of mismatched records.
-  - Added API endpoints for master-data options, student listing by school year/class/grade/search, and CSV import.
+  - Added Excel master data import preview/apply with conflict reporting and no silent overwrite of mismatched records.
+  - Added API endpoints for master-data options, student listing by school year/class/grade/search, and Excel import.
   - Added the `Học sinh` UI tab with filters, import preview/apply controls, student table, and conflict report.
-  - Added `samples/master_data.csv`, tests, README docs, and glossary terms.
+  - Added sample import workbooks, tests, README docs, and glossary terms.
 - Initiative 3: Fee Types And Fee Schedules is complete:
   - Added production schema for `fee_types`, `fee_schedules`, `fee_schedule_items`, and `student_fee_adjustments`.
   - Seeded default fee types for tuition, lunch, shuttle, uniform, insurance, materials, previous fees, and custom fees with Vietnamese and English labels.

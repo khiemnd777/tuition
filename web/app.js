@@ -320,6 +320,9 @@ const loginScreenEl = document.querySelector("#loginScreen");
 const appShellEl = document.querySelector("#appShell");
 const landingPlanStatusEl = document.querySelector("#landingPlanStatus");
 const landingPlanGridEl = document.querySelector("#landingPlanGrid");
+const landingPlanViewportEl = document.querySelector(".landing-plan-viewport");
+const landingPlanPrevBtn = document.querySelector("#landingPlanPrev");
+const landingPlanNextBtn = document.querySelector("#landingPlanNext");
 const landingAccessEl = document.querySelector("#landingAccess");
 const landingModeButtons = [...document.querySelectorAll("[data-landing-mode]")];
 const loginFormEl = document.querySelector("#loginForm");
@@ -395,10 +398,21 @@ const newTenantBtn = document.querySelector("#newTenant");
 const editActiveTenantBtn = document.querySelector("#editActiveTenant");
 const editActiveTenantSubscriptionBtn = document.querySelector("#editActiveTenantSubscription");
 const tenantStatusEl = document.querySelector("#tenantStatus");
-const tenantSummaryEl = document.querySelector("#tenantSummary");
 const tenantListEl = document.querySelector("#tenantList");
+const tenantListPageEl = document.querySelector("#tenantListPage");
+const tenantDetailsPageEl = document.querySelector("#tenantDetailsPage");
+const backToTenantListBtn = document.querySelector("#backToTenantList");
+const tenantDetailTitleEl = document.querySelector("#tenantDetailTitle");
+const tenantDetailIntroEl = document.querySelector("#tenantDetailIntro");
 const tenantDetailTabButtons = [...document.querySelectorAll("[data-tenant-detail-tab]")];
 const tenantDetailPanels = [...document.querySelectorAll("[data-tenant-detail-panel]")];
+const refreshTenantDetailUsersBtn = document.querySelector("#refreshTenantDetailUsers");
+const newTenantDetailUserBtn = document.querySelector("#newTenantDetailUser");
+const tenantDetailUsersStatusEl = document.querySelector("#tenantDetailUsersStatus");
+const tenantDetailUserCountEl = document.querySelector("#tenantDetailUserCount");
+const tenantDetailUserRowsEl = document.querySelector("#tenantDetailUserRows");
+const tenantDetailRoleCountEl = document.querySelector("#tenantDetailRoleCount");
+const tenantDetailRoleListEl = document.querySelector("#tenantDetailRoleList");
 const refreshPlatformIntakeRequestsBtn = document.querySelector("#refreshPlatformIntakeRequests");
 const platformIntakeListEl = document.querySelector("#platformIntakeList");
 const tenantOnboardFormEl = document.querySelector("#tenantOnboardForm");
@@ -608,6 +622,8 @@ let platformTenantEmailCronData = null;
 let platformTenantSubscriptionRequestsLoadedFor = "";
 let platformTenantSubscriptionRequestsData = [];
 let publicSubscriptionPlansData = [];
+let landingPlanCarouselIndex = 0;
+let landingPlanSwipe = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0, swiping: false };
 let subscriptionPlansLoaded = false;
 let subscriptionPlansData = [];
 let subscriptionBillingLoaded = false;
@@ -1280,7 +1296,7 @@ async function loadLandingSubscriptionPlans(force = false) {
     publicSubscriptionPlansData = [];
     renderLandingSubscriptionPlans([]);
     populateSignupDesiredPlans([]);
-    setLandingPlanStatus(text || "Không tải được gói dịch vụ từ Platform Admin", "error");
+    setLandingPlanStatus(text || "Không tải được gói dịch vụ từ hệ thống", "error");
     return [];
   }
   let data = {};
@@ -1297,7 +1313,7 @@ async function loadLandingSubscriptionPlans(force = false) {
   renderLandingSubscriptionPlans(publicSubscriptionPlansData);
   populateSignupDesiredPlans(publicSubscriptionPlansData);
   setLandingPlanStatus(
-    publicSubscriptionPlansData.length ? `${publicSubscriptionPlansData.length} gói đang được cấu hình` : "Chưa có subscription plan active",
+    publicSubscriptionPlansData.length ? `${publicSubscriptionPlansData.length} lựa chọn đang mở cho trường` : "Chưa có gói dịch vụ đang mở",
     publicSubscriptionPlansData.length ? "ready" : "",
   );
   return publicSubscriptionPlansData;
@@ -1313,40 +1329,111 @@ function renderLandingSubscriptionPlans(plans = []) {
   if (!landingPlanGridEl) return;
   const rows = (plans || []).filter(Boolean);
   if (!rows.length) {
+    landingPlanCarouselIndex = 0;
     landingPlanGridEl.innerHTML = `
       <article class="landing-plan-card landing-hover-card">
         ${muiIcon("info")}
-        <h3>Chưa có plan hiển thị</h3>
-        <p>Platform Admin cần cấu hình subscription plans trước khi landing page có dữ liệu để hiển thị.</p>
+        <h3>Chưa có gói hiển thị</h3>
+        <p>Đội ngũ phụ trách cần mở ít nhất một gói dịch vụ trước khi trường có thể chọn đăng ký.</p>
       </article>
     `;
+    updateLandingPlanCarousel();
     return;
   }
   landingPlanGridEl.innerHTML = rows
     .map((plan) => {
       const code = plan.code || "";
+      const statusTone = plan.status === "active" ? "ready" : "paused";
       return `
         <article class="landing-plan-card landing-hover-card">
-          ${muiIcon(subscriptionPlanLandingIcon(code))}
-          <header>
-            <div>
-              <h3>${escapeHtml(plan.name || code || "Subscription plan")}</h3>
-              <p>${escapeHtml(plan.description || "Được cấu hình trong Platform Admin.")}</p>
-            </div>
-            <code>${escapeHtml(code || "-")}</code>
-          </header>
-          ${landingPlanLimitsTemplate(plan.limits || {})}
-          <span class="tag ${plan.status === "active" ? "tag-ready" : ""}">${escapeHtml(plan.status || "-")}</span>
+          <div class="landing-plan-card-head">
+            <span class="landing-plan-icon">${muiIcon(subscriptionPlanLandingIcon(code))}</span>
+            <span class="landing-plan-status" data-tone="${escapeAttr(statusTone)}">${escapeHtml(landingPlanStatusLabel(plan.status))}</span>
+          </div>
+          <div class="landing-plan-summary">
+            <p class="landing-plan-eyebrow">${escapeHtml(landingPlanAudienceLabel(code))}</p>
+            <h3>${escapeHtml(plan.name || code || "Gói dịch vụ")}</h3>
+            <p>${escapeHtml(landingPlanDescription(plan))}</p>
+          </div>
+          ${landingPlanBenefitsTemplate(plan.limits || {})}
         </article>
       `;
     })
     .join("");
+  updateLandingPlanCarousel();
+}
+
+function updateLandingPlanCarousel() {
+  if (!landingPlanGridEl) return;
+  const cards = [...landingPlanGridEl.querySelectorAll(".landing-plan-card")];
+  const cardCount = cards.length;
+  landingPlanGridEl.dataset.single = cardCount <= 1 ? "true" : "false";
+  const viewportWidth = landingPlanGridEl.parentElement?.clientWidth || 0;
+  const gridStyle = getComputedStyle(landingPlanGridEl);
+  const carouselStyle = getComputedStyle(landingPlanGridEl.closest(".landing-plan-carousel") || landingPlanGridEl);
+  const gap = Number.parseFloat(gridStyle.columnGap || "0") || 0;
+  const cardWidth = cards[0]?.getBoundingClientRect().width || viewportWidth || 1;
+  const visibleCount = Math.max(1, Math.floor((viewportWidth + gap) / (cardWidth + gap)));
+  const maxIndex = Math.max(0, cardCount - visibleCount);
+  landingPlanCarouselIndex = Math.min(Math.max(0, landingPlanCarouselIndex), maxIndex);
+  const shouldCenterActive = Number(carouselStyle.getPropertyValue("--landing-plan-center-active")) === 1;
+  const centerOffset = shouldCenterActive ? Math.max(0, (viewportWidth - cardWidth) / 2) : 0;
+  const offset = centerOffset + landingPlanCarouselIndex * -(cardWidth + gap);
+  landingPlanGridEl.style.transform = `translateX(${offset}px)`;
+  const disableNav = maxIndex === 0;
+  if (landingPlanPrevBtn) landingPlanPrevBtn.disabled = disableNav || landingPlanCarouselIndex === 0;
+  if (landingPlanNextBtn) landingPlanNextBtn.disabled = disableNav || landingPlanCarouselIndex === maxIndex;
+}
+
+function moveLandingPlanCarousel(direction) {
+  landingPlanCarouselIndex = Math.max(0, landingPlanCarouselIndex + direction);
+  updateLandingPlanCarousel();
+}
+
+function startLandingPlanSwipe(event) {
+  if (!landingPlanViewportEl || event.pointerType === "mouse") return;
+  landingPlanSwipe = {
+    active: true,
+    startX: event.clientX,
+    startY: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+    swiping: false,
+  };
+  landingPlanViewportEl.setPointerCapture?.(event.pointerId);
+}
+
+function trackLandingPlanSwipe(event) {
+  if (!landingPlanSwipe.active) return;
+  landingPlanSwipe.lastX = event.clientX;
+  landingPlanSwipe.lastY = event.clientY;
+  const deltaX = landingPlanSwipe.lastX - landingPlanSwipe.startX;
+  const deltaY = landingPlanSwipe.lastY - landingPlanSwipe.startY;
+  if (!landingPlanSwipe.swiping && Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+    landingPlanSwipe.swiping = true;
+  }
+  if (landingPlanSwipe.swiping) {
+    event.preventDefault();
+  }
+}
+
+function finishLandingPlanSwipe(event) {
+  if (!landingPlanSwipe.active) return;
+  const deltaX = landingPlanSwipe.lastX - landingPlanSwipe.startX;
+  const deltaY = landingPlanSwipe.lastY - landingPlanSwipe.startY;
+  if (landingPlanSwipe.swiping && Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+    moveLandingPlanCarousel(deltaX < 0 ? 1 : -1);
+  }
+  landingPlanSwipe = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0, swiping: false };
+  if (event?.pointerId !== undefined) {
+    landingPlanViewportEl?.releasePointerCapture?.(event.pointerId);
+  }
 }
 
 function subscriptionPlanLandingIcon(code = "") {
   switch (code) {
     case "free_trial":
-      return "pending_actions";
+      return "school";
     case "standard":
       return "workspace_premium";
     default:
@@ -1354,26 +1441,148 @@ function subscriptionPlanLandingIcon(code = "") {
   }
 }
 
-function landingPlanLimitsTemplate(limits = {}) {
-  const entries = Object.entries(limits)
-    .filter(([, value]) => value !== null && value !== undefined && typeof value !== "object")
-    .slice(0, 6);
-  if (!entries.length) {
-    return `<ul class="landing-plan-limits"><li>Limits do Platform Admin cấu hình</li></ul>`;
+function landingPlanAudienceLabel(code = "") {
+  switch (code) {
+    case "free_trial":
+      return "Gói làm quen";
+    case "standard":
+      return "Gói vận hành";
+    default:
+      return "Gói dịch vụ";
+  }
+}
+
+function landingPlanDescription(plan = {}) {
+  const code = plan.code || "";
+  if (code === "free_trial") {
+    return "Dành cho trường mới bắt đầu thử quy trình thu học phí và gửi thông báo cho phụ huynh.";
+  }
+  if (code === "standard") {
+    return "Dành cho trường vận hành thu học phí thường xuyên với nhiều lớp và nhiều người phụ trách.";
+  }
+  return landingPlanPublicText(plan.description || "Dành cho trường muốn vận hành thu học phí qua VietQR và thông báo phụ huynh.");
+}
+
+function landingPlanStatusLabel(status = "") {
+  switch (status) {
+    case "active":
+      return "Đang mở đăng ký";
+    case "inactive":
+      return "Tạm chưa mở";
+    default:
+      return status ? landingPlanPublicText(status) : "Theo cấu hình hiện tại";
+  }
+}
+
+function landingPlanBenefitsTemplate(limits = {}) {
+  const benefits = landingPlanBenefitItems(limits);
+  if (!benefits.length) {
+    return `
+      <ul class="landing-plan-benefits">
+        <li>
+          ${muiIcon("support_agent")}
+          <span>
+            <strong>Được tư vấn theo nhu cầu</strong>
+            <small>Đội ngũ phụ trách sẽ xác nhận quy mô trường trước khi thiết lập.</small>
+          </span>
+        </li>
+      </ul>
+    `;
   }
   return `
-    <ul class="landing-plan-limits">
-      ${entries
-        .map(([key, value]) => `<li>${escapeHtml(formatLandingLimitKey(key))}: ${escapeHtml(String(value))}</li>`)
+    <ul class="landing-plan-benefits">
+      ${benefits
+        .map(
+          (item) => `
+            <li>
+              ${muiIcon(item.icon)}
+              <span>
+                <strong>${escapeHtml(item.title)}</strong>
+                <small>${escapeHtml(item.detail)}</small>
+              </span>
+            </li>
+          `,
+        )
         .join("")}
     </ul>
   `;
 }
 
+function landingPlanBenefitItems(limits = {}) {
+  const entries = Object.entries(limits)
+    .filter(([, value]) => value !== null && value !== undefined && typeof value !== "object")
+    .map(([key, value]) => ({ key, value, normalizedKey: normalizeLandingLimitKey(key) }));
+  const byKey = new Map(entries.map((entry) => [entry.normalizedKey, entry]));
+  const used = new Set();
+  const benefits = [];
+  const addKnown = (keys, icon, titleForValue, detail) => {
+    const entry = keys.map((key) => byKey.get(key)).find(Boolean);
+    if (!entry) return;
+    used.add(entry.normalizedKey);
+    benefits.push({
+      icon,
+      title: titleForValue(entry.value),
+      detail,
+    });
+  };
+
+  addKnown(["students", "student_limit", "max_students"], "groups", (value) => `Phù hợp tối đa ${formatLandingLimitValue(value)} học sinh`, "Dễ hình dung quy mô triển khai trong trường.");
+  addKnown(
+    ["monthly_notifications", "month_notifications", "notifications_monthly", "max_monthly_notifications"],
+    "mark_email_read",
+    (value) => `Gửi tối đa ${formatLandingLimitValue(value)} thông báo mỗi tháng`,
+    "Dùng cho nhắc phí, xác nhận thanh toán và thông tin gửi phụ huynh.",
+  );
+  addKnown(["operators", "operator_limit", "max_operators"], "supervisor_account", (value) => `${formatLandingLimitValue(value)} người phụ trách cùng vận hành`, "Phù hợp cho kế toán, giáo vụ và ban quản lý cùng theo dõi.");
+  addKnown(["schools", "school_limit", "max_schools"], "domain", (value) => `Quản lý tối đa ${formatLandingLimitValue(value)} trường hoặc cơ sở`, "Hỗ trợ trường đơn lẻ hoặc hệ thống có nhiều cơ sở.");
+
+  entries
+    .filter((entry) => !used.has(entry.normalizedKey))
+    .slice(0, Math.max(0, 4 - benefits.length))
+    .forEach((entry) => {
+      benefits.push({
+        icon: "tune",
+        title: `${formatLandingLimitKey(entry.key)}: ${formatLandingLimitValue(entry.value)}`,
+        detail: "Giới hạn bổ sung được cấu hình riêng cho gói dịch vụ này.",
+      });
+    });
+
+  return benefits.slice(0, 4);
+}
+
 function formatLandingLimitKey(key = "") {
-  return String(key || "")
-    .replace(/[_-]+/g, " ")
+  return landingPlanPublicText(
+    String(key || "")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/[_-]+/g, " "),
+  )
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function normalizeLandingLimitKey(key = "") {
+  return String(key || "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatLandingLimitValue(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(numeric);
+  }
+  return landingPlanPublicText(String(value || "-"));
+}
+
+function landingPlanPublicText(value = "") {
+  return String(value || "")
+    .replace(/\bsubscription plans\b/gi, "gói dịch vụ")
+    .replace(/\bsubscription plan\b/gi, "gói dịch vụ")
+    .replace(/\bsubscription\b/gi, "gói dịch vụ")
+    .replace(/\bPlatform Admin\b/g, "đội ngũ phụ trách")
+    .replace(/\btenant\b/gi, "trường")
+    .trim();
 }
 
 function populateSignupDesiredPlans(plans = []) {
@@ -1382,7 +1591,7 @@ function populateSignupDesiredPlans(plans = []) {
   const rows = (plans || []).filter((plan) => plan?.code);
   signupDesiredPlanEl.innerHTML = rows.length
     ? rows.map((plan) => `<option value="${escapeAttr(plan.code || "")}">${escapeHtml(plan.name || plan.code || "")}</option>`).join("")
-    : `<option value="">Platform Admin chọn gói</option>`;
+    : `<option value="">Đội ngũ phụ trách sẽ tư vấn gói</option>`;
   signupDesiredPlanEl.value = optionValueOrEmpty(signupDesiredPlanEl, selected) || rows[0]?.code || "";
 }
 
@@ -1620,8 +1829,16 @@ function updateAppContextVisibility(targetId) {
   appContextBarEl.hidden = isPlatformControlPlaneTab(targetId) || !isTenantWorkspaceTab(targetId);
 }
 
+function renderTenantDetailHeader() {
+  if (!tenantDetailTitleEl || !tenantDetailIntroEl) return;
+  const tenant = activeTenantSummary();
+  const tenantLabel = [tenant.code, tenant.name].filter(Boolean).join(" · ") || tenant.id || "";
+  tenantDetailTitleEl.innerHTML = `${muiIcon("overview")}<span>Tenant Details${tenantLabel ? `: ${escapeHtml(tenantLabel)}` : ""}</span>`;
+  tenantDetailIntroEl.textContent = "Quản lý users, subscription, billing, payment providers và email delivery cho tenant đang mở.";
+}
+
 function setTenantDetailTab(tabId = "overview") {
-  const nextTab = ["overview", "billing", "invoices", "requests", "providers", "email", "cron"].includes(tabId) ? tabId : "overview";
+  const nextTab = ["overview", "users", "billing", "invoices", "requests", "providers", "email", "cron"].includes(tabId) ? tabId : "overview";
   tenantDetailActiveTab = nextTab;
   tenantDetailTabButtons.forEach((button) => {
     const isActive = button.dataset.tenantDetailTab === nextTab;
@@ -1631,6 +1848,13 @@ function setTenantDetailTab(tabId = "overview") {
   tenantDetailPanels.forEach((panel) => {
     panel.hidden = panel.dataset.tenantDetailPanel !== nextTab;
   });
+  renderTenantDetailHeader();
+  if (nextTab === "overview" && activeTenantSummary().id) {
+    loadSubscriptionBilling();
+  }
+  if (nextTab === "users") {
+    loadAdminUsers();
+  }
   if (nextTab === "providers") {
     loadPlatformTenantProviders();
   }
@@ -1755,7 +1979,7 @@ function applyPermissionUI() {
   setElementAllowed(disableCronBtn, hasPermission("email_cron.update"));
   setElementAllowed(runCronNowBtn, hasPermission("email_cron.update"));
   if (emailConfigStatusEl && !hasPermission("email_config.view") && hasPermission("notification.send")) {
-    emailConfigStatusEl.textContent = "Do Platform Admin cấu hình";
+    emailConfigStatusEl.textContent = "Theo cấu hình hệ thống";
   }
   updateVisibleMenuGroups();
   updateLegacyPaymentActions();
@@ -1958,7 +2182,15 @@ async function submitSignup(event) {
   signupOwnerEmailEl.value = "";
   signupOwnerPhoneEl.value = "";
   if (signupNoteEl) signupNoteEl.value = "";
-  setSignupStatus("Đã gửi thông tin. Platform Admin sẽ liên hệ và tạo tài khoản cho trường.", "ready");
+  setSignupStatus("Đã gửi thông tin. Đội ngũ phụ trách sẽ liên hệ và tạo tài khoản cho trường.", "ready");
+  openAppDialog({
+    title: "Đã gửi thông tin",
+    kicker: "Đăng ký",
+    icon: "task_alt",
+    size: "sm",
+    content: `<div class="dialog-message">Đội ngũ phụ trách sẽ liên hệ và tạo tài khoản cho trường.</div>`,
+    actions: [{ label: "Đóng", icon: "close", onClick: closeAppDialog }],
+  });
   signupSubmitBtn.disabled = false;
 }
 
@@ -2054,6 +2286,7 @@ async function activateTab(targetId) {
     panel.hidden = !isActive;
     panel.classList.toggle("active", isActive);
   });
+  renderTenantSwitcher();
   await loadActiveTabData(targetId);
   await applyAppContextToTab(targetId, true);
   persistSessionRecoveryState(targetId);
@@ -2092,6 +2325,7 @@ async function loadActiveTabData(targetId) {
     await loadAdminUsers();
   }
   if (targetId === "platformTenantsTab") {
+    setTenantAdminView("directory");
     await loadTenants();
   }
   if (targetId === "platformFinanceTab") {
@@ -2516,7 +2750,7 @@ async function generate() {
 async function loadEmailConfig() {
   const res = await fetch("/api/v1/email/config");
   if (!res.ok) {
-    if (emailConfigStatusEl) emailConfigStatusEl.textContent = "Do Platform Admin cấu hình";
+    if (emailConfigStatusEl) emailConfigStatusEl.textContent = "Theo cấu hình hệ thống";
     return;
   }
   const config = await res.json();
@@ -3526,7 +3760,7 @@ function renderAdminFilters(kind) {
 
 function renderAdminReportProviderFilter() {
   if (!adminReportsProviderEl) return;
-  adminReportsProviderEl.innerHTML = `<option value="">Platform Admin cấu hình</option>`;
+  adminReportsProviderEl.innerHTML = `<option value="">Theo cấu hình hệ thống</option>`;
   adminReportsProviderEl.value = "";
   const field = adminReportsProviderEl.closest("label");
   if (field) field.hidden = true;
@@ -4484,22 +4718,36 @@ async function openOperationDrilldown(log) {
 
 async function loadAdminUsers(force = false) {
   if (!force && adminUsersLoaded) {
+    renderTenantUserDirectories(adminUsersData);
+    setTenantUserDirectoryStatus("Sẵn sàng", "ready");
     return;
   }
-  setAdminStatus(adminUsersStatusEl, "Đang tải", "busy");
+  setTenantUserDirectoryStatus("Đang tải", "busy");
   const res = await fetch("/api/v1/admin/users");
   const text = await res.text();
   if (!res.ok) {
     adminUsersLoaded = false;
     adminUsersData = { users: [], roles: [], permissions: [] };
-    renderUserDirectory(null, tenantUserDirectoryConfig());
-    setAdminStatus(adminUsersStatusEl, text || "Chưa cấu hình DB", "error");
+    renderTenantUserDirectories(null);
+    setTenantUserDirectoryStatus(text || "Chưa cấu hình DB", "error");
     return;
   }
   adminUsersData = JSON.parse(text);
   adminUsersLoaded = true;
-  renderUserDirectory(adminUsersData, tenantUserDirectoryConfig());
-  setAdminStatus(adminUsersStatusEl, "Sẵn sàng", "ready");
+  renderTenantUserDirectories(adminUsersData);
+  setTenantUserDirectoryStatus("Sẵn sàng", "ready");
+}
+
+function renderTenantUserDirectories(data) {
+  renderUserDirectory(data, tenantUserDirectoryConfig());
+  if (tenantDetailUserRowsEl && tenantDetailRoleListEl) {
+    renderUserDirectory(data, tenantDetailUserDirectoryConfig());
+  }
+}
+
+function setTenantUserDirectoryStatus(message, tone) {
+  setAdminStatus(adminUsersStatusEl, message, tone);
+  setAdminStatus(tenantDetailUsersStatusEl, message, tone);
 }
 
 async function loadPlatformUsers(force = false) {
@@ -4553,6 +4801,13 @@ function tenantRowsForUI() {
 
 function renderTenantSwitcher() {
   if (!tenantSwitcherWrapEl || !tenantSwitcherEl) return;
+  if (isPlatformControlPlaneTab(activeTabId())) {
+    tenantSwitcherEl.innerHTML = "";
+    tenantSwitcherEl.value = "";
+    tenantSwitcherEl.dataset.currentTenantId = "";
+    tenantSwitcherWrapEl.hidden = true;
+    return;
+  }
   const activeTenant = activeTenantSummary();
   const tenants = tenantRowsForUI().filter((tenant) => tenant.membershipStatus === "active" && ["active", "trial"].includes(tenant.status));
   if (isPlatformOnlySession() && !tenants.length) {
@@ -4617,6 +4872,9 @@ async function loadTenants(force = false) {
   if (activeTenantSummary().id) {
     await loadSubscriptionFinanceConsole(force);
     await loadSubscriptionAutomationStatus(force);
+    if (tenantDetailActiveTab === "users") {
+      await loadAdminUsers(force);
+    }
     if (tenantDetailActiveTab === "providers") {
       await loadPlatformTenantProviders(force);
     }
@@ -4633,87 +4891,94 @@ async function loadTenants(force = false) {
   setAdminStatus(tenantStatusEl, "Sẵn sàng", "ready");
 }
 
-function renderTenantAdmin(data) {
-  if (!tenantSummaryEl || !tenantListEl) return;
-  const activeTenant = activeTenantSummary();
-  const platformOnly = isPlatformOnlySession();
-  const tenants = data?.tenants || tenantRowsForUI();
-  const activeRow = tenants.find((tenant) => tenant.id === activeTenant.id) || activeTenant;
-  const usageSummary = (activeRow.usageMetrics || [])
+function tenantUsageSummary(tenant, labelField = "metricCode") {
+  return (tenant?.usageMetrics || [])
     .map((metric) => {
       const used = Number(metric.used || 0);
+      const label = metric[labelField] || metric.metricCode || metric.label || "-";
       if (metric.unlimited) {
-        return `${metric.label || metric.metricCode}: ${used}`;
+        return `${label}: ${used}`;
       }
-      return `${metric.label || metric.metricCode}: ${used}/${Number(metric.limit || 0)}`;
+      return `${label}: ${used}/${Number(metric.limit || 0)}`;
     })
     .join(" · ");
-  tenantSummaryEl.innerHTML = activeTenant.id
-    ? `
-      <div class="tenant-summary-item">
-        <span>${muiIcon("verified_user")}Selected tenant</span>
-        <strong>${escapeHtml([activeTenant.code, activeTenant.name].filter(Boolean).join(" · ") || activeTenant.id)}</strong>
-      </div>
-      <div class="tenant-summary-item">
-        <span>${muiIcon("school")}Schools</span>
-        <strong>${Number(activeRow.schoolCount || 0)}</strong>
-      </div>
-      <div class="tenant-summary-item">
-        <span>${muiIcon("fact_check")}Status</span>
-        <strong>${escapeHtml(activeTenant.status || "-")}</strong>
-      </div>
-      <div class="tenant-summary-item">
-        <span>${muiIcon("workspace_premium")}Subscription</span>
-        <strong>${escapeHtml([activeRow.subscriptionStatus || "-", activeRow.planCode || activeRow.planName || "-"].join(" · "))}</strong>
-      </div>
-      <div class="tenant-summary-item">
-        <span>${muiIcon("monitoring")}Usage</span>
-        <strong>${escapeHtml(usageSummary || "-")}</strong>
-      </div>
-    `
-    : platformOnly
-      ? `
-        <div class="tenant-summary-item">
-          <span>${muiIcon("admin_panel_settings")}Platform scope</span>
-          <strong>All tenants</strong>
-        </div>
-        <div class="tenant-summary-item">
-          <span>${muiIcon("domain")}Visible tenants</span>
-          <strong>${Number(tenants.length || 0)}</strong>
-        </div>
-        <div class="tenant-summary-item">
-          <span>${muiIcon("swap_horiz")}Workspace mode</span>
-          <strong>Control plane only</strong>
-        </div>
-      `
-      : "";
-  tenantListEl.innerHTML = tenants
-    .map((tenant) => {
-      const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
-      const quotaSummary = (tenant.usageMetrics || [])
-        .map((metric) => {
-          const used = Number(metric.used || 0);
-          return metric.unlimited
-            ? `${metric.metricCode}:${used}`
-            : `${metric.metricCode}:${used}/${Number(metric.limit || 0)}`;
-        })
-        .join(" · ");
-      return `
-        <button class="tenant-list-row${tenant.id === activeTenant.id ? " is-active" : ""}" type="button" data-switch-tenant="${escapeAttr(tenant.id || "")}">
-          <span>${muiIcon(tenant.id === activeTenant.id ? "radio_button_checked" : "radio_button_unchecked")}</span>
-          <strong>${escapeHtml(label || tenant.id || "-")}</strong>
-          <small>${escapeHtml(tenant.status || "-")} · ${escapeHtml(tenant.membershipStatus || "-")} · ${escapeHtml(tenant.subscriptionStatus || "-")} · ${escapeHtml(tenant.planCode || tenant.planName || "-")} · ${Number(tenant.schoolCount || 0)} school${quotaSummary ? ` · ${escapeHtml(quotaSummary)}` : ""}</small>
-        </button>
-      `;
-    })
-    .join("");
+}
+
+function setTenantAdminView(view = "directory") {
+  const showDetails = view === "detail" || view === "details";
+  if (tenantListPageEl) tenantListPageEl.hidden = showDetails;
+  if (tenantDetailsPageEl) tenantDetailsPageEl.hidden = !showDetails;
+  if (showDetails) {
+    setTenantDetailTab(tenantDetailActiveTab || "overview");
+  }
+}
+
+function renderTenantAdmin(data) {
+  if (!tenantListEl) return;
+  const platformOnly = isPlatformOnlySession();
+  const tenants = data?.tenants || tenantRowsForUI();
+  renderTenantDetailHeader();
+
   if (!tenants.length) {
     tenantListEl.textContent = platformOnly ? "Chưa có tenant nào trong platform scope." : "Chưa có tenant";
+  } else {
+    const rows = tenants
+      .map((tenant) => {
+        const label = [tenant.code, tenant.name && tenant.name !== tenant.code ? tenant.name : ""].filter(Boolean).join(" · ");
+        const quotaSummary = tenantUsageSummary(tenant, "metricCode");
+        const status = tenant.status || "-";
+        const subscription = [tenant.subscriptionStatus || "-", tenant.planCode || tenant.planName || "-"].join(" · ");
+        return `
+          <tr>
+            <td><button class="table-link" type="button" data-open-tenant-detail="${escapeAttr(tenant.id || "")}">${escapeHtml(label || tenant.id || "-")}</button></td>
+            <td>${escapeHtml(status)}</td>
+            <td>${escapeHtml(subscription)}</td>
+            <td>${Number(tenant.schoolCount || 0)}</td>
+            <td><small>${escapeHtml(quotaSummary || "-")}</small></td>
+            <td><button type="button" data-open-tenant-detail="${escapeAttr(tenant.id || "")}">${muiIcon("open_in_new")}<span>Chi tiết</span></button></td>
+          </tr>
+        `;
+      })
+      .join("");
+    tenantListEl.innerHTML = `
+      <div class="admin-table-wrap tenant-directory-table">
+        <table class="admin-table">
+          <colgroup>
+            <col class="tenant-col-name" />
+            <col class="tenant-col-status" />
+            <col class="tenant-col-subscription" />
+            <col class="tenant-col-schools" />
+            <col class="tenant-col-usage" />
+            <col class="tenant-col-action" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Tenant</th>
+              <th>Status</th>
+              <th>Subscription</th>
+              <th>Schools</th>
+              <th>Usage</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
   }
-  tenantListEl.querySelectorAll("[data-switch-tenant]").forEach((button) => {
-    button.addEventListener("click", () => switchTenant(button.dataset.switchTenant || ""));
+  tenantListEl.querySelectorAll("[data-open-tenant-detail]").forEach((button) => {
+    button.addEventListener("click", () => openTenantDetail(button.dataset.openTenantDetail || ""));
   });
   renderPlatformEntitlements(tenants);
+}
+
+async function openTenantDetail(tenantId) {
+  const switched = await switchTenant(tenantId);
+  if (!switched) return;
+  setTenantDetailTab("overview");
+  setTenantAdminView("detail");
+  renderTenantAdmin(tenantsData);
+  await loadSubscriptionBilling(true);
 }
 
 async function loadPlatformIntakeRequests(force = false) {
@@ -4747,10 +5012,11 @@ function renderPlatformIntakeRequests(requests) {
     platformIntakeListEl.textContent = "";
     return;
   }
-  platformIntakeListEl.innerHTML = (requests || []).length
-    ? requests.map((request) => `
+  const actionableRequests = (requests || []).filter((request) => ["new", "contacted"].includes(request.status || ""));
+  platformIntakeListEl.innerHTML = actionableRequests.length
+    ? actionableRequests.map((request) => `
       <div class="tenant-list-row intake-row" data-intake-id="${escapeAttr(request.id || "")}">
-        <span>${muiIcon(request.status === "converted" ? "task_alt" : "assignment_ind")}</span>
+        <span>${muiIcon("assignment_ind")}</span>
         <strong>${escapeHtml(request.schoolName || "-")}</strong>
         <small>${escapeHtml(request.contactName || "-")} · ${escapeHtml(request.contactEmail || request.contactPhone || "-")} · ${escapeHtml(request.desiredPlanCode || "standard")} · ${escapeHtml(request.status || "-")}</small>
         <button type="button" data-onboard-intake="${escapeAttr(request.id || "")}">${muiIcon("add_business")}<span>Onboard</span></button>
@@ -5494,7 +5760,7 @@ function renderSubscriptionPurchase(data) {
     : `<option value="">Chưa có plan</option>`;
   subscriptionPurchasePlanEl.value = optionValueOrEmpty(subscriptionPurchasePlanEl, currentPlan.planCode || tenant.planCode || "") || plans[0]?.code || "";
   if (subscriptionPurchaseProviderEl) {
-    subscriptionPurchaseProviderEl.innerHTML = `<option value="">Platform Admin cấu hình</option>`;
+    subscriptionPurchaseProviderEl.innerHTML = `<option value="">Theo cấu hình hệ thống</option>`;
     subscriptionPurchaseProviderEl.value = "";
   }
   subscriptionPurchasePeriodStartEl.value = suggested.periodStartsAt || "";
@@ -6613,6 +6879,18 @@ function tenantUserDirectoryConfig() {
       adminUsersData = { users: [], roles: [], permissions: [] };
     },
     data: () => adminUsersData,
+  };
+}
+
+function tenantDetailUserDirectoryConfig() {
+  return {
+    ...tenantUserDirectoryConfig(),
+    dialogKicker: "Tenant details",
+    statusBadgeEl: tenantDetailUsersStatusEl,
+    countEl: tenantDetailUserCountEl,
+    rowsEl: tenantDetailUserRowsEl,
+    roleCountEl: tenantDetailRoleCountEl,
+    roleListEl: tenantDetailRoleListEl,
   };
 }
 
@@ -8776,7 +9054,7 @@ function renderPaymentReconFilters(data = paymentReconciliationData) {
 
 function renderPaymentProviderFilter(providers) {
   if (!paymentProviderFilterEl) return;
-  paymentProviderFilterEl.innerHTML = `<option value="">Platform Admin cấu hình</option>`;
+  paymentProviderFilterEl.innerHTML = `<option value="">Theo cấu hình hệ thống</option>`;
   paymentProviderFilterEl.value = "";
   const field = paymentProviderFilterEl.closest("label");
   if (field) field.hidden = true;
@@ -10382,14 +10660,14 @@ landingModeButtons.forEach((button) => {
       return;
     }
     if (button.dataset.landingMode === "signup") {
-      showSignup("Gửi thông tin để Platform Admin tạo tài khoản cho trường", { scrollToAccess: true });
+      showSignup("Gửi thông tin để đội ngũ phụ trách tạo tài khoản cho trường", { scrollToAccess: true });
       return;
     }
     showLogin("Vui lòng đăng nhập", { scrollToAccess: true });
   });
 });
 showLoginModeBtn?.addEventListener("click", () => showLogin(loginStatusEl.textContent || "Vui lòng đăng nhập"));
-showSignupModeBtn?.addEventListener("click", () => showSignup("Gửi thông tin để Platform Admin tạo tài khoản cho trường"));
+showSignupModeBtn?.addEventListener("click", () => showSignup("Gửi thông tin để đội ngũ phụ trách tạo tài khoản cho trường"));
 showPasswordResetModeBtn?.addEventListener("click", () => showPasswordReset("Nhập Email hoặc SĐT để lấy token đặt lại mật khẩu"));
 passwordResetBackToLoginBtn?.addEventListener("click", () => showLogin("Vui lòng đăng nhập"));
 tenantSwitcherEl?.addEventListener("change", () => switchTenant(tenantSwitcherEl.value));
@@ -10582,6 +10860,10 @@ operationLimitEl.addEventListener("change", () => loadOperations(true));
 
 refreshAdminUsersBtn.addEventListener("click", () => loadAdminUsers(true));
 refreshTenantsBtn?.addEventListener("click", () => loadTenants(true));
+backToTenantListBtn?.addEventListener("click", () => {
+  setTenantAdminView("list");
+  renderTenantAdmin(tenantsData);
+});
 refreshSubscriptionBillingBtn?.addEventListener("click", () => loadSubscriptionBilling(true));
 refreshSubscriptionFinanceConsoleBtn?.addEventListener("click", () => loadSubscriptionFinanceConsole(true));
 refreshPlatformIntakeRequestsBtn?.addEventListener("click", () => loadPlatformIntakeRequests(true));
@@ -10591,8 +10873,21 @@ editPlatformTenantEmailConfigBtn?.addEventListener("click", openPlatformTenantEm
 refreshPlatformTenantEmailCronBtn?.addEventListener("click", () => loadPlatformTenantEmailCron(true));
 editPlatformTenantEmailCronBtn?.addEventListener("click", openPlatformTenantEmailCronDialog);
 refreshPlatformTenantSubscriptionRequestsBtn?.addEventListener("click", () => loadPlatformTenantSubscriptionRequests(true));
+landingPlanPrevBtn?.addEventListener("click", () => moveLandingPlanCarousel(-1));
+landingPlanNextBtn?.addEventListener("click", () => moveLandingPlanCarousel(1));
+landingPlanViewportEl?.addEventListener("pointerdown", startLandingPlanSwipe);
+landingPlanViewportEl?.addEventListener("pointermove", trackLandingPlanSwipe);
+landingPlanViewportEl?.addEventListener("pointerup", finishLandingPlanSwipe);
+landingPlanViewportEl?.addEventListener("pointercancel", finishLandingPlanSwipe);
+window.addEventListener("resize", updateLandingPlanCarousel);
 openSubscriptionChangeRequestBtn?.addEventListener("click", openSubscriptionChangeRequestDialog);
 subscriptionChangeRequestTypeEl?.addEventListener("change", updateSubscriptionChangeRequestFormState);
+refreshTenantDetailUsersBtn?.addEventListener("click", () => loadAdminUsers(true));
+newTenantDetailUserBtn?.addEventListener("click", () => {
+  const config = tenantDetailUserDirectoryConfig();
+  clearUserForm(config);
+  openUserDialog(config);
+});
 newTenantBtn?.addEventListener("click", () => openTenantOnboardDialog(null));
 editActiveTenantBtn?.addEventListener("click", () => openTenantDialog("edit"));
 editActiveTenantSubscriptionBtn?.addEventListener("click", openTenantSubscriptionDialog);

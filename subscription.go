@@ -125,7 +125,15 @@ func listSubscriptionPlans(ctx context.Context, db *sql.DB) ([]subscriptionPlanS
 SELECT id::text, code, name, status, description, limits
 FROM subscription_plans
 WHERE status <> 'archived'
-ORDER BY CASE code WHEN 'free_trial' THEN 0 WHEN 'standard' THEN 1 ELSE 9 END, code`)
+ORDER BY CASE code
+	WHEN 'free' THEN 0
+	WHEN 'go' THEN 1
+	WHEN 'plus' THEN 2
+	WHEN 'pro' THEN 3
+	WHEN 'free_trial' THEN 10
+	WHEN 'standard' THEN 11
+	ELSE 99
+END, code`)
 	if err != nil {
 		return nil, err
 	}

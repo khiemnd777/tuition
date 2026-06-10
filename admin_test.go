@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -160,6 +161,39 @@ func TestNormalizeAdminRoleCodesDeduplicatesAndSorts(t *testing.T) {
 	for idx := range want {
 		if got[idx] != want[idx] {
 			t.Fatalf("expected %v, got %v", want, got)
+		}
+	}
+}
+
+func TestPlatformUsersListQueryExcludesTenantOnlyMembers(t *testing.T) {
+	query := platformUsersListQuery()
+	for _, want := range []string{
+		"platform_role.code IN ('platform_admin')",
+		"NOT EXISTS",
+		"FROM tenant_memberships membership",
+		"membership.status <> 'removed'",
+	} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("expected platform users query to contain %q, got %s", want, query)
+		}
+	}
+}
+
+func TestTenantDetailsMarkupIncludesTenantUserDirectory(t *testing.T) {
+	html, err := os.ReadFile("web/index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	markup := string(html)
+	for _, want := range []string{
+		`data-tenant-detail-tab="users"`,
+		`data-tenant-detail-panel="users"`,
+		`id="tenantDetailUserRows"`,
+		`id="newTenantDetailUser"`,
+		`id="refreshTenantDetailUsers"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("expected tenant details markup to contain %q", want)
 		}
 	}
 }

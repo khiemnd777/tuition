@@ -14,13 +14,13 @@ DEKISUGI QR Generating System is a small Go app for school payment workflows. It
 
 ## Repo Map
 
-- `main.go`: routes, payment rows, CSV import, QR item assembly.
+- `main.go`: routes, payment rows, Excel import, QR item assembly.
 - `vietqr_standard.go`: VietQR/NAPAS TLV payload and CRC.
 - `email.go`: email config, preview, templates, Resend send path.
 - `email_gmail.go`: Gmail SMTP and MIME assembly.
 - `email_cron.go`: email queue, scheduler, rolling quota.
 - `web/`: embedded vanilla HTML/CSS/JS UI.
-- `samples/students.csv`: sample import input.
+- `samples/finance_hub_demo/*.xlsx`: sample Excel inputs for importing additional demo data.
 - `main_test.go`: current regression suite.
 
 ## Safety
@@ -46,7 +46,7 @@ DEKISUGI QR Generating System is a small Go app for school payment workflows. It
 Repo-scoped skills live under `.agents/skills` and follow the OpenAI/Codex `SKILL.md` format.
 
 - `$dekisugi-change-workflow`: default workflow for scoped repo changes.
-- `$dekisugi-vietqr-payments`: QR payload, payment rows, CSV import, fee totals, PNG output.
+- `$dekisugi-vietqr-payments`: QR payload, payment rows, Excel import, fee totals, PNG output.
 - `$dekisugi-email-delivery`: email config, templates, Gmail/Resend, cron, quota.
 - `$dekisugi-frontend-ui`: embedded vanilla web UI workflow.
 - `$dekisugi-landing-page`: public Landing Page, subscription plan display, Login/Enrollment navigation, hover transforms, and `finance_hub_landing`.

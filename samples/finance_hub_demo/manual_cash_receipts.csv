@@ -1,4 +1,0 @@
-case,student_code,invoice_code_hint,amount,collector_name,receipt_reference,reason,note,expected_status
-partial_cash_fh_s003,FH-S003,<INVOICE_CODE_FH_S003>,2500000,Thu Ngan Demo,FH-CASH-003,Phu huynh nop mot phan,Demo partial cash collection,partial
-full_cash_fh_s005,FH-S005,<INVOICE_CODE_FH_S005>,10550000,Thu Ngan Demo,FH-CASH-005,Thu tien mat tai van phong,Demo full cash collection,paid
-over_cash_fh_s012,FH-S012,<INVOICE_CODE_FH_S012>,12500000,Thu Ngan Demo,FH-CASH-012,Phu huynh nop du tien va du phu thu,Demo overpayment review,overpaid

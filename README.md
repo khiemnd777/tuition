@@ -130,6 +130,8 @@ go run . migrate up
 
 Migration SQL nằm trong `migrations/` và được embed vào binary. Migration runner ghi version/checksum vào `schema_migrations`, nên chạy lại `go run . migrate up` sẽ skip migration đã apply và báo lỗi nếu checksum bị lệch. Schema nền tạo `app_users`, `app_roles`, `app_permissions`, bảng nối role/permission, và `audit_logs` append-only. Schema master data production tạo `schools`, `school_years`, `classes`, `students`, `parents`, và `student_parents`; `student_code` là định danh bắt buộc, nên các học sinh trùng tên vẫn được xử lý an toàn. Schema bảng phí theo kỳ tạo `fee_types`, `fee_schedules`, `fee_schedule_items`, và `student_fee_adjustments` để preview tổng phí trước khi sinh invoice. Schema hóa đơn tạo `invoices`, `invoice_items`, `invoice_adjustments`, `invoice_status_history`, và `receipt_documents` để hóa đơn là nguồn payment request production. Schema thanh toán tạo `payment_providers`, `payment_intents`, `provider_events`, `payment_transactions`, `reconciliation_matches`, và `manual_cash_receipts` để ghi nhận tiền thật và đối soát invoice. Schema vận hành tạo `operation_logs` để giữ lỗi webhook, email và background job cho production review. Schema auth tạo `app_auth_sessions`, `app_auth_access_tokens`, `app_auth_refresh_tokens`, và thêm `password_hash` vào `app_users`; browser token chỉ lưu hash trong DB. Migration RBAC bổ sung permission cho email config/send/cron để tất cả API production có permission route-level rõ ràng. Migration school tree thêm `schools`, backfill dữ liệu hiện có vào `DEKISUGI`, và gắn năm học/lớp vào cây `school > school year/cohort > class`. Migration user/RBAC mới thêm `phone` cho `app_users`, cho phép Email hoặc SĐT là định danh bắt buộc, seed role `admin`, `staff`, `accountant`, và seed permission canonical dạng `{module}.{action}`. Migration tenant foundation tạo `tenants` và `tenant_memberships`, gắn toàn bộ `schools` hiện có vào tenant mặc định `DEKISUGI`, và chuyển unique school code sang phạm vi `(tenant_id, code)` để chuẩn bị cho subscription nhiều trường. Migration tenant-aware auth/RBAC gắn `app_auth_sessions` vào active tenant, tạo `tenant_user_roles`, và backfill role assignment từ `app_user_roles` vào tenant mặc định. Migration tenant data isolation thêm `tenant_id` cho students, parents, notification campaigns, audit logs, operation logs và chuyển unique student/parent/campaign code/email sang phạm vi tenant. Migration tenant onboarding/switching seed quyền tenant, thêm index membership cho switcher, và bật tạo tenant/school khởi tạo từ Web Admin. Migration actor-model role split tách rõ `platform_admin` khỏi các role tenant `tenant_owner`, `tenant_admin`, `tenant_staff`, `tenant_accountant`, đồng thời backfill role cũ sang mapping mới. Migration `0026_platform_auth_sessions_nullable_tenant` cho phép `app_auth_sessions.tenant_id` nullable để `platform_admin` có thể đăng nhập bằng platform-only session khi không có tenant membership.
 
+Sau schema migrations, `go run . migrate up` tự áp dụng demo data migration `0001 finance_hub_demo`. Vì vậy fresh database sau `make up` có sẵn tenant `SUNRISE_DEMO`, owner demo, subscription plans, master data, bảng phí, hóa đơn, thanh toán/đối soát, notification dry-run và operation logs; không cần import file để dựng demo ban đầu.
+
 Quy ước production hiện tại:
 
 - Primary key dùng UUID do PostgreSQL sinh bằng `gen_random_uuid()`.
@@ -172,13 +174,13 @@ Endpoint PNG test nhanh:
 http://localhost:18080/api/v1/qr.png?bankBin=970441&account=625704060370690&amount=0&billNumber=TESTVIB01&note=TEST%20VIB
 ```
 
-## Excel/CSV mẫu
+## Excel import mẫu
 
-File mẫu: `samples/students.csv`
+File mẫu để import thêm payment rows: `samples/finance_hub_demo/import_more_payments.xlsx`
 
 Header được hỗ trợ:
 
-```csv
+```txt
 student_name,parent_name,class_name,bank_bin,bank_account,email,amount,bill_number,note
 ```
 
@@ -186,13 +188,13 @@ student_name,parent_name,class_name,bank_bin,bank_account,email,amount,bill_numb
 
 `bill_number` map vào Additional Data `62-01`; `note` map vào Purpose of Transaction `62-08`. Nếu không nhập `bill_number`, app tự sinh mã ổn định từ thông tin dòng.
 
-Nếu dùng các khoản phí động, có thể gửi `paymentItems` qua JSON hoặc thêm các cột CSV sau; tổng các cột này sẽ được dùng làm `amount` trong QR và được render thành từng dòng trong email:
+Nếu dùng các khoản phí động, có thể gửi `paymentItems` qua JSON hoặc thêm các cột Excel sau; tổng các cột này sẽ được dùng làm `amount` trong QR và được render thành từng dòng trong email:
 
-```csv
+```txt
 tuition_april,shuttle_april,tuition_may,health_insurance,uniform_fee,international_material,previous_fees
 ```
 
-Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong UI hoặc gửi multipart field `mapping` dạng JSON vào endpoint import. Ví dụ:
+Khi file Excel dùng tên cột riêng, dùng bước `Fields Mapping` trong UI hoặc gửi multipart field `mapping` dạng JSON vào endpoint import. Ví dụ:
 
 ```json
 {
@@ -204,13 +206,13 @@ Khi file Excel/CSV dùng tên cột riêng, dùng bước `Fields Mapping` trong
 
 Trong UI, workflow được nhóm theo tác vụ production: `Tổng quan`, `Thiết lập`, `Học phí`, `Thu tiền`, `Liên lạc`, và `Báo cáo & vận hành`. Top bar có breadcrumb và bối cảnh trường/năm học/kỳ thu/tháng để đồng bộ nhanh với filter của màn hình đang mở. Mục `Tổng quan` hiển thị việc cần xử lý, bước nhanh theo quyền hiện tại, và Data Quality & Readiness Center để gom blocking/warning/info issue trước khi lập phí, sinh hóa đơn, gửi thông báo hoặc đối soát. Readiness có filter theo severity/loại issue và nút mở nhanh sang học sinh, bảng phí, hóa đơn, thông báo, đối soát, email/cron hoặc operation logs. `Công cụ QR/import` là công cụ phụ cho record thanh toán legacy, không phải nguồn dữ liệu production chính. Màn hình `Học sinh & phụ huynh` có cây trường để quản lý trường, năm học/cohort, khối, lớp, sĩ số, bảng phí và điều chỉnh theo lớp. Cây trường là relationship workspace: mỗi node hiển thị readiness theo kỳ/tháng đang chọn, gồm người nhận billing, bảng phí active, hóa đơn, công nợ đang mở, roster học sinh, và quick action sang danh sách học sinh, thiết lập bảng phí hoặc sinh hóa đơn. Màn hình `Bảng phí` quản lý bảng phí theo kỳ production và vẫn giữ `Template thanh toán tạm` cho record thanh toán legacy; khi bấm `Thêm dòng`, app clone template hiện tại vào dòng mới. Nút `Áp dụng cho tất cả dòng` dùng để đồng bộ template vào các dòng đang có. Các tab production và admin dùng PostgreSQL đã cấu hình.
 
-## Excel/CSV master data
+## Excel master data
 
-File mẫu: `samples/master_data.csv`
+File mẫu để import thêm học sinh/phụ huynh: `samples/finance_hub_demo/import_more_students.xlsx`
 
 Header production master data:
 
-```csv
+```txt
 student_code,student_name,school,school_year,grade,class_name,parent_name,parent_email,parent_phone,relationship,parent_primary,parent_active,receives_billing_email
 ```
 
@@ -223,8 +225,8 @@ Quy tắc import:
 - Một học sinh có thể có nhiều phụ huynh; mỗi học sinh chỉ có một phụ huynh chính đang active.
 - `parent_email` được chuẩn hóa lowercase. `parent_phone` được chuẩn hóa về dạng số/SĐT gọn. Nếu `receives_billing_email=true` thì `parent_email` phải có giá trị.
 - `relationship` là nhãn quan hệ như `mother`, `father`, `guardian`, `grandparent`, hoặc `other`; nếu bỏ trống app dùng `guardian`.
-- Import preview sẽ báo conflict nếu CSV hoặc database hiện có mâu thuẫn; apply import không tự overwrite dữ liệu khác biệt.
-- UI sẽ scan header Excel/CSV trước và cho map cột, ví dụ `Họ và tên` -> `Họ, tên`, `Phụ huynh` -> `Tên ba mẹ`.
+- Import preview sẽ báo conflict nếu file import hoặc database hiện có mâu thuẫn; apply import không tự overwrite dữ liệu khác biệt.
+- UI sẽ scan header Excel trước và cho map cột, ví dụ `Họ và tên` -> `Họ, tên`, `Phụ huynh` -> `Tên ba mẹ`.
 - Ngoài import batch, tab `Học sinh` có relationship workspace cho học sinh, phụ huynh, người nhận billing, cảnh báo contact, sibling dùng chung phụ huynh, và hóa đơn cần xử lý. Form tạo/sửa thủ công dùng app dialog, upsert theo `studentCode`, chọn lớp hiện có, cập nhật quan hệ phụ huynh/link nhận billing, không xóa phụ huynh cũ nếu không được đánh dấu inactive hoặc bỏ nhận billing. Nếu học sinh đã có invoice hoặc điều chỉnh phí đang active, app chặn đổi lớp để tránh lệch dữ liệu đã phát hành.
 
 ## Bảng phí theo kỳ
@@ -238,9 +240,9 @@ Mỗi bảng phí có `periodCode`, `month` tùy chọn, trạng thái `draft` h
 - `waiver`: miễn giảm; nếu `amount=0` và có `fee_type_code`, app miễn toàn bộ khoản phí mặc định đó.
 - `carry_over`: chuyển phí kỳ trước sang kỳ hiện tại.
 
-UI có bảng điều chỉnh theo học sinh cho mã học sinh, loại điều chỉnh, khoản phí, số tiền, và lý do bắt buộc. Ô CSV vẫn hỗ trợ paste nhanh:
+UI có bảng điều chỉnh theo học sinh cho mã học sinh, loại điều chỉnh, khoản phí, số tiền, và lý do bắt buộc. Bảng điều chỉnh vẫn hỗ trợ paste nhanh dạng bảng:
 
-```csv
+```txt
 student_code,adjustment_type,fee_type_code,amount,reason
 S001,discount,tuition,500000,Ưu đãi anh chị em
 S002,waiver,shuttle,0,Không sử dụng xe
@@ -319,12 +321,12 @@ Tab `Báo cáo` dùng cùng bộ lọc để xem tổng hợp theo lớp, chi ti
 - `GET /api/v1/auth/session`: trả user/role/permission hiện tại nếu access token còn hiệu lực.
 - `GET /api/v1/qr.png`: trả về ảnh PNG để scan trực tiếp.
 - `GET /api/v1/banks`: danh sách ngân hàng từ package VietQR.
-- `POST /api/v1/import/fields?target=payments|master_data`: scan header Excel/CSV, trả fields và suggested mapping.
-- `POST /api/v1/import/csv`: parse Excel/CSV thành rows, hỗ trợ multipart field `mapping`.
+- `POST /api/v1/import/fields?target=payments|master_data`: scan header Excel, trả fields và suggested mapping.
+- `POST /api/v1/import/csv`: parse Excel thành rows, hỗ trợ multipart field `mapping` (endpoint giữ tên cũ để tương thích).
 - `GET /api/v1/master-data/options`: danh sách trường/năm học/lớp production cho bộ lọc UI.
 - `GET /api/v1/master-data/students`: danh sách học sinh production, hỗ trợ `schoolId`, `schoolYearId`, `schoolYear`, `classId`, `grade`, `q`.
-- `POST /api/v1/master-data/import/csv?apply=false`: preview import Excel/CSV master data và trả conflict report, hỗ trợ multipart field `mapping`.
-- `POST /api/v1/master-data/import/csv?apply=true`: áp dụng import Excel/CSV master data nếu không có conflict.
+- `POST /api/v1/master-data/import/csv?apply=false`: preview import Excel master data và trả conflict report, hỗ trợ multipart field `mapping`.
+- `POST /api/v1/master-data/import/csv?apply=true`: áp dụng import Excel master data nếu không có conflict.
 - `POST /api/v1/master-data/students/save`: tạo/cập nhật thủ công một học sinh, lớp hiện có, và các liên hệ phụ huynh.
 - `GET /api/v1/school-tree`: cây `school > school year/cohort > grade > class`, kèm sĩ số, bảng phí và điều chỉnh.
 - `POST /api/v1/school-tree/schools/save`: tạo/cập nhật trường.

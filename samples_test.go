@@ -1,150 +1,33 @@
 package main
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestDemoPaymentSampleRowsAreImportableAndQRReady(t *testing.T) {
-	file, err := os.Open("samples/demo_payments.csv")
+func TestSamplesDirectoryDoesNotCarryCSVFixtures(t *testing.T) {
+	err := filepath.WalkDir("samples", func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(path), ".csv") {
+			t.Fatalf("unexpected CSV sample fixture %s; use seeded DB data or Excel import workbooks", path)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	defer file.Close()
-
-	rows, err := parseCSVRows(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 12 {
-		t.Fatalf("expected 12 demo payment rows, got %d", len(rows))
-	}
-
-	for _, row := range rows {
-		if row.Amount <= 0 {
-			t.Fatalf("expected fee columns to drive a positive amount for %s, got %d", row.StudentName, row.Amount)
-		}
-		if len(row.PaymentItems) == 0 {
-			t.Fatalf("expected payment items for %s", row.StudentName)
-		}
-		if !strings.HasPrefix(row.BillNumber, "DEMO2504") {
-			t.Fatalf("expected demo bill number for %s, got %q", row.StudentName, row.BillNumber)
-		}
-
-		item := buildQRItem(row, 128)
-		if len(item.Errors) > 0 {
-			t.Fatalf("expected QR-ready demo row for %s, got errors %+v", row.StudentName, item.Errors)
-		}
-		if item.VietQR == "" || item.QRData == "" {
-			t.Fatalf("expected VietQR payload and PNG data for %s", row.StudentName)
-		}
 	}
 }
 
-func TestDemoMasterDataSampleRowsAreImportable(t *testing.T) {
-	file, err := os.Open("samples/demo_master_data.csv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-
-	rows, err := parseMasterDataCSVRows(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 15 {
-		t.Fatalf("expected 15 demo master data rows, got %d", len(rows))
-	}
-	if issues := validateMasterDataImportRows(rows); len(issues) > 0 {
-		t.Fatalf("expected demo master data to be importable, got issues %+v", issues)
-	}
-
-	missingBillingReady := 0
-	duplicateNameCount := 0
-	for _, row := range rows {
-		if !row.ParentActive || !row.ReceivesBillingEmail {
-			missingBillingReady++
-		}
-		if row.StudentName == "Minh Nguyen An" {
-			duplicateNameCount++
-		}
-	}
-	if missingBillingReady < 3 {
-		t.Fatalf("expected demo rows that can surface billing readiness warnings, got %d", missingBillingReady)
-	}
-	if duplicateNameCount < 2 {
-		t.Fatalf("expected duplicate display-name demo case, got %d", duplicateNameCount)
-	}
-}
-
-func TestDemoFeeAdjustmentsSampleRowsArePasteReady(t *testing.T) {
-	file, err := os.Open("samples/demo_fee_adjustments.csv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-
-	records, err := csv.NewReader(file).ReadAll()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(records) != 9 {
-		t.Fatalf("expected header plus 8 demo adjustment rows, got %d records", len(records))
-	}
-
-	wantHeader := []string{"student_code", "adjustment_type", "fee_type_code", "amount", "reason"}
-	for idx, want := range wantHeader {
-		if records[0][idx] != want {
-			t.Fatalf("expected adjustment header %q at column %d, got %q", want, idx, records[0][idx])
-		}
-	}
-
-	allowedTypes := map[string]bool{
-		adjustmentTypeDiscount:  true,
-		adjustmentTypeSurcharge: true,
-		adjustmentTypeWaiver:    true,
-		adjustmentTypeCarryOver: true,
-	}
-	for idx, record := range records[1:] {
-		rowNumber := idx + 2
-		studentCode := strings.ToUpper(strings.TrimSpace(record[0]))
-		adjustmentType := headerKey(record[1])
-		feeTypeCode := headerKey(record[2])
-		amount := parseAmount(record[3])
-		reason := strings.TrimSpace(record[4])
-
-		if !strings.HasPrefix(studentCode, "DEMO-S") {
-			t.Fatalf("row %d: expected DEMO-S student code, got %q", rowNumber, studentCode)
-		}
-		if !allowedTypes[adjustmentType] {
-			t.Fatalf("row %d: unexpected adjustment type %q", rowNumber, adjustmentType)
-		}
-		if reason == "" {
-			t.Fatalf("row %d: expected reason", rowNumber)
-		}
-		if adjustmentType != adjustmentTypeWaiver && amount <= 0 {
-			t.Fatalf("row %d: expected positive amount for %s, got %d", rowNumber, adjustmentType, amount)
-		}
-		if adjustmentType == adjustmentTypeWaiver && amount == 0 && feeTypeCode == "" {
-			t.Fatalf("row %d: expected waiver fee type target", rowNumber)
-		}
-	}
-}
-
-func TestFinanceHubDemoMasterDataRowsAreImportable(t *testing.T) {
-	file, err := os.Open("samples/finance_hub_demo/master_data.csv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-
-	rows, err := parseMasterDataCSVRows(file)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestFinanceHubDemoSeedMasterDataRowsAreImportable(t *testing.T) {
+	rows := financeHubDemoMasterDataRows()
 	if len(rows) != 17 {
 		t.Fatalf("expected 17 finance hub master data rows, got %d", len(rows))
 	}
@@ -157,6 +40,12 @@ func TestFinanceHubDemoMasterDataRowsAreImportable(t *testing.T) {
 	duplicateNameCount := 0
 	for _, row := range rows {
 		students[row.StudentCode] = true
+		if row.SchoolCode != demoSchoolCode {
+			t.Fatalf("expected seeded row %s to target %s, got %s", row.StudentCode, demoSchoolCode, row.SchoolCode)
+		}
+		if row.ParentEmail != "" && !hasExampleDomain(row.ParentEmail) {
+			t.Fatalf("expected fictional parent email for %s, got %q", row.StudentCode, row.ParentEmail)
+		}
 		if !row.ParentActive || !row.ReceivesBillingEmail {
 			missingBillingReady++
 		}
@@ -175,21 +64,94 @@ func TestFinanceHubDemoMasterDataRowsAreImportable(t *testing.T) {
 	}
 }
 
-func TestFinanceHubDemoLegacyPaymentsAreQRReady(t *testing.T) {
-	file, err := os.Open("samples/finance_hub_demo/legacy_qr_payments.csv")
+func TestFinanceHubDemoSeedFeeProfilesAndAdjustmentsAreReady(t *testing.T) {
+	profiles := demoFeeProfiles()
+	if len(profiles) != 20 {
+		t.Fatalf("expected 20 finance hub fee profile rows, got %d", len(profiles))
+	}
+	for idx, row := range profiles {
+		if row.Profile == "" || row.ClassName == "" || row.FeeTypeCode == "" {
+			t.Fatalf("profile row %d: expected profile, class, and fee type: %+v", idx+1, row)
+		}
+		if row.Amount <= 0 {
+			t.Fatalf("profile row %d: expected positive fee amount, got %d", idx+1, row.Amount)
+		}
+	}
+
+	adjustments := demoFeeAdjustments()
+	if len(adjustments) != 11 {
+		t.Fatalf("expected 11 finance hub adjustment rows, got %d", len(adjustments))
+	}
+	allowedTypes := map[string]bool{
+		adjustmentTypeDiscount:  true,
+		adjustmentTypeSurcharge: true,
+		adjustmentTypeWaiver:    true,
+		adjustmentTypeCarryOver: true,
+	}
+	for idx, adjustment := range adjustments {
+		if !strings.HasPrefix(adjustment.StudentCode, "FH-S") {
+			t.Fatalf("adjustment row %d: expected finance hub student code, got %q", idx+1, adjustment.StudentCode)
+		}
+		if !allowedTypes[adjustment.AdjustmentType] {
+			t.Fatalf("adjustment row %d: unexpected adjustment type %q", idx+1, adjustment.AdjustmentType)
+		}
+		if adjustment.Reason == "" {
+			t.Fatalf("adjustment row %d: expected reason", idx+1)
+		}
+		if adjustment.AdjustmentType != adjustmentTypeWaiver && adjustment.Amount <= 0 {
+			t.Fatalf("adjustment row %d: expected positive amount, got %d", idx+1, adjustment.Amount)
+		}
+		if adjustment.AdjustmentType == adjustmentTypeWaiver && adjustment.Amount == 0 && adjustment.FeeTypeCode == "" {
+			t.Fatalf("adjustment row %d: expected waiver fee type target", idx+1)
+		}
+	}
+}
+
+func TestFinanceHubDemoImportMoreStudentsWorkbookIsImportable(t *testing.T) {
+	data, err := os.ReadFile("samples/finance_hub_demo/import_more_students.xlsx")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
-
-	rows, err := parseCSVRows(file)
+	table, err := parseImportTableBytes(data, "import_more_students.xlsx")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 16 {
-		t.Fatalf("expected 16 finance hub payment rows, got %d", len(rows))
+	rows, err := parseMasterDataRows(table, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
+	if len(rows) != 6 {
+		t.Fatalf("expected 6 additional student rows, got %d", len(rows))
+	}
+	if issues := validateMasterDataImportRows(rows); len(issues) > 0 {
+		t.Fatalf("expected additional student workbook to be importable, got issues %+v", issues)
+	}
+	for _, row := range rows {
+		if !strings.HasPrefix(row.StudentCode, "FH-N") {
+			t.Fatalf("expected additional student code, got %q", row.StudentCode)
+		}
+		if row.SchoolCode != demoSchoolCode {
+			t.Fatalf("expected workbook row %s to target %s, got %s", row.StudentCode, demoSchoolCode, row.SchoolCode)
+		}
+	}
+}
 
+func TestFinanceHubDemoImportMorePaymentsWorkbookIsQRReady(t *testing.T) {
+	data, err := os.ReadFile("samples/finance_hub_demo/import_more_payments.xlsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	table, err := parseImportTableBytes(data, "import_more_payments.xlsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := parsePaymentRows(table, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 4 {
+		t.Fatalf("expected 4 additional payment rows, got %d", len(rows))
+	}
 	for _, row := range rows {
 		if row.Amount <= 0 {
 			t.Fatalf("expected fee columns to drive a positive amount for %s, got %d", row.StudentName, row.Amount)
@@ -197,13 +159,13 @@ func TestFinanceHubDemoLegacyPaymentsAreQRReady(t *testing.T) {
 		if len(row.PaymentItems) == 0 {
 			t.Fatalf("expected payment items for %s", row.StudentName)
 		}
-		if !strings.HasPrefix(row.BillNumber, "FH2504") {
-			t.Fatalf("expected finance hub bill number for %s, got %q", row.StudentName, row.BillNumber)
+		if !strings.HasPrefix(row.BillNumber, "FHIMP") {
+			t.Fatalf("expected additional import bill number for %s, got %q", row.StudentName, row.BillNumber)
 		}
 
 		item := buildQRItem(row, 128)
 		if len(item.Errors) > 0 {
-			t.Fatalf("expected QR-ready finance hub row for %s, got errors %+v", row.StudentName, item.Errors)
+			t.Fatalf("expected QR-ready additional payment row for %s, got errors %+v", row.StudentName, item.Errors)
 		}
 		if item.VietQR == "" || item.QRData == "" {
 			t.Fatalf("expected VietQR payload and PNG data for %s", row.StudentName)
@@ -211,93 +173,7 @@ func TestFinanceHubDemoLegacyPaymentsAreQRReady(t *testing.T) {
 	}
 }
 
-func TestFinanceHubDemoFeeProfilesAndCashReceiptsArePasteReady(t *testing.T) {
-	profiles := readDemoCSV(t, "samples/finance_hub_demo/fee_schedule_profiles.csv")
-	if len(profiles) < 2 {
-		t.Fatal("expected fee profile rows")
-	}
-	wantProfileHeader := []string{"profile", "grade", "class_name", "fee_type_code", "label_vi", "label_en", "amount", "display_order"}
-	for idx, want := range wantProfileHeader {
-		if profiles[0][idx] != want {
-			t.Fatalf("expected fee profile header %q at column %d, got %q", want, idx, profiles[0][idx])
-		}
-	}
-	for idx, record := range profiles[1:] {
-		rowNumber := idx + 2
-		if record[0] == "" || record[2] == "" || record[3] == "" {
-			t.Fatalf("row %d: expected profile, class, and fee type", rowNumber)
-		}
-		if amount := parseAmount(record[6]); amount <= 0 {
-			t.Fatalf("row %d: expected positive fee amount, got %d", rowNumber, amount)
-		}
-	}
-
-	receipts := readDemoCSV(t, "samples/finance_hub_demo/manual_cash_receipts.csv")
-	if len(receipts) != 4 {
-		t.Fatalf("expected header plus 3 cash receipt rows, got %d records", len(receipts))
-	}
-	for idx, record := range receipts[1:] {
-		rowNumber := idx + 2
-		if !strings.HasPrefix(record[1], "FH-S") {
-			t.Fatalf("row %d: expected finance hub student code, got %q", rowNumber, record[1])
-		}
-		if amount := parseAmount(record[3]); amount <= 0 {
-			t.Fatalf("row %d: expected positive receipt amount, got %d", rowNumber, amount)
-		}
-		if !strings.HasPrefix(record[5], "FH-CASH-") {
-			t.Fatalf("row %d: expected demo cash receipt reference, got %q", rowNumber, record[5])
-		}
-	}
-}
-
-func TestFinanceHubDemoFeeAdjustmentsArePasteReady(t *testing.T) {
-	records := readDemoCSV(t, "samples/finance_hub_demo/fee_adjustments.csv")
-	if len(records) != 12 {
-		t.Fatalf("expected header plus 11 finance hub adjustment rows, got %d records", len(records))
-	}
-
-	allowedTypes := map[string]bool{
-		adjustmentTypeDiscount:  true,
-		adjustmentTypeSurcharge: true,
-		adjustmentTypeWaiver:    true,
-		adjustmentTypeCarryOver: true,
-	}
-	for idx, record := range records[1:] {
-		rowNumber := idx + 2
-		adjustmentType := headerKey(record[1])
-		amount := parseAmount(record[3])
-
-		if !strings.HasPrefix(record[0], "FH-S") {
-			t.Fatalf("row %d: expected finance hub student code, got %q", rowNumber, record[0])
-		}
-		if !allowedTypes[adjustmentType] {
-			t.Fatalf("row %d: unexpected adjustment type %q", rowNumber, adjustmentType)
-		}
-		if strings.TrimSpace(record[4]) == "" {
-			t.Fatalf("row %d: expected reason", rowNumber)
-		}
-		if adjustmentType != adjustmentTypeWaiver && amount <= 0 {
-			t.Fatalf("row %d: expected positive adjustment amount, got %d", rowNumber, amount)
-		}
-		if adjustmentType == adjustmentTypeWaiver && amount == 0 && strings.TrimSpace(record[2]) == "" {
-			t.Fatalf("row %d: expected waiver fee type target", rowNumber)
-		}
-	}
-}
-
-func TestFinanceHubDemoInvoiceNotificationAndWebhookTemplatesAreValid(t *testing.T) {
-	var invoiceRequests struct {
-		Preview  invoiceGenerateInput `json:"preview"`
-		Generate invoiceGenerateInput `json:"generate"`
-	}
-	readDemoJSON(t, "samples/finance_hub_demo/invoice_generation_request.json", &invoiceRequests)
-	if issues := validateInvoiceGenerateInput(invoiceRequests.Preview, true); len(issues) > 0 {
-		t.Fatalf("expected invoice preview request template to validate, got %+v", issues)
-	}
-	if issues := validateInvoiceGenerateInput(invoiceRequests.Generate, true); len(issues) > 0 {
-		t.Fatalf("expected invoice generate request template to validate, got %+v", issues)
-	}
-
+func TestFinanceHubDemoNotificationAndWebhookTemplatesAreValid(t *testing.T) {
 	var notificationFile struct {
 		Campaigns    []notificationCampaignInput   `json:"campaigns"`
 		EmailPreview notificationEmailPreviewInput `json:"emailPreview"`
@@ -350,22 +226,6 @@ func TestFinanceHubDemoInvoiceNotificationAndWebhookTemplatesAreValid(t *testing
 			t.Fatalf("line %d: expected inbound positive transaction, got %+v", idx+1, normalized)
 		}
 	}
-}
-
-func readDemoCSV(t *testing.T, path string) [][]string {
-	t.Helper()
-
-	file, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-
-	records, err := csv.NewReader(file).ReadAll()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return records
 }
 
 func readDemoJSON(t *testing.T, path string, target any) {

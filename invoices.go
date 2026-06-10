@@ -982,7 +982,7 @@ ORDER BY s.student_code, sfa.created_at, sfa.id`, scheduleID)
 
 func loadExistingInvoiceRefs(ctx context.Context, db *sql.DB, feeScheduleID string, tenantID string) (map[string]invoiceExistingRef, error) {
 	rows, err := db.QueryContext(ctx, `
-SELECT student_id::text, id::text, invoice_code, status, paid_amount
+SELECT i.student_id::text, i.id::text, i.invoice_code, i.status, i.paid_amount
 FROM invoices i
 JOIN school_years sy ON sy.id = i.school_year_id
 JOIN schools sc ON sc.id = sy.school_id

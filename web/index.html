@@ -26,7 +26,7 @@
         </nav>
         <div class="landing-header-actions">
           <button type="button" data-landing-mode="login"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
-          <button class="primary" type="button" data-landing-mode="signup"><span class="mui-icon" aria-hidden="true">storefront</span><span>Enrollment</span></button>
+          <button class="primary" type="button" data-landing-mode="signup"><span class="mui-icon" aria-hidden="true">storefront</span><span>Đăng ký</span></button>
         </div>
       </header>
 
@@ -35,44 +35,63 @@
           <div class="landing-hero-copy">
             <p class="eyebrow">School payment operations</p>
             <h1>DEKISUGI Finance Hub</h1>
-            <p class="landing-hero-text">Nền tảng vận hành học phí cho trường học: tạo invoice, sinh VietQR, đối soát giao dịch, gửi thông báo phụ huynh và quản trị subscription theo tenant.</p>
+            <p class="landing-hero-text">Nền tảng vận hành học phí cho trường học: lập khoản thu, tạo VietQR cho phụ huynh, theo dõi thanh toán và gửi nhắc phí đúng lịch.</p>
             <div class="landing-hero-actions">
-              <button class="primary" type="button" data-landing-mode="signup"><span class="mui-icon" aria-hidden="true">rocket_launch</span><span>Bắt đầu Enrollment</span></button>
+              <button class="primary" type="button" data-landing-mode="signup"><span class="mui-icon" aria-hidden="true">rocket_launch</span><span>Bắt đầu Đăng ký</span></button>
               <button type="button" data-landing-mode="login"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập hệ thống</span></button>
             </div>
             <dl class="landing-proof-grid">
               <div>
                 <dt>VietQR</dt>
-                <dd>Chuẩn NAPAS TLV/CRC</dd>
+                <dd>Phụ huynh dễ chuyển khoản</dd>
               </div>
               <div>
-                <dt>Tenant</dt>
-                <dd>Phân quyền theo trường</dd>
+                <dt>Trường</dt>
+                <dd>Quản lý theo lớp và cơ sở</dd>
               </div>
               <div>
-                <dt>Email</dt>
-                <dd>Preview, dry-run, cron</dd>
+                <dt>Thông báo</dt>
+                <dd>Kiểm tra trước khi gửi</dd>
               </div>
             </dl>
           </div>
-          <div class="landing-hero-board landing-hover-card" aria-label="Payment operations preview">
+          <div class="landing-hero-board landing-hover-card" aria-label="Bảng vận hành thu phí preview">
             <div class="landing-board-top">
               <span class="mui-icon" aria-hidden="true">dashboard</span>
               <div>
-                <strong>Finance command center</strong>
-                <small>Thu học phí tháng hiện tại</small>
+                <strong>Bảng vận hành thu phí</strong>
+                <small>Theo dõi khoản thu tháng hiện tại</small>
+              </div>
+              <span class="landing-board-status">Sẵn sàng gửi</span>
+            </div>
+            <div class="landing-board-insight">
+              <span class="mui-icon" aria-hidden="true">receipt_long</span>
+              <div>
+                <strong>Hóa đơn tháng</strong>
+                <small>Gom khoản thu theo lớp, học sinh và hạn thanh toán</small>
               </div>
             </div>
             <div class="landing-board-metrics">
-              <div><span>Workspace</span><strong>Invoice</strong></div>
-              <div><span>Payment</span><strong>VietQR</strong></div>
-              <div><span>Notify</span><strong>Email</strong></div>
+              <div><span>Khoản thu</span><strong>Hóa đơn</strong></div>
+              <div><span>Thanh toán</span><strong>VietQR</strong></div>
+              <div><span>Nhắc phí</span><strong>Email</strong></div>
+              <div><span>Đối soát</span><strong>Ready</strong></div>
+            </div>
+            <div class="landing-board-ledger">
+              <div>
+                <span class="mui-icon" aria-hidden="true">rule</span>
+                <div><strong>Kiểm tra trước khi gửi</strong><small>Preview nội dung và người nhận</small></div>
+              </div>
+              <div>
+                <span class="mui-icon" aria-hidden="true">account_balance</span>
+                <div><strong>Đối soát sau thanh toán</strong><small>Theo dõi trạng thái từng hóa đơn</small></div>
+              </div>
             </div>
             <div class="landing-board-flow">
-              <span>Import học sinh</span>
-              <span>Tạo hóa đơn</span>
-              <span>Gửi VietQR</span>
-              <span>Đối soát</span>
+              <div><span class="mui-icon" aria-hidden="true">upload_file</span><strong>Import</strong></div>
+              <div><span class="mui-icon" aria-hidden="true">request_quote</span><strong>Hóa đơn</strong></div>
+              <div><span class="mui-icon" aria-hidden="true">qr_code_2</span><strong>VietQR</strong></div>
+              <div><span class="mui-icon" aria-hidden="true">fact_check</span><strong>Đối soát</strong></div>
             </div>
           </div>
         </section>
@@ -99,34 +118,44 @@
               <p>Preview email, dry-run, gửi theo campaign và vận hành cron khi tenant đã được cấp quyền.</p>
             </article>
             <article class="landing-feature-card landing-hover-card">
-              <span class="mui-icon" aria-hidden="true">admin_panel_settings</span>
-              <h3>Platform Admin</h3>
-              <p>Tạo tenant, cấu hình provider, quản trị subscription và xử lý enrollment từ một control plane.</p>
+              <span class="mui-icon" aria-hidden="true">support_agent</span>
+              <h3>Thiết lập triển khai</h3>
+              <p>Tiếp nhận đăng ký, thiết lập tài khoản phụ trách, gói dịch vụ và cấu hình thanh toán từ một quy trình rõ ràng.</p>
             </article>
           </div>
         </section>
 
         <section id="landingSubscriptions" class="landing-section landing-subscriptions" aria-labelledby="landingSubscriptionTitle">
           <div class="landing-section-head">
-            <p class="section-kicker">Subscriptions</p>
-            <h2 id="landingSubscriptionTitle">Gói dịch vụ từ Platform Admin</h2>
-            <p>Danh sách dưới đây được đọc trực tiếp từ cấu hình subscription plans của hệ thống.</p>
+            <p class="section-kicker">Gói dịch vụ</p>
+            <h2 id="landingSubscriptionTitle">Chọn gói phù hợp với quy mô trường</h2>
+            <p>Mỗi gói được trình bày theo nhu cầu vận hành thực tế: số học sinh, người phụ trách và lượng thông báo gửi cho phụ huynh.</p>
           </div>
           <div id="landingPlanStatus" class="landing-data-status" role="status">Đang tải gói dịch vụ</div>
-          <div id="landingPlanGrid" class="landing-plan-grid" aria-live="polite">
-            <article class="landing-plan-card landing-hover-card">
-              <span class="mui-icon" aria-hidden="true">sync</span>
-              <h3>Đang tải dữ liệu</h3>
-              <p>Subscription plans sẽ hiển thị khi API sẵn sàng.</p>
-            </article>
+          <div class="landing-plan-carousel" aria-label="Gói dịch vụ">
+            <button id="landingPlanPrev" class="landing-plan-nav" type="button" aria-label="Gói trước">
+              <span class="mui-icon" aria-hidden="true">chevron_left</span>
+            </button>
+            <div class="landing-plan-viewport">
+              <div id="landingPlanGrid" class="landing-plan-grid" aria-live="polite" data-single="true">
+                <article class="landing-plan-card landing-hover-card">
+                  <span class="mui-icon" aria-hidden="true">sync</span>
+                  <h3>Đang tải dữ liệu</h3>
+                  <p>Subscription plans sẽ hiển thị khi API sẵn sàng.</p>
+                </article>
+              </div>
+            </div>
+            <button id="landingPlanNext" class="landing-plan-nav" type="button" aria-label="Gói tiếp theo">
+              <span class="mui-icon" aria-hidden="true">chevron_right</span>
+            </button>
           </div>
         </section>
 
         <section id="landingAccess" class="landing-section landing-access" aria-labelledby="loginTitle">
           <div class="landing-access-copy">
             <p class="section-kicker">Access</p>
-            <h2 id="loginTitle">Đăng nhập hoặc gửi Enrollment</h2>
-            <p>Tenant subscription được tạo và cập nhật trong Platform Admin. Trường gửi intake, Platform Admin tiếp nhận rồi cấu hình gói, tài khoản và provider phù hợp.</p>
+            <h2 id="loginTitle">Đăng nhập hoặc gửi đăng ký</h2>
+            <p>Trường gửi thông tin đăng ký, đội ngũ phụ trách sẽ liên hệ để thiết lập gói dịch vụ, tài khoản và cấu hình thanh toán phù hợp.</p>
             <div class="landing-contact-strip">
               <a href="mailto:khiemnd777@gmail.com"><span class="mui-icon" aria-hidden="true">mail</span><span>khiemnd777@gmail.com</span></a>
               <a href="tel:0974322365"><span class="mui-icon" aria-hidden="true">call</span><span>0974322365</span></a>
@@ -136,7 +165,7 @@
           <section class="login-panel landing-auth-card" aria-labelledby="loginTitle">
             <div class="login-mode-switch" role="tablist" aria-label="Chọn luồng truy cập">
               <button id="showLoginMode" type="button" class="primary" role="tab" aria-selected="true" aria-controls="loginForm"><span class="mui-icon" aria-hidden="true">login</span><span>Đăng nhập</span></button>
-              <button id="showSignupMode" type="button" role="tab" aria-selected="false" aria-controls="signupForm"><span class="mui-icon" aria-hidden="true">storefront</span><span>Enrollment</span></button>
+              <button id="showSignupMode" type="button" role="tab" aria-selected="false" aria-controls="signupForm"><span class="mui-icon" aria-hidden="true">storefront</span><span>Đăng ký</span></button>
             </div>
             <form id="loginForm" class="login-form" role="tabpanel" aria-labelledby="showLoginMode">
               <label>
@@ -182,7 +211,7 @@
             </form>
             <form id="signupForm" class="login-form" role="tabpanel" aria-labelledby="showSignupMode" hidden>
               <div class="login-mode-head">
-                <p class="section-kicker">Enrollment intake</p>
+                <p class="section-kicker">Tiếp nhận đăng ký</p>
                 <h2>Gửi thông tin đăng ký</h2>
               </div>
               <label>
@@ -213,7 +242,7 @@
               </label>
               <button id="signupSubmit" class="primary" type="submit"><span class="mui-icon" aria-hidden="true">send</span><span>Gửi thông tin</span></button>
               <div id="signupStatus" class="login-status"></div>
-              <p class="login-legal">Sau khi tiếp nhận, Platform Admin sẽ tạo tài khoản và cấu hình gói dịch vụ phù hợp.</p>
+              <p class="login-legal">Sau khi tiếp nhận, đội ngũ phụ trách sẽ tạo tài khoản và cấu hình gói dịch vụ phù hợp.</p>
             </form>
             <form id="passwordResetForm" class="login-form" role="tabpanel" aria-labelledby="showLoginMode" hidden>
               <div class="login-mode-head">
@@ -554,7 +583,7 @@
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">Cột Excel/CSV</th>
+                  <th scope="col">Cột Excel</th>
                   <th scope="col">Trường hệ thống</th>
                   <th scope="col">Mẫu dữ liệu</th>
                 </tr>
@@ -571,8 +600,8 @@
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">table_chart</span><span>Bảng thanh toán</span></h2>
             </div>
             <div class="panel-actions legacy-payment-actions">
-              <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel/CSV</span></label>
-              <input id="csvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              <label class="file-button" for="csvFile"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import Excel</span></label>
+              <input id="csvFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <button id="loadSample" type="button"><span class="mui-icon" aria-hidden="true">dataset</span><span>Dữ liệu mẫu</span></button>
               <button id="addRow" type="button"><span class="mui-icon" aria-hidden="true">add</span><span>Thêm dòng</span></button>
               <button id="toggleFeeColumn" type="button" aria-expanded="true"><span class="mui-icon" aria-hidden="true">view_column</span><span>Thu gọn khoản phí</span></button>
@@ -1635,52 +1664,56 @@
 
     <section id="platformTenantsTab" class="tab-panel" role="tabpanel" hidden>
       <div class="admin-workspace platform-admin-shell">
-          <section class="panel tenant-admin-panel">
+          <section id="tenantListPage" class="panel tenant-admin-panel">
               <div class="panel-head">
                 <div>
-                  <p class="section-kicker">Platform tenants</p>
-                  <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant directory</span></h2>
-                  <p class="platform-admin-intro">Chọn tenant để xem trạng thái, subscription và snapshot usage.</p>
+                  <p class="section-kicker">Tenants</p>
+                  <h2 class="section-title"><span class="mui-icon" aria-hidden="true">domain</span><span>Tenant Lists</span></h2>
+                  <p class="platform-admin-intro">Chọn một tenant trong danh sách để mở trang chi tiết.</p>
                 </div>
                 <div class="panel-actions">
                   <button id="refreshTenants" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại</span></button>
-                  <button id="editActiveTenant" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa tenant</span></button>
-                  <button id="editActiveTenantSubscription" type="button"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Sửa subscription</span></button>
                   <button id="newTenant" type="button"><span class="mui-icon" aria-hidden="true">add_business</span><span>Tenant mới</span></button>
+                </div>
+              </div>
+              <section class="platform-detail-panel tenant-list-panel">
+                <div id="tenantList" class="tenant-list">Chưa tải tenant</div>
+                <div class="panel-subsection tenant-intake-section">
+                  <div class="panel-head compact">
+                    <div>
+                      <p class="section-kicker">Intake</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Yêu cầu đăng ký</span></h3>
+                    </div>
+                    <button id="refreshPlatformIntakeRequests" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải intake</span></button>
+                  </div>
+                  <div id="platformIntakeList" class="tenant-list">Chưa tải intake</div>
+                </div>
+              </section>
+          </section>
+
+          <section id="tenantDetailsPage" class="panel tenant-admin-panel" hidden>
+              <div class="panel-head">
+                <div>
+                  <p class="section-kicker">Tenant details</p>
+                  <h2 id="tenantDetailTitle" class="section-title"><span class="mui-icon" aria-hidden="true">overview</span><span>Tenant Details</span></h2>
+                  <p id="tenantDetailIntro" class="platform-admin-intro">Quản lý subscription, billing, payment providers và email delivery cho tenant đang mở.</p>
+                </div>
+                <div class="panel-actions">
+                  <button id="backToTenantList" type="button"><span class="mui-icon" aria-hidden="true">arrow_back</span><span>Tenant Lists</span></button>
                   <span id="tenantStatus" class="status-pill">Chưa tải</span>
                 </div>
               </div>
-              <div id="tenantSummary" class="tenant-summary"></div>
-              <div class="panel-subsection">
-                <div class="panel-head compact">
-                  <div>
-                    <p class="section-kicker">Intake</p>
-                    <h3 class="section-title"><span class="mui-icon" aria-hidden="true">assignment_ind</span><span>Yêu cầu đăng ký</span></h3>
-                  </div>
-                  <button id="refreshPlatformIntakeRequests" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải intake</span></button>
-                </div>
-                <div id="platformIntakeList" class="tenant-list">Chưa tải intake</div>
-              </div>
-              <div id="tenantList" class="tenant-list">Chưa tải tenant</div>
-          </section>
 
-          <section class="panel tenant-admin-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="section-kicker">Tenant detail</p>
-                    <h3 class="section-title"><span class="mui-icon" aria-hidden="true">overview</span><span>Chi tiết tenant</span></h3>
-                    <p class="platform-admin-intro">Mọi nội dung bên phải áp dụng cho tenant đang được chọn ở cột trái.</p>
-                  </div>
-                </div>
-                <div class="platform-detail-tabs" role="tablist" aria-label="Tenant detail sections">
-                  <button class="platform-detail-tab active" type="button" data-tenant-detail-tab="overview" aria-selected="true">Overview</button>
-                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="billing" aria-selected="false">Billing Config</button>
-                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="invoices" aria-selected="false">Invoices & Dunning</button>
-                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="requests" aria-selected="false">Requests</button>
-                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="providers" aria-selected="false">Payment Providers</button>
-                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="email" aria-selected="false">Email Delivery</button>
-                  <button class="platform-detail-tab" type="button" data-tenant-detail-tab="cron" aria-selected="false">Email Cron</button>
-                </div>
+              <div class="platform-detail-tabs" role="tablist" aria-label="Tenant detail sections">
+                <button class="platform-detail-tab active" type="button" data-tenant-detail-tab="overview" aria-selected="true">Overview</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="users" aria-selected="false">Users</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="billing" aria-selected="false">Billing Config</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="invoices" aria-selected="false">Invoices & Dunning</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="requests" aria-selected="false">Requests</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="providers" aria-selected="false">Payment Providers</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="email" aria-selected="false">Email Delivery</button>
+                <button class="platform-detail-tab" type="button" data-tenant-detail-tab="cron" aria-selected="false">Email Cron</button>
+              </div>
 
                 <section class="platform-detail-panel" data-tenant-detail-panel="overview">
                   <div class="panel-head">
@@ -1689,11 +1722,62 @@
                       <h3 class="section-title"><span class="mui-icon" aria-hidden="true">fact_check</span><span>Tình trạng subscription</span></h3>
                     </div>
                     <div class="panel-actions">
+                      <button id="editActiveTenant" type="button"><span class="mui-icon" aria-hidden="true">edit</span><span>Sửa tenant</span></button>
                       <button id="editActiveTenantSubscription" type="button"><span class="mui-icon" aria-hidden="true">workspace_premium</span><span>Sửa subscription</span></button>
                       <button id="refreshSubscriptionBilling" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải lại billing</span></button>
                     </div>
                   </div>
                   <div id="subscriptionBillingSummary" class="tenant-summary"></div>
+                </section>
+
+                <section class="platform-detail-panel" data-tenant-detail-panel="users" hidden>
+                  <div class="panel-head">
+                    <div>
+                      <p class="section-kicker">Tenant operators</p>
+                      <h3 class="section-title"><span class="mui-icon" aria-hidden="true">group</span><span>Users thuộc tenant</span></h3>
+                    </div>
+                    <div class="panel-actions">
+                      <button id="refreshTenantDetailUsers" type="button"><span class="mui-icon" aria-hidden="true">refresh</span><span>Tải users</span></button>
+                      <button id="newTenantDetailUser" type="button"><span class="mui-icon" aria-hidden="true">person_add</span><span>User mới</span></button>
+                      <span id="tenantDetailUserCount" class="count-badge">0 user</span>
+                      <span id="tenantDetailUsersStatus" class="status-pill">Chưa tải</span>
+                    </div>
+                  </div>
+                  <div class="table-wrap admin-table-wrap">
+                    <table class="admin-table" aria-label="Danh sách users thuộc tenant">
+                      <colgroup>
+                        <col class="admin-student-col" />
+                        <col class="admin-class-col" />
+                        <col class="admin-class-col" />
+                        <col class="admin-status-col" />
+                        <col class="admin-status-col" />
+                        <col class="admin-class-col" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th scope="col">Tên</th>
+                          <th scope="col">Email</th>
+                          <th scope="col">SĐT</th>
+                          <th scope="col">Status</th>
+                          <th scope="col">Password</th>
+                          <th scope="col">Roles</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tenantDetailUserRows">
+                        <tr><td colspan="6" class="empty-cell">Chưa tải user</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="tenant-detail-role-section">
+                    <div class="panel-head compact">
+                      <div>
+                        <p class="section-kicker">Tenant roles and permissions</p>
+                        <h3 class="section-title"><span class="mui-icon" aria-hidden="true">policy</span><span>Tenant role matrix</span></h3>
+                      </div>
+                      <span id="tenantDetailRoleCount" class="count-badge">0 role</span>
+                    </div>
+                    <div id="tenantDetailRoleList" class="admin-role-list">Chưa có role</div>
+                  </div>
                 </section>
 
                 <section class="platform-detail-panel" data-tenant-detail-panel="billing" hidden>
@@ -2415,7 +2499,7 @@
             </div>
           </div>
           <div id="subscriptionPurchaseSummary" class="tenant-summary"></div>
-          <div class="operation-log-detail">Trường không tự chọn payment provider hoặc tự checkout phí subscription. Vui lòng liên hệ Platform Admin để gia hạn, nâng cấp, hạ cấp hoặc hủy gói.</div>
+          <div class="operation-log-detail">Trường không tự chọn payment provider hoặc tự checkout phí subscription. Vui lòng gửi yêu cầu để đội ngũ phụ trách gia hạn, nâng cấp, hạ cấp hoặc hủy gói.</div>
           <div class="admin-user-actions">
             <button id="openSubscriptionChangeRequest" class="primary" type="button"><span class="mui-icon" aria-hidden="true">published_with_changes</span><span>Gửi yêu cầu subscription</span></button>
           </div>
@@ -2630,14 +2714,14 @@
         <section class="panel master-import-panel">
           <div class="panel-head">
             <div>
-              <p class="section-kicker">Excel/CSV import</p>
+              <p class="section-kicker">Excel import</p>
               <h2 class="section-title"><span class="mui-icon" aria-hidden="true">upload_file</span><span>Import master data</span></h2>
             </div>
             <span id="masterImportCount" class="count-badge">0 dòng</span>
           </div>
           <div class="master-import-actions">
-            <label class="file-button" for="masterCsvFile"><span class="mui-icon" aria-hidden="true">attach_file</span><span>Chọn Excel/CSV</span></label>
-            <input id="masterCsvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+            <label class="file-button" for="masterCsvFile"><span class="mui-icon" aria-hidden="true">attach_file</span><span>Chọn Excel</span></label>
+            <input id="masterCsvFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
             <button id="checkMasterImport" type="button"><span class="mui-icon" aria-hidden="true">rule</span><span>Kiểm tra import</span></button>
             <button id="applyMasterImport" class="primary" type="button"><span class="mui-icon" aria-hidden="true">publish</span><span>Áp dụng import</span></button>
           </div>
@@ -2660,7 +2744,7 @@
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col">Cột Excel/CSV</th>
+                    <th scope="col">Cột Excel</th>
                     <th scope="col">Trường hệ thống</th>
                     <th scope="col">Mẫu dữ liệu</th>
                   </tr>
@@ -2753,7 +2837,7 @@
                 <span id="emailConfigStatus" class="status-pill">Chưa cấu hình</span>
               </div>
             </div>
-            <div class="operation-log-detail">Gmail/Resend và cron do Platform Admin cấu hình cho từng trường. Màn hình này chỉ dùng để preview, dry-run và gửi thông báo học phí khi tenant đã được cấp quyền.</div>
+            <div class="operation-log-detail">Gmail/Resend và lịch gửi được cấu hình cho từng trường. Màn hình này chỉ dùng để preview, dry-run và gửi thông báo học phí khi tenant đã được cấp quyền.</div>
             <div class="form-grid" hidden>
               <label>
                 <span>Provider</span>

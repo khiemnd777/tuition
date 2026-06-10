@@ -1169,26 +1169,7 @@ ORDER BY lower(u.email), r.code`, tenantID)
 }
 
 func listPlatformUsers(ctx context.Context, db *sql.DB) ([]adminUserSummary, error) {
-	rows, err := db.QueryContext(ctx, `
-SELECT u.id::text,
-	COALESCE(u.email, ''),
-	u.phone,
-	u.display_name,
-	u.status,
-	u.password_hash <> '',
-	u.last_login_at,
-	u.created_at,
-	u.updated_at,
-	COALESCE(r.id::text, ''),
-	COALESCE(r.code, ''),
-	COALESCE(r.name, ''),
-	COALESCE(r.description, ''),
-	COALESCE(r.is_system, false)
-FROM app_users u
-LEFT JOIN app_user_roles ur ON ur.user_id = u.id
-LEFT JOIN app_roles r ON r.id = ur.role_id
-	AND r.code IN ('platform_admin')
-ORDER BY lower(COALESCE(u.email, '')), u.phone, r.code`)
+	rows, err := db.QueryContext(ctx, platformUsersListQuery())
 	if err != nil {
 		return nil, err
 	}
@@ -1242,6 +1223,42 @@ ORDER BY lower(COALESCE(u.email, '')), u.phone, r.code`)
 		users = append(users, *userByID[userID])
 	}
 	return users, nil
+}
+
+func platformUsersListQuery() string {
+	return `
+SELECT u.id::text,
+	COALESCE(u.email, ''),
+	u.phone,
+	u.display_name,
+	u.status,
+	u.password_hash <> '',
+	u.last_login_at,
+	u.created_at,
+	u.updated_at,
+	COALESCE(r.id::text, ''),
+	COALESCE(r.code, ''),
+	COALESCE(r.name, ''),
+	COALESCE(r.description, ''),
+	COALESCE(r.is_system, false)
+FROM app_users u
+LEFT JOIN app_user_roles ur ON ur.user_id = u.id
+LEFT JOIN app_roles r ON r.id = ur.role_id
+	AND r.code IN ('platform_admin')
+WHERE EXISTS (
+		SELECT 1
+		FROM app_user_roles platform_ur
+		JOIN app_roles platform_role ON platform_role.id = platform_ur.role_id
+		WHERE platform_ur.user_id = u.id
+			AND platform_role.code IN ('platform_admin')
+	)
+	OR NOT EXISTS (
+		SELECT 1
+		FROM tenant_memberships membership
+		WHERE membership.user_id = u.id
+			AND membership.status <> 'removed'
+	)
+ORDER BY lower(COALESCE(u.email, '')), u.phone, r.code`
 }
 
 func validateAdminUserSaveInput(input *adminUserSaveInput) error {

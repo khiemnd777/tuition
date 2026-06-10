@@ -20,6 +20,8 @@ func runDBCommand(ctx context.Context, args []string, stdout io.Writer, stderr i
 		return true, runDatabaseUtilityCommand(ctx, args[1:], stdout)
 	case "migrate":
 		return true, runMigrationCommand(ctx, args[1:], stdout)
+	case "demo":
+		return true, runDemoCommand(ctx, args[1:], stdout)
 	default:
 		return false, nil
 	}
@@ -77,7 +79,10 @@ func runMigrationCommand(ctx context.Context, args []string, stdout io.Writer) e
 
 	switch args[0] {
 	case "up":
-		return runMigrations(commandCtx, db, cfg.MigrationsTable, migrations, stdout)
+		if err := runMigrations(commandCtx, db, cfg.MigrationsTable, migrations, stdout); err != nil {
+			return err
+		}
+		return runDefaultDemoDataMigrations(commandCtx, db, stdout)
 	case "status":
 		if err := ensureMigrationTable(commandCtx, db, cfg.MigrationsTable); err != nil {
 			return err
