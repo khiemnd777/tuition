@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Công cụ tạo và xuất hàng loạt VietQR hoàn toàn trong trình duyệt." />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' data: blob:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <title>DEKISUGI QR Export</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#top" aria-label="DEKISUGI QR Export">
+          <span class="brand-mark" aria-hidden="true">QR</span>
+          <span><strong>DEKISUGI</strong><small>QR Export</small></span>
+        </a>
+        <div class="privacy-badge" title="Ứng dụng không gửi file hoặc dữ liệu thanh toán lên server">
+          <span class="privacy-dot" aria-hidden="true"></span>
+          Xử lý cục bộ trên thiết bị
+        </div>
+        <button id="resetButton" class="button ghost compact" type="button">Làm mới</button>
+      </div>
+    </header>
+
+    <main id="top" class="page-shell">
+      <section class="intro-panel" aria-labelledby="pageTitle">
+        <div>
+          <p class="eyebrow">UTILITY TOOL · KHÔNG BACKEND</p>
+          <h1 id="pageTitle">Xuất mã QR thanh toán</h1>
+          <p>Import bảng tính, map field, kiểm tra và tải hàng loạt VietQR hoặc email nháp. Reload trang sẽ xoá toàn bộ dữ liệu phiên.</p>
+        </div>
+        <ol class="stepper" aria-label="Các bước sử dụng">
+          <li class="active" data-step="1"><span>1</span><b>Chọn file</b></li>
+          <li data-step="2"><span>2</span><b>Map dữ liệu</b></li>
+          <li data-step="3"><span>3</span><b>Kiểm tra QR</b></li>
+          <li data-step="4"><span>4</span><b>Tạo email</b></li>
+        </ol>
+      </section>
+
+      <section class="panel" aria-labelledby="importTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-index">01 · IMPORT</p>
+            <h2 id="importTitle">Chọn bảng dữ liệu</h2>
+          </div>
+          <span id="fileSummary" class="status-pill neutral">Chưa có file</span>
+        </div>
+
+        <label id="dropZone" class="drop-zone" for="spreadsheetFile">
+          <input id="spreadsheetFile" type="file" accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" />
+          <span class="drop-icon" aria-hidden="true">↓</span>
+          <strong>Kéo file Excel hoặc CSV vào đây</strong>
+          <span>XLSX, XLS, CSV · tối đa 500 dòng</span>
+          <span class="button primary">Chọn file</span>
+        </label>
+
+        <div class="privacy-note">
+          <strong>Quyền riêng tư:</strong> file chỉ được đọc trong bộ nhớ trình duyệt; ứng dụng không upload, không lưu cache dữ liệu và không có endpoint gửi email.
+        </div>
+      </section>
+
+      <section id="mappingSection" class="panel" aria-labelledby="mappingTitle" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-index">02 · FIELD MAPPING</p>
+            <h2 id="mappingTitle">Map cột vào field hệ thống</h2>
+          </div>
+          <span id="mappingSummary" class="status-pill neutral">0 cột</span>
+        </div>
+
+        <div class="defaults-grid">
+          <label>
+            <span>Ngân hàng dùng chung</span>
+            <select id="defaultBank"><option value="">Không đặt mặc định</option></select>
+            <small>Dùng khi dòng không có BIN đã map.</small>
+          </label>
+          <label>
+            <span>Số tài khoản dùng chung</span>
+            <input id="defaultAccount" type="text" maxlength="19" autocomplete="off" placeholder="Ví dụ: 0011001932418" />
+            <small>Chỉ giữ chữ và số, tối đa 19 ký tự.</small>
+          </label>
+        </div>
+
+        <div class="table-scroll mapping-table-wrap">
+          <table class="data-table mapping-table">
+            <thead><tr><th>Cột Excel</th><th>Field hệ thống</th><th>Dữ liệu mẫu</th></tr></thead>
+            <tbody id="mappingRows"></tbody>
+          </table>
+        </div>
+        <div class="panel-footer">
+          <p id="mappingHint">Các cột chưa dùng có thể để “Bỏ qua”. Có thể map nhiều cột thành “Khoản phí”.</p>
+          <button id="applyMapping" class="button primary" type="button">Kiểm tra và sinh QR</button>
+        </div>
+      </section>
+
+      <section id="resultsSection" class="panel" aria-labelledby="resultsTitle" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-index">03 · REVIEW & EXPORT</p>
+            <h2 id="resultsTitle">Kiểm tra kết quả</h2>
+          </div>
+          <div class="summary-pills">
+            <span id="totalCount" class="status-pill neutral">0 dòng</span>
+            <span id="validCount" class="status-pill success">0 hợp lệ</span>
+            <span id="errorCount" class="status-pill danger">0 lỗi</span>
+          </div>
+        </div>
+
+        <div class="result-layout">
+          <div class="result-list">
+            <div class="toolbar-row">
+              <label class="search-field"><span class="sr-only">Tìm kiếm</span><input id="resultSearch" type="search" placeholder="Tìm tên, email, mã tham chiếu…" /></label>
+              <label><span class="sr-only">Lọc trạng thái</span><select id="resultFilter"><option value="all">Tất cả</option><option value="ready">Hợp lệ</option><option value="error">Có lỗi</option></select></label>
+            </div>
+            <div class="table-scroll result-table-wrap">
+              <table class="data-table result-table">
+                <thead><tr><th>Dòng</th><th>Trạng thái</th><th>Người thanh toán</th><th>Email</th><th>Số tiền</th><th>Mã</th></tr></thead>
+                <tbody id="resultRows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside class="qr-preview" aria-live="polite">
+            <div id="qrEmpty" class="empty-state">Chọn một dòng để xem chi tiết.</div>
+            <div id="qrDetail" hidden>
+              <div class="preview-title"><div><span id="previewStatus" class="status-pill"></span><h3 id="previewName"></h3><p id="previewMeta"></p></div></div>
+              <img id="previewQR" class="qr-image" alt="Mã VietQR của dòng đang chọn" />
+              <dl class="detail-list">
+                <div><dt>Ngân hàng</dt><dd id="previewBank"></dd></div>
+                <div><dt>Tài khoản</dt><dd id="previewAccount"></dd></div>
+                <div><dt>Số tiền</dt><dd id="previewAmount"></dd></div>
+                <div><dt>Nội dung</dt><dd id="previewNote"></dd></div>
+              </dl>
+              <div id="previewErrors" class="error-box" hidden></div>
+              <details><summary>VietQR payload</summary><pre id="previewPayload"></pre></details>
+            </div>
+          </aside>
+        </div>
+
+        <div class="panel-footer export-footer">
+          <p>ZIP gồm PNG, <code>manifest.csv</code> và <code>errors.csv</code> nếu có.</p>
+          <button id="exportQR" class="button primary" type="button">Xuất mã QR thành ZIP</button>
+        </div>
+      </section>
+
+      <section id="emailSection" class="panel" aria-labelledby="emailTitle" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-index">04 · EMAIL TEMPLATE</p>
+            <h2 id="emailTitle">Soạn email để copy hoặc export</h2>
+          </div>
+          <span class="status-pill neutral">Không gửi email</span>
+        </div>
+
+        <div class="email-settings">
+          <label><span>Tên template</span><input id="templateName" type="text" maxlength="100" /></label>
+          <label><span>From (tuỳ chọn cho file EML)</span><input id="emailFrom" type="text" maxlength="200" placeholder="Trường ABC &lt;billing@example.com&gt;" /></label>
+          <div class="template-file-actions">
+            <label class="button secondary compact" for="templateFile">Import template</label>
+            <input id="templateFile" type="file" accept="application/json,.json" />
+            <button id="exportTemplate" class="button secondary compact" type="button">Export template</button>
+          </div>
+        </div>
+
+        <label class="subject-field"><span>Tiêu đề</span><input id="emailSubject" type="text" maxlength="300" /></label>
+
+        <div class="merge-field-list" id="mergeFields" aria-label="Merge fields"></div>
+
+        <div class="email-workspace">
+          <div class="editor-column">
+            <div class="editor-toolbar" aria-label="Định dạng email">
+              <button type="button" data-command="bold" title="In đậm"><strong>B</strong></button>
+              <button type="button" data-command="italic" title="In nghiêng"><em>I</em></button>
+              <button type="button" data-command="underline" title="Gạch chân"><u>U</u></button>
+              <button type="button" data-command="insertUnorderedList" title="Danh sách">• List</button>
+              <button type="button" data-command="removeFormat" title="Xoá định dạng">Clear</button>
+              <span class="toolbar-divider"></span>
+              <input id="linkURL" type="url" placeholder="https://…" aria-label="URL liên kết" />
+              <button id="insertLink" type="button">Chèn link</button>
+            </div>
+            <div id="emailEditor" class="email-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Nội dung template email"></div>
+          </div>
+
+          <div class="email-preview-column">
+            <div class="preview-toolbar"><strong>Preview</strong><span id="emailPreviewRecipient">Chưa chọn recipient</span></div>
+            <iframe id="emailPreviewFrame" title="Xem trước email" sandbox=""></iframe>
+          </div>
+        </div>
+
+        <div class="compatibility-note">
+          <strong>Gmail Mail Merge:</strong> workbook chỉ chứa dữ liệu text. Gmail không hỗ trợ QR/attachment khác nhau theo từng người nhận; dùng email bulk ZIP với các file <code>.eml</code> khi cần QR riêng.
+        </div>
+
+        <div class="email-actions">
+          <button id="copySubject" class="button secondary" type="button">Copy tiêu đề</button>
+          <button id="copyEmail" class="button secondary" type="button">Copy rich email</button>
+          <button id="copyQR" class="button secondary" type="button">Copy QR</button>
+          <button id="downloadEml" class="button secondary" type="button">Download .eml</button>
+          <span class="action-spacer"></span>
+          <button id="exportGmail" class="button secondary" type="button">Gmail Mail Merge</button>
+          <button id="exportEmailBundle" class="button primary" type="button">Export email bulk ZIP</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <dialog id="resetDialog" class="app-dialog">
+      <form method="dialog">
+        <h2>Làm mới toàn bộ phiên?</h2>
+        <p>File import, mapping, QR và template đang soạn sẽ bị xoá khỏi bộ nhớ trình duyệt.</p>
+        <div class="dialog-actions"><button class="button secondary" value="cancel">Giữ lại</button><button class="button danger" value="confirm">Làm mới</button></div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

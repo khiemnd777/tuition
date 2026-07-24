@@ -2,7 +2,39 @@
 
 Demo nhỏ để kiểm tra flow sinh VietQR theo danh sách học sinh/phụ huynh trước khi mở rộng import Excel/PDF.
 
-## Chạy nhanh
+## QR Export Utility — frontend only
+
+Ứng dụng độc lập trong `qr-tool/` dùng để đọc Excel/CSV, map field, sinh hàng loạt VietQR và tạo email nháp ngay trong trình duyệt. Utility này không gọi DEKISUGI API, không đăng nhập, không có database, không gửi email, và không ghi payment data/template vào cookie, `localStorage` hoặc `IndexedDB`.
+
+```sh
+cd qr-tool
+npm ci
+npm run dev
+```
+
+Mở `http://localhost:5277`. Build static để deploy lên bất kỳ static hosting nào:
+
+```sh
+cd qr-tool
+npm run test
+npm run build
+```
+
+Output nằm ở `qr-tool/dist/`. Có thể phục vụ output bằng Nginx, object storage/static hosting hoặc `npm run preview`; không cần chạy Go API.
+
+Workflow:
+
+- Import `.xlsx`, `.xls` hoặc `.csv`, tối đa 500 payment rows.
+- Auto-map alias tiếng Việt/Anh, map thủ công, hoặc dùng một ngân hàng/số tài khoản mặc định cho toàn bộ file.
+- Nhiều cột có thể map thành `Khoản phí`; tổng payment items tiếp tục ghi đè raw `Amount`.
+- Review dòng hợp lệ/lỗi trước khi export PNG ZIP, `manifest.csv`, và `errors.csv`.
+- Soạn template với merge fields, preview bằng từng payment row, copy rich email/QR hoặc download `.eml` có QR inline CID.
+- Export Gmail Mail Merge workbook hoặc portable email bundle gồm CSV, JSONL, HTML/text, EML và QR assets. Gmail Mail Merge không hỗ trợ QR/attachment khác nhau theo từng recipient, nên dùng EML/provider bundle khi mỗi recipient cần QR riêng.
+- Export/import template bằng file JSON nếu muốn dùng lại; reload/đóng trang sẽ xoá state trong bộ nhớ.
+
+Chi tiết kiến trúc và privacy contract: `docs/qr-tool/DESIGN.md`.
+
+## Chạy nhanh Web Admin/API hiện có
 
 ```sh
 go mod tidy

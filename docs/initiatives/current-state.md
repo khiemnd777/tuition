@@ -1,6 +1,6 @@
 # DEKISUGI Initiative State
 
-Last updated: 2026-06-10
+Last updated: 2026-07-24
 
 ## Current Status
 
@@ -8,15 +8,27 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, cross-tenant finance operations, and subscription background automation complete.
 
-Current phase: `platform_admin_subscription_management_complete`
+The standalone `qr-tool/` direction is also complete as a separate frontend-only surface. It imports user-owned Excel/CSV files, maps arbitrary columns into payment fields, generates VietQR PNG files, previews user-authored email templates, and exports QR/email bundles without API calls, authentication, persistence, credentials, or real email delivery. Existing Go/Web Admin/production work remains intact and is not required by the utility.
 
-Current initiative: Platform Admin subscription management is complete. Tenant users can view subscription status, invoices, receipts, and submit upgrade/downgrade/cancel/refund requests; Platform Admin owns plan catalog management, tenant subscription mutation, subscription invoices, payment provider defaults, tenant email delivery config, tenant email cron, and plan price governance.
+Current phase: `standalone_qr_export_utility_complete`
 
-Next recommended initiative: Run a full authenticated browser QA pass in an environment with browser automation available and seeded Platform Admin/Tenant accounts.
+Current initiative: The frontend-only QR export utility is complete. It preserves the existing VietQR TLV/CRC and payment-item amount contract, supports in-browser XLSX/XLS/CSV mapping, creates PNG/manifest/error ZIP output, and adds sanitized custom email templates with rich copy, per-recipient EML, Gmail Mail Merge workbook, and portable provider CSV/JSONL exports. It never sends email.
+
+Next recommended initiative: Run user acceptance with one or more real customer spreadsheets, then deploy `qr-tool/dist/` to the selected static hosting surface. Keep the authenticated Finance Hub QA pass as a separate legacy/production follow-up if that product surface resumes.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
 ## Completed
+
+- Standalone QR Export Utility is complete:
+  - Added the isolated `qr-tool/` Vite application without changing or deleting the existing Go API, Web Admin, migrations, email sender, or cron implementation.
+  - Added local XLSX/XLS/CSV parsing, Vietnamese/English alias suggestions, manual field mapping, repeatable custom fee columns, and default bank/account values.
+  - Ported the VietQR TLV, CRC-16/CCITT-FALSE, ANS normalization, validation, default bill number, and payment-item total rules to browser JavaScript with exact Go fixtures.
+  - Added client-side QR PNG generation and ZIP exports containing manifest/error CSV files without silently dropping invalid rows.
+  - Added a sanitized email template editor with merge fields, per-row preview, rich clipboard, QR clipboard/download, template JSON import/export, and EML draft output with inline CID QR.
+  - Added Gmail Mail Merge XLSX output plus portable email CSV/JSONL/HTML/text/EML/QR bundle output; the UI documents Gmail's per-recipient attachment limitation.
+  - Added a strict privacy posture: no API calls, no credentials, no email send path, no cookies/local storage/IndexedDB/service worker state, and no runtime CDN assets.
+  - Added 15 frontend regression tests, clean dependency audit, production static build validation, Go regression validation, and browser verification with the existing payment workbook fixture.
 
 - Production module analysis was captured in `docs/initiatives/production-module-roadmap.md`.
 - The roadmap is split into independent initiatives:
