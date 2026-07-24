@@ -11,7 +11,7 @@ import {
 } from "./email.js";
 import { createEmailBundle, createGmailMergeBundle, createQRBundle, safeFilename } from "./exporter.js";
 import {
-  IMPORT_FIELDS,
+  IMPORT_FIELD_GROUPS,
   buildPaymentRows,
   previewValues,
   readSpreadsheet,
@@ -150,7 +150,9 @@ function renderMapping() {
     const selected = state.mapping[header] || "";
     const options = [
       `<option value="">Bỏ qua</option>`,
-      ...IMPORT_FIELDS.map((field) => `<option value="${field.key}" ${selected === field.key ? "selected" : ""}>${escapeHTML(field.label)}${field.required ? " *" : ""}</option>`),
+      ...IMPORT_FIELD_GROUPS.map((group) => `<optgroup label="${escapeHTML(group.label)}">${group.fields.map((field) =>
+        `<option value="${field.key}" ${selected === field.key ? "selected" : ""}>${escapeHTML(field.label)}${field.required ? " *" : ""}</option>`,
+      ).join("")}</optgroup>`),
     ].join("");
     return `<tr><td><strong>${escapeHTML(header)}</strong></td><td><select data-source="${escapeHTML(header)}">${options}</select></td><td>${escapeHTML(previewValues(state.table, header) || "-")}</td></tr>`;
   }).join("");
@@ -246,7 +248,17 @@ function filteredItems() {
     if (filter === "ready" && !ready) return false;
     if (filter === "error" && ready) return false;
     if (!query) return true;
-    return [item.studentName, item.parentName, item.email, item.billNumber, item.className]
+    return [
+      item.studentCode,
+      item.studentName,
+      item.schoolName,
+      item.cohort,
+      item.year,
+      item.className,
+      item.parentName,
+      item.email,
+      item.billNumber,
+    ]
       .some((value) => String(value || "").toLocaleLowerCase("vi").includes(query));
   });
 }
@@ -261,10 +273,17 @@ function renderResults() {
   const items = filteredItems();
   elements.resultRows.innerHTML = items.length ? items.map((item) => {
     const ready = !item.errors.length;
+    const context = [
+      item.studentCode ? `Mã: ${item.studentCode}` : "",
+      item.schoolName,
+      item.cohort ? `Niên khóa: ${item.cohort}` : "",
+      item.year ? `Năm: ${item.year}` : "",
+      item.className ? `Lớp: ${item.className}` : "",
+    ].filter(Boolean).join(" · ");
     return `<tr data-id="${escapeHTML(item.id)}" class="${item.id === state.selectedId ? "selected" : ""}">
       <td>${item.sourceRow || "-"}</td>
       <td><span class="status-pill ${ready ? "success" : "danger"}">${ready ? "Sẵn sàng" : "Có lỗi"}</span></td>
-      <td><span class="row-name">${escapeHTML(item.studentName || "Không có tên")}</span><span class="row-sub">${escapeHTML(item.className || "-")}</span></td>
+      <td><span class="row-name">${escapeHTML(item.studentName || "Không có tên")}</span><span class="row-sub">${escapeHTML(context || "-")}</span></td>
       <td>${escapeHTML(item.email || "-")}</td>
       <td>${escapeHTML(formatVND(item.amount))}</td>
       <td>${escapeHTML(item.billNumber)}</td>
@@ -286,7 +305,15 @@ function renderSelected() {
   elements.previewStatus.textContent = ready ? "Sẵn sàng" : "Có lỗi";
   elements.previewStatus.className = `status-pill ${ready ? "success" : "danger"}`;
   elements.previewName.textContent = item.studentName || "Không có tên";
-  elements.previewMeta.textContent = [item.className, item.email, `Dòng ${item.sourceRow || "-"}`].filter(Boolean).join(" · ");
+  elements.previewMeta.textContent = [
+    item.studentCode ? `Mã ${item.studentCode}` : "",
+    item.schoolName,
+    item.cohort ? `Niên khóa ${item.cohort}` : "",
+    item.year ? `Năm ${item.year}` : "",
+    item.className ? `Lớp ${item.className}` : "",
+    item.email,
+    `Dòng ${item.sourceRow || "-"}`,
+  ].filter(Boolean).join(" · ");
   elements.previewQR.hidden = !item.qrData;
   elements.previewQR.src = item.qrData || "";
   elements.previewBank.textContent = item.bankName ? `${item.bankName} · ${item.bankBin}` : item.bankBin || "-";

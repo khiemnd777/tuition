@@ -9,7 +9,11 @@ import {
 
 const item = {
   id: "row-001",
+  studentCode: "HS001",
   studentName: "Nguyễn An",
+  schoolName: "DEKISUGI School",
+  cohort: "2024–2028",
+  year: "Năm 3",
   parentName: "Nguyễn Văn Bình",
   className: "3.02",
   bankName: "VietinBank",
@@ -51,9 +55,26 @@ describe("email template export", () => {
   });
 
   it("converts supported fields to Gmail merge tags and flags per-row QR", () => {
-    const gmail = templateForGmailMerge(DEFAULT_EMAIL_TEMPLATE);
+    const gmail = templateForGmailMerge({
+      ...DEFAULT_EMAIL_TEMPLATE,
+      html: `${DEFAULT_EMAIL_TEMPLATE.html}<p>{{student_code}} · {{school_name}} · {{cohort}} · {{year}}</p>`,
+    });
     expect(gmail.html).toContain("@StudentName");
+    expect(gmail.html).toContain("@StudentCode");
+    expect(gmail.html).toContain("@SchoolName");
+    expect(gmail.html).toContain("@Cohort");
+    expect(gmail.html).toContain("@Year");
     expect(gmail.hasPerRecipientQR).toBe(true);
     expect(gmail.html).not.toContain("{{qr_image}}");
+  });
+
+  it("renders the concise student and school merge fields", () => {
+    const rendered = renderEmailTemplate({
+      ...DEFAULT_EMAIL_TEMPLATE,
+      subject: "{{student_code}} - {{school_name}}",
+      html: "<p>{{student_name}} · {{cohort}} · {{year}} · {{class_name}}</p>",
+    }, item);
+    expect(rendered.subject).toBe("HS001 - DEKISUGI School");
+    expect(rendered.html).toContain("Nguyễn An · 2024–2028 · Năm 3 · 3.02");
   });
 });

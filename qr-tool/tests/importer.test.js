@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  IMPORT_FIELD_GROUPS,
   buildPaymentRows,
   normalizeHeader,
   suggestMapping,
@@ -15,6 +16,22 @@ const table = {
 };
 
 describe("browser import mapping", () => {
+  it("groups concise fields and keeps legacy fee presets out of the visible list", () => {
+    expect(IMPORT_FIELD_GROUPS.map((group) => group.label)).toEqual([
+      "Học sinh & trường",
+      "Phụ huynh",
+      "Thanh toán",
+      "Khoản phí / nâng cao",
+    ]);
+    const visibleKeys = IMPORT_FIELD_GROUPS.flatMap((group) => group.fields.map((field) => field.key));
+    expect(visibleKeys).toEqual(expect.arrayContaining([
+      "student_code", "student_name", "school_name", "cohort", "year", "class_name",
+      "parent_name", "email", "bank_bin", "bank_account", "amount", "bill_number", "note",
+      "fee_item", "payment_items",
+    ]));
+    expect(visibleKeys).not.toContain("tuition_april");
+  });
+
   it("normalizes Vietnamese spreadsheet headers", () => {
     expect(normalizeHeader("  Số tài khoản  ")).toBe("so_tai_khoan");
   });
@@ -25,6 +42,39 @@ describe("browser import mapping", () => {
     expect(mapping["Email phụ huynh"]).toBe("email");
     expect(mapping["Tổng phí"]).toBe("amount");
     expect(mapping["Học phí T7"]).toBe("");
+  });
+
+  it("suggests the new school metadata and treats legacy fee headers as generic fees", () => {
+    const mapping = suggestMapping([
+      "Mã học sinh", "Tên trường", "Niên khóa", "Năm", "Lớp", "Học phí tháng 04",
+    ]);
+    expect(mapping).toEqual({
+      "Mã học sinh": "student_code",
+      "Tên trường": "school_name",
+      "Niên khóa": "cohort",
+      "Năm": "year",
+      "Lớp": "class_name",
+      "Học phí tháng 04": "fee_item",
+    });
+  });
+
+  it("keeps concise student and school metadata on each payment row", () => {
+    const metadataTable = {
+      headers: ["Mã học sinh", "Họ và tên", "Tên trường", "Niên khóa", "Năm", "Lớp"],
+      records: [["HS001", "Nguyễn An", "DEKISUGI", "2024–2028", "Năm 3", "3.02"]],
+    };
+    const rows = buildPaymentRows(metadataTable, suggestMapping(metadataTable.headers), {
+      bankBin: "970415",
+      bankAccount: "0011001932418",
+    });
+    expect(rows[0]).toMatchObject({
+      studentCode: "HS001",
+      studentName: "Nguyễn An",
+      schoolName: "DEKISUGI",
+      cohort: "2024–2028",
+      year: "Năm 3",
+      className: "3.02",
+    });
   });
 
   it("maps multiple custom fee columns and lets their total override amount", () => {

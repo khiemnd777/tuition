@@ -25,7 +25,8 @@ Output nằm ở `qr-tool/dist/`. Có thể phục vụ output bằng Nginx, obj
 Workflow:
 
 - Import `.xlsx`, `.xls` hoặc `.csv`, tối đa 500 payment rows.
-- Auto-map alias tiếng Việt/Anh, map thủ công, hoặc dùng một ngân hàng/số tài khoản mặc định cho toàn bộ file.
+- Auto-map alias tiếng Việt/Anh và chọn field theo nhóm `Học sinh & trường`, `Phụ huynh`, `Thanh toán`, `Khoản phí / nâng cao`; hỗ trợ mã học sinh, tên trường, niên khóa, năm và lớp.
+- Có thể map thủ công hoặc dùng một ngân hàng/số tài khoản mặc định cho toàn bộ file.
 - Nhiều cột có thể map thành `Khoản phí`; tổng payment items tiếp tục ghi đè raw `Amount`.
 - Review dòng hợp lệ/lỗi trước khi export PNG ZIP, `manifest.csv`, và `errors.csv`.
 - Soạn template với merge fields, preview bằng từng payment row, copy rich email/QR hoặc download `.eml` có QR inline CID.

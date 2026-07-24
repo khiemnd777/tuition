@@ -7,7 +7,11 @@ import { createEmailBundle, createQRBundle, safeFilename } from "../src/exporter
 const validItem = {
   id: "row-001",
   sourceRow: 2,
+  studentCode: "HS001",
   studentName: "Nguyễn An",
+  schoolName: "DEKISUGI School",
+  cohort: "2024–2028",
+  year: "Năm 3",
   parentName: "Nguyễn Văn Bình",
   className: "3.02",
   bankBin: "970415",
@@ -35,7 +39,11 @@ describe("bulk export bundles", () => {
     ]);
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
     expect(Object.keys(zip.files)).toContain("qr/SUN001-Nguyen-An.png");
-    expect(await zip.file("manifest.csv").async("string")).toContain("SUN001");
+    const manifest = await zip.file("manifest.csv").async("string");
+    expect(manifest).toContain("Mã học sinh");
+    expect(manifest).toContain("HS001");
+    expect(manifest).toContain("DEKISUGI School");
+    expect(manifest).toContain("SUN001");
     expect(await zip.file("errors.csv").async("string")).toContain("Thiếu tài khoản");
   });
 
@@ -47,6 +55,8 @@ describe("bulk export bundles", () => {
     expect(names).toContain("recipients/gmail-mail-merge.xlsx");
     expect(names).toContain("recipients/bulk-email.jsonl");
     expect(await zip.file("messages/SUN001-Nguyen-An.eml").async("string")).toContain("X-Unsent: 1");
+    expect(await zip.file("recipients/bulk-email.csv").async("string")).toContain("student_code");
+    expect(await zip.file("recipients/bulk-email.jsonl").async("string")).toContain('"schoolName":"DEKISUGI School"');
     expect(await zip.file("README.txt").async("string")).toContain("không gửi email");
   });
 });

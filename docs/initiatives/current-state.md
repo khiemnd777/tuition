@@ -22,13 +22,13 @@ Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed pr
 
 - Standalone QR Export Utility is complete:
   - Added the isolated `qr-tool/` Vite application without changing or deleting the existing Go API, Web Admin, migrations, email sender, or cron implementation.
-  - Added local XLSX/XLS/CSV parsing, Vietnamese/English alias suggestions, manual field mapping, repeatable custom fee columns, and default bank/account values.
+  - Added local XLSX/XLS/CSV parsing, Vietnamese/English alias suggestions, grouped field mapping for student/school/parent/payment/fee metadata, repeatable custom fee columns, and default bank/account values.
   - Ported the VietQR TLV, CRC-16/CCITT-FALSE, ANS normalization, validation, default bill number, and payment-item total rules to browser JavaScript with exact Go fixtures.
   - Added client-side QR PNG generation and ZIP exports containing manifest/error CSV files without silently dropping invalid rows.
   - Added a sanitized email template editor with merge fields, per-row preview, rich clipboard, QR clipboard/download, template JSON import/export, and EML draft output with inline CID QR.
   - Added Gmail Mail Merge XLSX output plus portable email CSV/JSONL/HTML/text/EML/QR bundle output; the UI documents Gmail's per-recipient attachment limitation.
   - Added a strict privacy posture: no API calls, no credentials, no email send path, no cookies/local storage/IndexedDB/service worker state, and no runtime CDN assets.
-  - Added 15 frontend regression tests, clean dependency audit, production static build validation, Go regression validation, and browser verification with the existing payment workbook fixture.
+  - Added 19 frontend regression tests, clean dependency audit, production static build validation, Go regression validation, and browser verification with payment workbook fixtures.
 
 - Production module analysis was captured in `docs/initiatives/production-module-roadmap.md`.
 - The roadmap is split into independent initiatives:

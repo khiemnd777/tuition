@@ -34,7 +34,11 @@ describe("VietQR contract", () => {
 
   it("uses payment item totals instead of raw amount", () => {
     const row = cleanPaymentRow({
+      studentCode: "HS001",
       studentName: "Nguyen An",
+      schoolName: "DEKISUGI School",
+      cohort: "2024-2028",
+      year: "Nam 3",
       bankBin: "970415",
       bankAccount: "0011001932418",
       amount: 1,
@@ -46,6 +50,12 @@ describe("VietQR contract", () => {
       note: "Hoc phi",
     });
     expect(row.amount).toBe(6_980_000);
+    expect(row).toMatchObject({
+      studentCode: "HS001",
+      schoolName: "DEKISUGI School",
+      cohort: "2024-2028",
+      year: "Nam 3",
+    });
     expect(buildQRItem(row).vietqr).toContain("54076980000");
   });
 

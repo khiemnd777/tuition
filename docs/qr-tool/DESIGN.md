@@ -19,7 +19,7 @@ The existing Go API, Web Admin, PostgreSQL migrations, tenant/subscription modul
 ## User Flow
 
 1. Choose or drag an XLSX, XLS, or CSV file containing at most 500 payment rows.
-2. Review automatic header aliases and map each source column to a supported field or `Ignore`.
+2. Review automatic header aliases and map each source column to a grouped field under `Student & school`, `Parent`, `Payment`, or `Fees / advanced`, or choose `Ignore`.
 3. Optionally apply a default bank BIN and account number when those columns are not present per row.
 4. Map multiple arbitrary columns to `Fee item`; each source header becomes the fee label.
 5. Generate and review rows. Errors remain visible and are never silently dropped.
@@ -30,6 +30,10 @@ The existing Go API, Web Admin, PostgreSQL migrations, tenant/subscription modul
 ## Supported Payment Fields
 
 - `student_name`
+- `student_code`
+- `school_name`
+- `cohort`
+- `year`
 - `parent_name`
 - `class_name`
 - `bank_bin`
@@ -39,8 +43,9 @@ The existing Go API, Web Admin, PostgreSQL migrations, tenant/subscription modul
 - `payment_items`
 - `bill_number`
 - `note`
-- the legacy named fee columns documented in the root README
 - repeatable `fee_item`, whose label is derived from the source spreadsheet header
+
+Legacy named fee headers remain compatible: automatic mapping routes them to repeatable `fee_item` instead of presenting each old fee preset as a separate system field.
 
 `payment_items` override raw `amount` whenever at least one payment item exists.
 
@@ -62,7 +67,7 @@ Regression tests share the exact static, dynamic, and CRC fixtures used by the G
 
 ## Email Template And Export Contract
 
-Templates contain a plain subject plus sanitized email-safe HTML. Supported merge fields include recipient/student/parent/class, amount/payment items, bank/account, bill number, payment note, and the per-row QR image.
+Templates contain a plain subject plus sanitized email-safe HTML. Supported merge fields include recipient, student code/name, school, cohort, year, class, parent, amount/payment items, bank/account, bill number, payment note, and the per-row QR image.
 
 Generated output never sends email:
 

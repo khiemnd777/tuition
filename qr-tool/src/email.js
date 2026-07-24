@@ -19,9 +19,13 @@ export const DEFAULT_EMAIL_TEMPLATE = {
 
 export const MERGE_FIELDS = [
   ["{{recipient_email}}", "Email"],
-  ["{{student_name}}", "Học sinh"],
-  ["{{parent_name}}", "Phụ huynh"],
+  ["{{student_code}}", "Mã học sinh"],
+  ["{{student_name}}", "Tên học sinh"],
+  ["{{school_name}}", "Tên trường"],
+  ["{{cohort}}", "Niên khóa"],
+  ["{{year}}", "Năm"],
   ["{{class_name}}", "Lớp"],
+  ["{{parent_name}}", "Tên phụ huynh"],
   ["{{amount}}", "Số tiền"],
   ["{{payment_items}}", "Khoản phí"],
   ["{{bank_name}}", "Ngân hàng"],
@@ -55,7 +59,11 @@ function paymentItemsHTML(item) {
 function tokenValues(item) {
   return {
     "{{recipient_email}}": item.email || "",
+    "{{student_code}}": item.studentCode || "",
     "{{student_name}}": item.studentName || "",
+    "{{school_name}}": item.schoolName || "",
+    "{{cohort}}": item.cohort || "",
+    "{{year}}": item.year || "",
     "{{parent_name}}": item.parentName || "Quý phụ huynh",
     "{{class_name}}": item.className || "-",
     "{{amount}}": formatVND(item.amount),
@@ -169,7 +177,11 @@ export function buildEml({ to, from = "", subject, html, text, qrBase64, content
 
 const GMAIL_TOKENS = {
   "{{recipient_email}}": "@Email",
+  "{{student_code}}": "@StudentCode",
   "{{student_name}}": "@StudentName",
+  "{{school_name}}": "@SchoolName",
+  "{{cohort}}": "@Cohort",
+  "{{year}}": "@Year",
   "{{parent_name}}": "@ParentName",
   "{{class_name}}": "@ClassName",
   "{{amount}}": "@Amount",

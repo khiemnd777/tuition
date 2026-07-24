@@ -125,7 +125,11 @@ export function cleanPaymentRow(input = {}) {
   const row = {
     ...input,
     id: String(input.id || "").trim(),
+    studentCode: String(input.studentCode || "").trim(),
     studentName: String(input.studentName || "").trim(),
+    schoolName: String(input.schoolName || "").trim(),
+    cohort: String(input.cohort || "").trim(),
+    year: String(input.year || "").trim(),
     parentName: String(input.parentName || "").trim(),
     className: String(input.className || "").trim(),
     bankBin: onlyDigits(input.bankBin),

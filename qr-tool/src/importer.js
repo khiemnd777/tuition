@@ -4,51 +4,75 @@ import { cleanPaymentRow, parseAmount } from "./vietqr.js";
 
 export const MAX_ROWS = 500;
 
-const FIELD_DEFINITIONS = [
-  ["student_name", "Người thanh toán / Học sinh"],
-  ["parent_name", "Phụ huynh"],
-  ["class_name", "Lớp"],
-  ["bank_bin", "BIN ngân hàng"],
-  ["bank_account", "Số tài khoản"],
-  ["email", "Email"],
-  ["amount", "Số tiền"],
-  ["payment_items", "Danh sách khoản phí JSON"],
-  ["fee_item", "Khoản phí (lấy tên cột)"],
-  ["tuition_april", "Học phí tháng 04"],
-  ["shuttle_april", "Phí xe tháng 04"],
-  ["tuition_may", "Học phí tháng 05"],
-  ["health_insurance", "Bảo hiểm y tế"],
-  ["uniform_fee", "Đồng phục"],
-  ["international_material", "Sách CTQT"],
-  ["previous_fees", "Các khoản phí trước"],
-  ["bill_number", "Mã hóa đơn / Tham chiếu"],
-  ["note", "Nội dung chuyển khoản"],
+export const IMPORT_FIELD_GROUPS = [
+  {
+    key: "student_school",
+    label: "Học sinh & trường",
+    fields: [
+      { key: "student_code", label: "Mã học sinh" },
+      { key: "student_name", label: "Tên học sinh" },
+      { key: "school_name", label: "Tên trường" },
+      { key: "cohort", label: "Niên khóa" },
+      { key: "year", label: "Năm" },
+      { key: "class_name", label: "Lớp" },
+    ],
+  },
+  {
+    key: "parent",
+    label: "Phụ huynh",
+    fields: [
+      { key: "parent_name", label: "Tên phụ huynh" },
+      { key: "email", label: "Email" },
+    ],
+  },
+  {
+    key: "payment",
+    label: "Thanh toán",
+    fields: [
+      { key: "bank_bin", label: "BIN ngân hàng", required: true },
+      { key: "bank_account", label: "Số tài khoản", required: true },
+      { key: "amount", label: "Số tiền" },
+      { key: "bill_number", label: "Mã hóa đơn" },
+      { key: "note", label: "Nội dung chuyển khoản" },
+    ],
+  },
+  {
+    key: "fees",
+    label: "Khoản phí / nâng cao",
+    fields: [
+      { key: "fee_item", label: "Khoản phí — lấy tên cột", repeatable: true },
+      { key: "payment_items", label: "Danh sách khoản phí JSON" },
+    ],
+  },
 ];
 
-export const IMPORT_FIELDS = FIELD_DEFINITIONS.map(([key, label]) => ({
-  key,
-  label,
-  required: key === "bank_bin" || key === "bank_account",
-}));
+export const IMPORT_FIELDS = IMPORT_FIELD_GROUPS.flatMap((group) => group.fields);
 
-const LABEL_BY_KEY = new Map(FIELD_DEFINITIONS);
+const LABEL_BY_KEY = new Map(IMPORT_FIELDS.map((field) => [field.key, field.label]));
 
 const ALIASES = {
+  student_code: ["student_code", "student_id", "student_no", "ma_hoc_sinh", "ma_hs"],
   student_name: ["student_name", "student", "ten_hoc_sinh", "hoc_sinh", "ho_va_ten", "ho_ten", "ten_hs"],
+  school_name: ["school_name", "school", "ten_truong", "truong"],
+  cohort: ["cohort", "nien_khoa", "khoa_hoc"],
+  year: ["year", "nam", "nam_hoc", "grade", "grade_name", "khoi"],
   parent_name: ["parent_name", "parent", "ten_phu_huynh", "phu_huynh", "ten_ba_me", "ba_me", "ten_bo_me"],
   class_name: ["class_name", "class", "lop", "ten_lop", "lop_hoc"],
   bank_bin: ["bank_bin", "bin", "ma_bin", "bank_code", "bin_ngan_hang", "ma_ngan_hang"],
   bank_account: ["bank_account", "account", "account_number", "tai_khoan_ngan_hang", "stk", "so_tai_khoan"],
   email: ["email", "mail", "email_phu_huynh"],
   amount: ["amount", "so_tien", "hoc_phi", "tong_phi", "tong_hoc_phi", "so_tien_thanh_toan"],
-  payment_items: ["payment_items", "items", "fee_items", "khoan_phi"],
-  tuition_april: ["tuition_april", "hoc_phi_thang_04", "hoc_phi_t4"],
-  shuttle_april: ["shuttle_april", "phi_xe_thang_04", "phi_xe_t4"],
-  tuition_may: ["tuition_may", "hoc_phi_thang_05", "hoc_phi_t5"],
-  health_insurance: ["health_insurance", "bao_hiem_y_te"],
-  uniform_fee: ["uniform_fee", "dong_phuc"],
-  international_material: ["international_material", "sach_ctqt", "sach"],
-  previous_fees: ["previous_fees", "cac_khoan_phi_thang_truoc", "phi_thang_truoc"],
+  payment_items: ["payment_items", "items", "fee_items", "danh_sach_khoan_phi", "danh_sach_khoan_phi_json"],
+  fee_item: [
+    "fee_item", "khoan_phi", "khoan_thu",
+    "tuition_april", "hoc_phi_thang_04", "hoc_phi_t4",
+    "shuttle_april", "phi_xe_thang_04", "phi_xe_t4",
+    "tuition_may", "hoc_phi_thang_05", "hoc_phi_t5",
+    "health_insurance", "bao_hiem_y_te",
+    "uniform_fee", "dong_phuc",
+    "international_material", "sach_ctqt", "sach",
+    "previous_fees", "cac_khoan_phi_thang_truoc", "phi_thang_truoc",
+  ],
   bill_number: ["bill_number", "bill", "invoice", "invoice_number", "ma_hoa_don", "ma_tham_chieu", "ma_hd"],
   note: ["note", "noi_dung", "memo", "noi_dung_chuyen_khoan", "dien_giai"],
 };
@@ -171,7 +195,11 @@ export function buildPaymentRows(table, mapping, defaults = {}) {
     return cleanPaymentRow({
       id: `row-${String(index + 1).padStart(3, "0")}`,
       sourceRow: index + 2,
+      studentCode: valueFor(table, record, mapping, "student_code"),
       studentName: valueFor(table, record, mapping, "student_name"),
+      schoolName: valueFor(table, record, mapping, "school_name"),
+      cohort: valueFor(table, record, mapping, "cohort"),
+      year: valueFor(table, record, mapping, "year"),
       parentName: valueFor(table, record, mapping, "parent_name"),
       className: valueFor(table, record, mapping, "class_name"),
       bankBin: valueFor(table, record, mapping, "bank_bin") || defaults.bankBin,
