@@ -1,10 +1,10 @@
-# DEKISUGI Finance Hub
+# DEKISUGI QR Tool
 
-Demo nhỏ để kiểm tra flow sinh VietQR theo danh sách học sinh/phụ huynh trước khi mở rộng import Excel/PDF.
+`qr-tool/` là ứng dụng chính thức của DEKISUGI: đọc bảng Excel/CSV, sinh VietQR hàng loạt và chuẩn bị email ngay trong trình duyệt.
 
-## QR Export Utility — frontend only
+## Ứng dụng chính thức — frontend only
 
-Ứng dụng độc lập trong `qr-tool/` dùng để đọc Excel/CSV, map field, sinh hàng loạt VietQR và tạo email nháp ngay trong trình duyệt. Utility này không gọi DEKISUGI API, không đăng nhập, không có database, không gửi email, và không ghi payment data/template vào cookie, `localStorage` hoặc `IndexedDB`.
+Ứng dụng trong `qr-tool/` không gọi DEKISUGI API, không đăng nhập, không có database, không tự gửi email, và không ghi payment data/template vào cookie, `localStorage` hoặc `IndexedDB`. Nếu người dùng chọn kết nối Gmail, trình duyệt chỉ lưu link Google Sheet cá nhân để mở lại ở đợt thu sau; có thể ngắt kết nối bất cứ lúc nào.
 
 ```sh
 cd qr-tool
@@ -26,16 +26,34 @@ Workflow:
 
 - Import `.xlsx`, `.xls` hoặc `.csv`, tối đa 500 payment rows.
 - Auto-map alias tiếng Việt/Anh và chọn field theo nhóm `Học sinh & trường`, `Phụ huynh`, `Thanh toán`, `Khoản phí / nâng cao`; hỗ trợ mã học sinh, tên trường, niên khóa, năm và lớp.
-- Có thể map thủ công hoặc dùng một ngân hàng/số tài khoản mặc định cho toàn bộ file.
+- Tài khoản nhận tiền là bước bắt buộc trước khi map dữ liệu. Mặc định toàn bộ QR dùng một tài khoản đã xác nhận và bỏ qua cột tài khoản trong Excel; chế độ nâng cao theo từng dòng phải được người dùng chủ động chọn.
+- Trước khi export QR hoặc email, app hiển thị lại ngân hàng/số tài khoản thực tế trong các QR và yêu cầu xác nhận; thông tin này chỉ nằm trong bộ nhớ của tab hiện tại.
 - Nhiều cột có thể map thành `Khoản phí`; tổng payment items tiếp tục ghi đè raw `Amount`.
 - Review dòng hợp lệ/lỗi trước khi export PNG ZIP, `manifest.csv`, và `errors.csv`.
 - Soạn template với merge fields, preview bằng từng payment row, copy rich email/QR hoặc download `.eml` có QR inline CID.
-- Export Gmail Mail Merge workbook hoặc portable email bundle gồm CSV, JSONL, HTML/text, EML và QR assets. Gmail Mail Merge không hỗ trợ QR/attachment khác nhau theo từng recipient, nên dùng EML/provider bundle khi mỗi recipient cần QR riêng.
+- Luồng Gmail dùng một Google Sheet cá nhân lâu dài. Lần đầu người dùng tạo/cài Sheet và lưu link Sheet trên trình duyệt; các đợt thu sau chỉ xuất `DEKISUGI_GMAIL_DATA.json`, mở lại Sheet cũ và chọn `DEKISUGI Email → 0. Nhập dữ liệu mới`.
+- Export bộ Gmail miễn phí gồm Google Sheets workbook, Apps Script tái sử dụng và hướng dẫn offline từng cú click cho người không rành kỹ thuật. Hướng dẫn chỉ rõ cách chọn `setup`, bấm `Run`, xử lý `Authorization required`, kiểm tra `Execution completed`, gửi thử và gửi thật. Script do người dùng tự cấp quyền trong tài khoản Google, cho phép thay danh sách bằng JSON mới, gửi thủ công tối đa 90 email/ngày, chống gửi trùng và chèn đúng QR riêng cho từng recipient.
+- Export nâng cao cho provider gồm CSV, JSONL, HTML/text, EML và QR assets; bundle này chỉ tạo dữ liệu, không tự kết nối hoặc gửi email.
 - Export/import template bằng file JSON nếu muốn dùng lại; reload/đóng trang sẽ xoá state trong bộ nhớ.
 
 Chi tiết kiến trúc và privacy contract: `docs/qr-tool/DESIGN.md`.
 
-## Chạy nhanh Web Admin/API hiện có
+Google Sheet mẫu được tạo một lần từ source trong `qr-tool/google-sheet-template/`. Sau khi có link `/copy`, cấu hình link lúc build:
+
+```sh
+cd qr-tool
+cp .env.example .env.local
+# Điền VITE_GMAIL_SHEET_TEMPLATE_URL trong .env.local
+npm run build
+```
+
+Nếu chưa cấu hình URL, lần đầu UI cung cấp bộ Gmail ZIP để tạo một Sheet tái sử dụng. Nếu đã có URL mẫu, UI mở link `/copy`. Cả hai đường đều hội tụ về cùng luồng: lưu link Sheet cá nhân, rồi dùng lại Sheet đó cho các đợt thu sau. Hướng dẫn phát hành chi tiết nằm trong `qr-tool/google-sheet-template/SETUP.md`.
+
+## Finance Hub cũ — obsolete
+
+Go Web Admin/API, PostgreSQL, tenant/subscription, email sender và cron thuộc Finance Hub cũ. Luồng này không còn là hướng phát triển sản phẩm, không dùng cho tính năng mới và dự kiến sẽ được xoá toàn bộ trong tương lai. Các lệnh dưới đây chỉ được giữ tạm thời cho đến khi mã legacy được dọn bỏ.
+
+### Chạy Web Admin/API cũ
 
 ```sh
 go mod tidy

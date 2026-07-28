@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <style>
+      :root{font-family:Arial,sans-serif;color:#172033;background:#fff;font-size:13px}*{box-sizing:border-box}body{margin:0;padding:14px;background:#f7f9fc}.brand{display:flex;align-items:center;gap:9px;margin-bottom:12px}.mark{width:34px;height:34px;display:grid;place-items:center;border-radius:7px;background:#2b50a1;color:#fff;font-weight:800;font-size:10px}.brand strong,.brand small{display:block}.brand small{margin-top:2px;color:#667085;font-size:10px}.notice{margin:0 0 12px;padding:10px 11px;border-left:3px solid #5c8f72;background:#edf8f2;color:#315b47;font-size:11px;line-height:1.45}.card{margin-top:10px;padding:12px;border:1px solid #d9dee8;border-radius:8px;background:#fff}.step{display:flex;align-items:center;gap:8px;margin-bottom:10px}.step span{width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:#2b50a1;color:#fff;font-size:11px;font-weight:800}.step strong{font-size:12px}.file-picker{display:block;padding:14px 10px;border:1px dashed #aeb8c8;border-radius:7px;background:#fbfcfe;text-align:center;color:#2b50a1;font-weight:700;cursor:pointer}.file-picker input{position:absolute;width:1px;height:1px;opacity:0}.file-name{display:block;margin-top:5px;color:#667085;font-size:10px;font-weight:400;overflow-wrap:anywhere}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:9px}.stat{padding:7px 5px;border-radius:6px;background:#f1f4f8;text-align:center}.stat b,.stat small{display:block}.stat b{font-size:15px}.stat small{margin-top:2px;color:#667085;font-size:9px}.stat.ready b{color:#16794c}.stat.error b{color:#b42318}.stat.sent b{color:#2b50a1}label span{display:block;margin-bottom:5px;color:#344054;font-size:10px;font-weight:700}input,select,button{font:inherit}input,select{width:100%;min-height:35px;padding:7px 8px;border:1px solid #c2c9d6;border-radius:6px;background:#fff}.row{display:flex;gap:6px;align-items:end}.row>label{flex:1}.button{width:100%;min-height:36px;margin-top:8px;border:1px solid transparent;border-radius:6px;padding:7px 10px;font-weight:700;cursor:pointer}.button:disabled{cursor:not-allowed;opacity:.45}.primary{background:#2b50a1;color:#fff}.secondary{border-color:#c2c9d6;background:#fff;color:#344054}.danger{border-color:#efb2ac;background:#fff1f0;color:#a42b20}.schedule-status{margin:8px 0 0;padding:8px;border-radius:6px;background:#f1f4f8;color:#475467;font-size:10px;line-height:1.45}.status{position:sticky;bottom:0;margin:12px -14px -14px;padding:10px 14px;border-top:1px solid #d9dee8;background:rgba(255,255,255,.98);color:#475467;font-size:10px;line-height:1.45}.status.success{color:#16794c}.status.error{color:#b42318}.spinner{display:inline-block;width:10px;height:10px;margin-right:5px;border:2px solid #cbd5e1;border-top-color:#2b50a1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.48)}.modal[hidden]{display:none}.modal-card{width:100%;padding:16px;border-radius:8px;background:#fff;box-shadow:0 18px 45px rgba(15,23,42,.28)}.modal-card h2{margin:0 0 7px;font-size:15px}.modal-card p{margin:0;color:#536077;font-size:11px;line-height:1.5}.modal-actions{display:flex;gap:7px;margin-top:13px}.modal-actions .button{margin:0}.privacy{margin:9px 0 0;color:#667085;font-size:9px;line-height:1.4}
+    </style>
+  </head>
+  <body>
+    <header class="brand">
+      <div class="mark">QR</div>
+      <div><strong>DEKISUGI Email</strong><small>Gmail miễn phí · Sheet của bạn</small></div>
+    </header>
+
+    <p class="notice">Chỉ gửi thử trước. Công cụ không tự bật lịch và luôn chừa ít nhất 10 email trong quota Google.</p>
+
+    <section class="card">
+      <div class="step"><span>1</span><strong>Nhập danh sách</strong></div>
+      <label class="file-picker" for="dataFile">
+        Chọn DEKISUGI_GMAIL_DATA.json
+        <small id="fileName" class="file-name">Chưa chọn file</small>
+        <input id="dataFile" type="file" accept="application/json,.json">
+      </label>
+      <div class="stats" aria-label="Thống kê danh sách">
+        <div class="stat ready"><b id="readyCount">0</b><small>Sẵn sàng</small></div>
+        <div class="stat sent"><b id="sentCount">0</b><small>Đã gửi</small></div>
+        <div class="stat error"><b id="errorCount">0</b><small>Lỗi</small></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="step"><span>2</span><strong>Gửi một email thử</strong></div>
+      <label><span>Email của bạn</span><input id="testEmail" type="email" autocomplete="email" placeholder="tenban@gmail.com"></label>
+      <button id="sendTest" class="button secondary" type="button">Gửi 1 email thử</button>
+      <p id="testStatus" class="schedule-status">Chưa gửi thử. Danh sách thật đang được khóa.</p>
+    </section>
+
+    <section class="card">
+      <div class="step"><span>3</span><strong>Gửi thật hoặc đặt lịch</strong></div>
+      <button id="sendNow" class="button primary" type="button">Gửi các email đang chờ</button>
+      <div class="row" style="margin-top:9px">
+        <label><span>Giờ gửi mỗi ngày</span><select id="scheduleHour"></select></label>
+        <button id="enableSchedule" class="button secondary" style="width:auto;white-space:nowrap" type="button">Bật lịch</button>
+      </div>
+      <button id="disableSchedule" class="button danger" type="button">Tạm dừng lịch gửi</button>
+      <p id="scheduleStatus" class="schedule-status">Chưa bật lịch gửi tự động.</p>
+      <p class="privacy">Lịch chạy trong tài khoản Google của bạn. Dòng <strong>SENT</strong> không được gửi lại; dòng bị gián đoạn ở <strong>SENDING</strong> cần kiểm tra thủ công.</p>
+    </section>
+
+    <footer id="status" class="status" role="status" aria-live="polite">Đang đọc trạng thái…</footer>
+
+    <div id="confirmModal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <h2 id="confirmTitle">Xác nhận</h2>
+        <p id="confirmMessage"></p>
+        <div class="modal-actions">
+          <button id="cancelConfirm" class="button secondary" type="button">Quay lại</button>
+          <button id="acceptConfirm" class="button primary" type="button">Tiếp tục</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var state = null;
+      var pendingAction = null;
+      var elements = {};
+
+      document.addEventListener("DOMContentLoaded", function () {
+        ["dataFile", "fileName", "readyCount", "sentCount", "errorCount", "testEmail", "sendTest", "testStatus", "sendNow", "scheduleHour", "enableSchedule", "disableSchedule", "scheduleStatus", "status", "confirmModal", "confirmTitle", "confirmMessage", "cancelConfirm", "acceptConfirm"].forEach(function (id) {
+          elements[id] = document.getElementById(id);
+        });
+        for (var hour = 0; hour < 24; hour += 1) {
+          var option = document.createElement("option");
+          option.value = String(hour);
+          option.textContent = (hour < 10 ? "0" : "") + hour + ":00";
+          if (hour === 8) option.selected = true;
+          elements.scheduleHour.appendChild(option);
+        }
+
+        elements.dataFile.addEventListener("change", importSelectedFile);
+        elements.sendTest.addEventListener("click", sendTest);
+        elements.sendNow.addEventListener("click", function () {
+          openConfirm(
+            "Gửi email thật?",
+            "Sẽ gửi tối đa 90 dòng READY bằng Gmail của bạn. Dòng gửi thành công chuyển thành SENT và không tự gửi lại.",
+            function () { callServer("sendPendingNow"); }
+          );
+        });
+        elements.enableSchedule.addEventListener("click", function () {
+          var label = elements.scheduleHour.options[elements.scheduleHour.selectedIndex].textContent;
+          openConfirm(
+            "Bật lịch gửi tự động?",
+            "Mỗi ngày khoảng " + label + ", Google sẽ gửi các dòng READY trong quota còn lại cho đến khi hoàn tất.",
+            function () { callServer("enableDailySchedule", Number(elements.scheduleHour.value)); }
+          );
+        });
+        elements.disableSchedule.addEventListener("click", function () { callServer("disableDailySchedule"); });
+        elements.cancelConfirm.addEventListener("click", closeConfirm);
+        elements.acceptConfirm.addEventListener("click", function () {
+          var action = pendingAction;
+          closeConfirm();
+          if (action) action();
+        });
+        refresh();
+      });
+
+      function refresh() {
+        setBusy(true, "Đang đọc trạng thái…");
+        google.script.run
+          .withSuccessHandler(applyState)
+          .withFailureHandler(handleFailure)
+          .getSidebarState();
+      }
+
+      function importSelectedFile() {
+        var file = elements.dataFile.files[0];
+        if (!file) return;
+        elements.fileName.textContent = file.name;
+        if (file.size > 30 * 1024 * 1024) {
+          handleFailure({ message: "File lớn hơn 30 MB. Hãy giảm số dòng rồi export lại." });
+          return;
+        }
+        setBusy(true, "Đang đọc và nhập file…");
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var payload = JSON.parse(reader.result);
+            google.script.run
+              .withSuccessHandler(function (nextState) {
+                elements.dataFile.value = "";
+                applyState(nextState);
+              })
+              .withFailureHandler(handleFailure)
+              .importDataset(payload);
+          } catch (error) {
+            handleFailure({ message: "Không đọc được JSON: " + error.message });
+          }
+        };
+        reader.onerror = function () { handleFailure({ message: "Không đọc được file đã chọn." }); };
+        reader.readAsText(file);
+      }
+
+      function sendTest() {
+        var email = elements.testEmail.value.trim();
+        if (!email) {
+          handleFailure({ message: "Hãy nhập email của bạn để nhận bản thử." });
+          return;
+        }
+        callServer("sendTestEmail", email);
+      }
+
+      function callServer(method, argument) {
+        setBusy(true, "Đang xử lý… Không đóng sidebar.");
+        var runner = google.script.run.withSuccessHandler(applyState).withFailureHandler(handleFailure);
+        if (argument === undefined) runner[method]();
+        else runner[method](argument);
+      }
+
+      function applyState(nextState) {
+        state = nextState;
+        elements.readyCount.textContent = String(state.counts.ready || 0);
+        elements.sentCount.textContent = String(state.counts.sent || 0);
+        elements.errorCount.textContent = String((state.counts.errors || 0) + (state.counts.sending || 0));
+        if (state.testRecipient && !elements.testEmail.value) elements.testEmail.value = state.testRecipient;
+        elements.testStatus.textContent = state.testSent
+          ? "Đã gửi thử tới " + state.testRecipient + ". Hãy kiểm tra inbox trước khi gửi thật."
+          : "Chưa gửi thử. Danh sách thật đang được khóa.";
+        elements.scheduleHour.value = String(state.scheduleHour === undefined ? 8 : state.scheduleHour);
+        elements.scheduleStatus.textContent = state.scheduleActive
+          ? "Đang bật: " + state.scheduleLabel + (state.lastScheduleResult ? " · " + state.lastScheduleResult : "")
+          : (state.lastScheduleError ? "Đã dừng · Lỗi gần nhất: " + state.lastScheduleError : "Chưa bật lịch gửi tự động.");
+        setBusy(false, state.message || (state.hasData
+          ? "Quota còn lại: " + state.quota + " · Tổng " + state.counts.total + " dòng."
+          : "Chọn file DEKISUGI_GMAIL_DATA.json để bắt đầu."), "success");
+      }
+
+      function handleFailure(error) {
+        var message = error && error.message ? error.message : String(error || "Không thể thực hiện.");
+        setBusy(false, message, "error");
+      }
+
+      function setBusy(busy, message, type) {
+        [elements.dataFile, elements.sendTest, elements.sendNow, elements.scheduleHour, elements.enableSchedule, elements.disableSchedule].forEach(function (control) {
+          if (control) control.disabled = busy;
+        });
+        if (!busy && state) {
+          elements.dataFile.disabled = false;
+          elements.scheduleHour.disabled = false;
+          elements.sendTest.disabled = !state.hasData || state.counts.ready < 1;
+          elements.sendNow.disabled = !state.testSent || state.counts.ready < 1;
+          elements.enableSchedule.disabled = !state.testSent || state.counts.ready < 1 || state.scheduleActive;
+          elements.disableSchedule.disabled = !state.scheduleActive;
+        } else if (!busy) {
+          elements.dataFile.disabled = false;
+          elements.scheduleHour.disabled = false;
+          elements.sendTest.disabled = true;
+          elements.sendNow.disabled = true;
+          elements.enableSchedule.disabled = true;
+          elements.disableSchedule.disabled = true;
+        }
+        elements.status.className = "status" + (type ? " " + type : "");
+        elements.status.innerHTML = busy ? '<span class="spinner"></span>' + escapeHtml(message) : escapeHtml(message);
+      }
+
+      function openConfirm(title, message, action) {
+        pendingAction = action;
+        elements.confirmTitle.textContent = title;
+        elements.confirmMessage.textContent = message;
+        elements.confirmModal.hidden = false;
+        elements.cancelConfirm.focus();
+      }
+
+      function closeConfirm() {
+        elements.confirmModal.hidden = true;
+        pendingAction = null;
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+    </script>
+  </body>
+</html>

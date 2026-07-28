@@ -1,6 +1,10 @@
 # DEKISUGI Initiative State
 
-Last updated: 2026-07-24
+Last updated: 2026-07-27
+
+## Product Direction
+
+`qr-tool/` is now the official DEKISUGI application and the default target for all new product work. The former Go Finance Hub, Web Admin, database, tenant/subscription, sender, cron, and landing flows are obsolete and planned for complete removal. Historical completion records remain below for reference only; they do not authorize extending the legacy architecture.
 
 ## Current Status
 
@@ -8,27 +12,34 @@ Production roadmap implementation has student, parent, class master data, fee sc
 
 Advanced Production work in the current roadmap is complete. Subscription conversion has tenant foundation, tenant-aware auth/RBAC, backend data isolation, tenant onboarding/switching, subscription hardening, tenant billing lifecycle enforcement, tenant entitlement/metering, subscription billing operations, subscription finance controls, cross-tenant finance operations, and subscription background automation complete.
 
-The standalone `qr-tool/` direction is also complete as a separate frontend-only surface. It imports user-owned Excel/CSV files, maps arbitrary columns into payment fields, generates VietQR PNG files, previews user-authored email templates, and exports QR/email bundles without API calls, authentication, persistence, credentials, or real email delivery. Existing Go/Web Admin/production work remains intact and is not required by the utility.
+The official `qr-tool/` frontend imports user-owned Excel/CSV files, maps arbitrary columns into payment fields, generates VietQR PNG files, previews user-authored email templates, and exports QR/email bundles without API calls, authentication, persistence, credentials, or real email delivery.
 
-Current phase: `standalone_qr_export_utility_complete`
+Current phase: `qr_tool_official_product`
 
-Current initiative: The frontend-only QR export utility is complete. It preserves the existing VietQR TLV/CRC and payment-item amount contract, supports in-browser XLSX/XLS/CSV mapping, creates PNG/manifest/error ZIP output, and adds sanitized custom email templates with rich copy, per-recipient EML, Gmail Mail Merge workbook, and portable provider CSV/JSONL exports. It never sends email.
+Current initiative: The official frontend-only QR Tool is complete. It preserves the VietQR TLV/CRC and payment-item amount contract, supports in-browser XLSX/XLS/CSV mapping, creates PNG/manifest/error ZIP output, and adds sanitized custom email templates with rich copy, per-recipient EML, a one-file Gmail data export for a copied user-owned Google Sheet/sidebar, the existing manual Apps Script ZIP fallback, and portable provider CSV/JSONL exports. The app itself never sends email. The top bar also includes an optional local VietQR coffee-support dialog with an exact tested VPBank recipient and a 30,000 VND default.
 
-Next recommended initiative: Run user acceptance with one or more real customer spreadsheets, then deploy `qr-tool/dist/` to the selected static hosting surface. Keep the authenticated Finance Hub QA pass as a separate legacy/production follow-up if that product surface resumes.
+Next recommended initiative: Publish one clean Google Sheet template from `qr-tool/google-sheet-template/`, configure its `/copy` URL through `VITE_GMAIL_SHEET_TEMPLATE_URL`, then run user acceptance with one or more real customer spreadsheets before deploying `qr-tool/dist/`. Do not resume Finance Hub work unless the user explicitly changes the product direction.
 
 Roadmap source: `docs/initiatives/production-module-roadmap.md` for completed production modules; Advanced Production roadmap is currently recorded in this file.
 
 ## Completed
 
-- Standalone QR Export Utility is complete:
+- Official QR Tool is complete:
   - Added the isolated `qr-tool/` Vite application without changing or deleting the existing Go API, Web Admin, migrations, email sender, or cron implementation.
   - Added local XLSX/XLS/CSV parsing, Vietnamese/English alias suggestions, grouped field mapping for student/school/parent/payment/fee metadata, repeatable custom fee columns, and default bank/account values.
   - Ported the VietQR TLV, CRC-16/CCITT-FALSE, ANS normalization, validation, default bill number, and payment-item total rules to browser JavaScript with exact Go fixtures.
   - Added client-side QR PNG generation and ZIP exports containing manifest/error CSV files without silently dropping invalid rows.
   - Added a sanitized email template editor with merge fields, per-row preview, rich clipboard, QR clipboard/download, template JSON import/export, and EML draft output with inline CID QR.
-  - Added Gmail Mail Merge XLSX output plus portable email CSV/JSONL/HTML/text/EML/QR bundle output; the UI documents Gmail's per-recipient attachment limitation.
+  - Replaced the default Gmail Mail Merge path with a self-contained free-Gmail bundle: workbook, user-owned Apps Script, and offline instructions. It supports per-recipient inline QR, send-test, manual confirmation, 90-recipient safety cap, quota reserve, status/error tracking, and skip-on-`SENT` behavior without a backend or stored credentials.
+  - Expanded the Gmail-free onboarding for non-technical users across the web dialog, workbook guide sheet, and offline HTML: exact `setup`/`Run` controls, first-run authorization screens, expected execution result, troubleshooting, test-send verification, and final-send confirmation.
+  - Added the simpler Gmail path: export one versioned `DEKISUGI_GMAIL_DATA.json`, open a configured Google Sheet `/copy` template, and import through a guided sidebar without asking end users to paste Apps Script.
+  - Reworked Gmail onboarding for non-technical users into explicit available states: the configured Sheet path unlocks step 2 only after the data file is downloaded and shows every follow-up action in Google Sheets; builds without a Sheet URL hide the disabled path entirely and present one working ZIP action with a plain-language preview of what happens next.
+  - Added an opt-in user-owned Apps Script scheduler with send-test gating, custom confirmation UI, daily quota reserve, document locking, `READY`/`SENDING`/`SENT`/`ERROR` handling, automatic completion shutdown, and no `UrlFetchApp` or DEKISUGI backend call.
+  - Added publisher source and setup documentation under `qr-tool/google-sheet-template/`; the static build disables the open-template button until a valid `/copy` URL is configured, while retaining the complete manual ZIP workflow.
+  - Kept portable email CSV/JSONL/HTML/text/EML/QR bundle output as an advanced provider export, without legacy Gmail Mail Merge artifacts in the default bundle.
   - Added a strict privacy posture: no API calls, no credentials, no email send path, no cookies/local storage/IndexedDB/service worker state, and no runtime CDN assets.
-  - Added 19 frontend regression tests, clean dependency audit, production static build validation, Go regression validation, and browser verification with payment workbook fixtures.
+  - Added a top-bar coffee-support action with local VietQR generation for VPBank, 20,000/30,000/50,000 VND choices, a no-fixed-amount option, and an exact payload regression fixture.
+  - Added 26 frontend regression tests, clean dependency audit, and production static build validation.
 
 - Production module analysis was captured in `docs/initiatives/production-module-roadmap.md`.
 - The roadmap is split into independent initiatives:

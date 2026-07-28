@@ -1,10 +1,10 @@
-# DEKISUGI QR Export Utility
+# DEKISUGI QR Tool
 
 ## Purpose
 
-`qr-tool/` is a standalone static web utility for turning user-owned spreadsheet rows into VietQR PNG files and email drafts. It deliberately does not become a source of truth: the browser session owns all imported rows, mappings, QR images, templates, and generated exports.
+`qr-tool/` is the official DEKISUGI product. It is a standalone static web app for turning user-owned spreadsheet rows into VietQR PNG files and email drafts. It deliberately does not become a source of truth: the browser session owns all imported rows, mappings, QR images, templates, and generated exports.
 
-The existing Go API, Web Admin, PostgreSQL migrations, tenant/subscription modules, email sender, and cron scheduler remain unchanged and are not required to run this utility.
+The former Go Finance Hub—including its API, Web Admin, PostgreSQL migrations, tenant/subscription modules, email sender, and cron scheduler—is obsolete and planned for complete removal. New product work defaults to `qr-tool/`; the legacy stack is not required to run the official app and must not be extended unless explicitly requested.
 
 ## Runtime And Privacy Contract
 
@@ -25,7 +25,8 @@ The existing Go API, Web Admin, PostgreSQL migrations, tenant/subscription modul
 5. Generate and review rows. Errors remain visible and are never silently dropped.
 6. Export valid QR images with a manifest and a separate error report.
 7. Select a row to preview a custom email template, copy content/QR, or download an unsent EML draft.
-8. Export a Gmail Mail Merge workbook or a portable provider/email bundle.
+8. Prefer exporting one versioned Gmail JSON data file and importing it into a copied, user-owned Google Sheet template; keep the manual Gmail Free ZIP and portable provider/email bundle as fallbacks.
+9. Optionally open the coffee-support dialog and generate a local VietQR for VPBank without sending app or payment data to a DEKISUGI backend.
 
 ## Supported Payment Fields
 
@@ -74,9 +75,23 @@ Generated output never sends email:
 - Rich clipboard payload contains `text/html` and `text/plain`; QR can also be copied independently.
 - EML output uses `X-Unsent: 1`, multipart alternative text/HTML, and a matching inline QR Content-ID.
 - Provider bundle includes EML, HTML, text, QR, CSV, JSONL, manifest, template, and human-readable instructions.
-- Gmail bundle places text-only recipient fields in the first worksheet and converts supported body placeholders into Gmail merge tags.
+- The recommended Gmail path exports `DEKISUGI_GMAIL_DATA_YYYY-MM-DD.json` with schema kind `dekisugi.gmail-data`, version `1`, pre-rendered email bodies, per-row QR Base64, status, and validation errors. The static utility does not upload this file.
+- After one-time setup, the browser may persist only the normalized personal Google Sheet `/edit` URL. No payment row, recipient, QR, email body, template, or Google credential is persisted. Disconnecting removes this URL without deleting the user's Sheet.
+- A separately published Google Sheet template owns `Code.gs`, `Sidebar.html`, and an explicit Apps Script manifest. The user clicks the configured `/copy` URL, becomes owner of the copy, and selects the JSON file in the sidebar.
+- The sidebar uses a custom confirmation surface, requires a successful self-addressed test before real sending or scheduling, caps each run at 90 recipients, preserves ten recipients of reported quota, locks concurrent batches, and never automatically retries a row left at `SENDING`.
+- Daily scheduling is opt-in. Its time trigger runs in the user's copied Sheet and Google account, processes only `READY` rows, skips `SENT`, and deletes itself after no pending rows remain.
+- Importing a new dataset removes an existing schedule, clears test approval, validates the schema/row/cell limits, and neutralizes leading spreadsheet-formula characters before writing cells.
+- Gmail Free bundle contains exactly three files: `01_DANH_SACH_GUI.xlsx`, `02_CODE_GUI_EMAIL.gs`, and `BAT_DAU_TU_DAY.html`. Its script exposes `0. Nhập dữ liệu mới`, validates the versioned JSON, neutralizes formula-leading values, replaces the current `EMAILS` dataset, and retains the installed code and Google authorization for future collection periods.
+- Its workbook contains a visible guide sheet plus one `EMAILS` row per imported record, with pre-rendered subject, HTML/text body, per-recipient QR Base64, send flag, status, sent time, and error details.
+- The Apps Script runs only in the user's own Google Sheet and Gmail account. It uses `MailApp`, embeds each QR through a matching inline Content-ID, requires a manual confirmation before real sending, and never asks for a Gmail password or App Password.
+- The popup, workbook guide sheet, and offline HTML all use a non-technical five-stage walkthrough. They name the exact Apps Script function selector, `Run`, `Review permissions`, optional unverified-app path, consent buttons, expected `Execution completed` result, Sheet reload/menu, self-addressed test send, and final-send confirmation.
+- The offline instructions explicitly convert the exported `.xlsx` to native Google Sheets before opening Apps Script, explain popup/admin-policy failure cases, and keep technical body/QR columns hidden after setup. `setup()` reports through the execution log and a non-blocking Sheet toast instead of leaving a blocking dialog in another tab.
+- The script sends at most 90 recipients per manual batch/day, preserves ten recipients of reported quota, marks rows `READY`, `SENDING`, `SENT`, `ERROR`, or `SKIP`, and does not automatically resend `SENT` rows.
+- The legacy ZIP script creates no time trigger. The copied-template script only creates a time trigger after an explicit sidebar confirmation. Neither script makes an external `UrlFetchApp` request. The static utility still has no backend, credentials, Google authorization, or real email-send path of its own.
 
-Gmail Mail Merge cannot personalize the subject or attach a different local QR to every recipient. When a template contains `qr_image`, the Gmail-specific body replaces it with an explicit compatibility warning. EML/provider exports preserve the per-recipient QR.
+`VITE_GMAIL_SHEET_TEMPLATE_URL` is compiled into the static build and must be an HTTPS `docs.google.com/spreadsheets/d/.../copy` URL. When it is absent or invalid, the first-use action downloads the reusable manual Gmail ZIP. When it is present, the first-use action opens the published template. After either setup path, the user connects their personal Sheet URL and the monthly flow always opens that saved Sheet. The one-time publisher workflow is documented in `qr-tool/google-sheet-template/SETUP.md`; the repository does not create or mutate an external Google Drive file.
+
+Native Gmail Mail Merge is intentionally not exposed because it is unavailable to most free Gmail accounts and cannot attach a different local QR to every recipient. The provider export remains available for advanced users who need EML/CSV/JSONL integration instead.
 
 ## Security And Failure Behavior
 

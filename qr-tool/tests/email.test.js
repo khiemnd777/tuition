@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,6 +27,13 @@ const item = {
 };
 
 describe("email template export", () => {
+  it("keeps srcdoc preview same-origin without allowing scripts", () => {
+    const indexHTML = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const sandbox = indexHTML.match(/id="emailPreviewFrame"[^>]*sandbox="([^"]*)"/)?.[1].split(/\s+/).filter(Boolean) || [];
+    expect(sandbox).toContain("allow-same-origin");
+    expect(sandbox).not.toContain("allow-scripts");
+  });
+
   it("renders escaped merge fields and trusted payment blocks", () => {
     const rendered = renderEmailTemplate(DEFAULT_EMAIL_TEMPLATE, {
       ...item,

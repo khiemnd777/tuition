@@ -14,26 +14,26 @@
           <span class="brand-mark" aria-hidden="true">QR</span>
           <span><strong>DEKISUGI</strong><small>QR Export</small></span>
         </a>
-        <div class="privacy-badge" title="Ứng dụng không gửi file hoặc dữ liệu thanh toán lên server">
-          <span class="privacy-dot" aria-hidden="true"></span>
-          Xử lý cục bộ trên thiết bị
+        <div class="topbar-actions">
+          <button id="coffeeButton" class="button coffee compact" type="button"><span aria-hidden="true">☕</span><span>Khao tôi ly cà phê</span></button>
+          <button id="resetButton" class="button ghost compact" type="button">Làm mới</button>
         </div>
-        <button id="resetButton" class="button ghost compact" type="button">Làm mới</button>
       </div>
     </header>
 
     <main id="top" class="page-shell">
       <section class="intro-panel" aria-labelledby="pageTitle">
         <div>
-          <p class="eyebrow">UTILITY TOOL · KHÔNG BACKEND</p>
+          <p class="eyebrow">QR TOOL</p>
           <h1 id="pageTitle">Xuất mã QR thanh toán</h1>
           <p>Import bảng tính, map field, kiểm tra và tải hàng loạt VietQR hoặc email nháp. Reload trang sẽ xoá toàn bộ dữ liệu phiên.</p>
         </div>
         <ol class="stepper" aria-label="Các bước sử dụng">
           <li class="active" data-step="1"><span>1</span><b>Chọn file</b></li>
-          <li data-step="2"><span>2</span><b>Map dữ liệu</b></li>
-          <li data-step="3"><span>3</span><b>Kiểm tra QR</b></li>
-          <li data-step="4"><span>4</span><b>Tạo email</b></li>
+          <li data-step="2"><span>2</span><b>Tài khoản nhận</b></li>
+          <li data-step="3"><span>3</span><b>Map dữ liệu</b></li>
+          <li data-step="4"><span>4</span><b>Kiểm tra QR</b></li>
+          <li data-step="5"><span>5</span><b>Tạo email</b></li>
         </ol>
       </section>
 
@@ -59,26 +59,66 @@
         </div>
       </section>
 
+      <section id="recipientSection" class="panel recipient-panel" aria-labelledby="recipientTitle" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-index">02 · TÀI KHOẢN NHẬN TIỀN</p>
+            <h2 id="recipientTitle">Tiền sẽ chuyển về đâu?</h2>
+          </div>
+          <span id="recipientStatus" class="status-pill neutral">Chưa xác nhận</span>
+        </div>
+
+        <fieldset class="recipient-mode-options">
+          <legend>Chọn cách lấy tài khoản nhận tiền</legend>
+          <label class="recipient-mode-card">
+            <input type="radio" name="recipientMode" value="shared" checked />
+            <span><strong>Một tài khoản cho toàn bộ mã QR</strong><small>Khuyên dùng · dễ kiểm tra và tránh lấy nhầm tài khoản trong Excel.</small></span>
+          </label>
+          <label class="recipient-mode-card">
+            <input type="radio" name="recipientMode" value="per_row" />
+            <span><strong>Mỗi dòng Excel có tài khoản riêng</strong><small>Nâng cao · chỉ dùng khi từng payment row thực sự chuyển tới tài khoản khác nhau.</small></span>
+          </label>
+        </fieldset>
+
+        <div id="recipientSharedFields" class="recipient-fields">
+          <label>
+            <span>Ngân hàng nhận tiền *</span>
+            <select id="recipientBank"><option value="">Chọn ngân hàng</option></select>
+            <small>Chọn đúng ngân hàng sở hữu tài khoản nhận tiền.</small>
+          </label>
+          <label>
+            <span>Số tài khoản nhận tiền *</span>
+            <input id="recipientAccount" type="text" maxlength="19" inputmode="text" autocomplete="off" placeholder="Ví dụ: 0011001932418" />
+            <small>Chỉ chữ và số, tối đa 19 ký tự. Giữ nguyên số 0 ở đầu.</small>
+          </label>
+          <label>
+            <span>Tên chủ tài khoản</span>
+            <input id="recipientAccountName" type="text" maxlength="120" autocomplete="off" placeholder="Ví dụ: TRƯỜNG DEKISUGI" />
+            <small>Chỉ dùng để bạn đối chiếu; tên này không được mã hoá vào VietQR.</small>
+          </label>
+        </div>
+
+        <div id="recipientPerRowHelp" class="recipient-per-row-help" hidden>
+          <strong>Ở bước tiếp theo, bạn phải map đủ hai field:</strong>
+          <span><code>BIN ngân hàng</code> và <code>Số tài khoản</code>.</span>
+          <p>Tool sẽ không dùng tài khoản chung làm dự phòng. Dòng thiếu hoặc sai tài khoản sẽ bị báo lỗi.</p>
+        </div>
+
+        <div id="recipientSetupSummary" class="recipient-setup-summary" hidden></div>
+
+        <div class="panel-footer recipient-footer">
+          <p id="recipientSetupHint">Ứng dụng không thể xác minh tên chủ tài khoản với ngân hàng. Hãy quét thử một QR và kiểm tra tên người nhận trước khi gửi hàng loạt.</p>
+          <button id="confirmRecipientSetup" class="button primary" type="button">Kiểm tra và tiếp tục</button>
+        </div>
+      </section>
+
       <section id="mappingSection" class="panel" aria-labelledby="mappingTitle" hidden>
         <div class="panel-heading">
           <div>
-            <p class="section-index">02 · FIELD MAPPING</p>
+            <p class="section-index">03 · FIELD MAPPING</p>
             <h2 id="mappingTitle">Map cột vào field hệ thống</h2>
           </div>
           <span id="mappingSummary" class="status-pill neutral">0 cột</span>
-        </div>
-
-        <div class="defaults-grid">
-          <label>
-            <span>Ngân hàng dùng chung</span>
-            <select id="defaultBank"><option value="">Không đặt mặc định</option></select>
-            <small>Dùng khi dòng không có BIN đã map.</small>
-          </label>
-          <label>
-            <span>Số tài khoản dùng chung</span>
-            <input id="defaultAccount" type="text" maxlength="19" autocomplete="off" placeholder="Ví dụ: 0011001932418" />
-            <small>Chỉ giữ chữ và số, tối đa 19 ký tự.</small>
-          </label>
         </div>
 
         <div class="table-scroll mapping-table-wrap">
@@ -96,7 +136,7 @@
       <section id="resultsSection" class="panel" aria-labelledby="resultsTitle" hidden>
         <div class="panel-heading">
           <div>
-            <p class="section-index">03 · REVIEW & EXPORT</p>
+            <p class="section-index">04 · REVIEW & EXPORT</p>
             <h2 id="resultsTitle">Kiểm tra kết quả</h2>
           </div>
           <div class="summary-pills">
@@ -105,6 +145,15 @@
             <span id="errorCount" class="status-pill danger">0 lỗi</span>
           </div>
         </div>
+
+        <section id="recipientExportGate" class="recipient-export-gate" aria-labelledby="recipientExportTitle">
+          <div class="recipient-export-copy">
+            <strong id="recipientExportTitle">Xác nhận tài khoản trước khi xuất</strong>
+            <p id="recipientExportSummary">Kiểm tra nơi nhận tiền của các mã QR vừa tạo.</p>
+            <ul id="recipientExportAccounts"></ul>
+          </div>
+          <button id="confirmRecipientExport" class="button primary" type="button">Tôi đã kiểm tra, cho phép xuất</button>
+        </section>
 
         <div class="result-layout">
           <div class="result-list">
@@ -128,6 +177,7 @@
               <dl class="detail-list">
                 <div><dt>Ngân hàng</dt><dd id="previewBank"></dd></div>
                 <div><dt>Tài khoản</dt><dd id="previewAccount"></dd></div>
+                <div id="previewAccountNameRow" hidden><dt>Chủ tài khoản</dt><dd id="previewAccountName"></dd></div>
                 <div><dt>Số tiền</dt><dd id="previewAmount"></dd></div>
                 <div><dt>Nội dung</dt><dd id="previewNote"></dd></div>
               </dl>
@@ -146,7 +196,7 @@
       <section id="emailSection" class="panel" aria-labelledby="emailTitle" hidden>
         <div class="panel-heading">
           <div>
-            <p class="section-index">04 · EMAIL TEMPLATE</p>
+            <p class="section-index">05 · EMAIL TEMPLATE</p>
             <h2 id="emailTitle">Soạn email để copy hoặc export</h2>
           </div>
           <span class="status-pill neutral">Không gửi email</span>
@@ -183,12 +233,112 @@
 
           <div class="email-preview-column">
             <div class="preview-toolbar"><strong>Preview</strong><span id="emailPreviewRecipient">Chưa chọn recipient</span></div>
-            <iframe id="emailPreviewFrame" title="Xem trước email" sandbox=""></iframe>
+            <iframe id="emailPreviewFrame" title="Xem trước email" sandbox="allow-same-origin"></iframe>
           </div>
         </div>
 
-        <div class="compatibility-note">
-          <strong>Gmail Mail Merge:</strong> workbook chỉ chứa dữ liệu text. Gmail không hỗ trợ QR/attachment khác nhau theo từng người nhận; dùng email bulk ZIP với các file <code>.eml</code> khi cần QR riêng.
+        <div class="gmail-free-card">
+          <div class="gmail-free-copy">
+            <div class="gmail-free-heading">
+              <strong>Gửi email bằng Gmail</strong>
+              <span>Dành cho tài khoản Gmail thông thường</span>
+            </div>
+            <p>Mỗi phụ huynh sẽ nhận nội dung và QR riêng. Chưa có email nào được gửi cho tới khi chính bạn gửi thử và xác nhận gửi thật.</p>
+          </div>
+
+          <div id="gmailFirstUseFlow" class="gmail-available-now" hidden>
+            <strong id="gmailSetupTitle">Thiết lập Gmail một lần</strong>
+            <p id="gmailSetupDescription">Tạo một Google Sheet gửi Gmail của riêng bạn. Sau lần này, các tháng sau bạn không phải dán code hoặc chạy setup lại.</p>
+            <div class="gmail-first-use-actions">
+              <button id="createGmailSheet" class="button primary" type="button">Tải bộ cài Gmail lần đầu</button>
+              <button id="connectGmailSheet" class="button secondary" type="button">Tôi đã có Sheet Gmail</button>
+            </div>
+            <ol class="gmail-fallback-preview">
+              <li>Tạo Sheet và cấp quyền đúng một lần theo hướng dẫn.</li>
+              <li>Quay lại đây, bấm <strong>Tôi đã có Sheet Gmail</strong>.</li>
+              <li>Dán link Sheet của bạn để website ghi nhớ trên trình duyệt này.</li>
+            </ol>
+            <p class="gmail-one-time-note"><strong>Tháng sau:</strong> bạn chỉ tải file dữ liệu mới rồi mở lại chính Sheet này.</p>
+            <details class="gmail-manual-fallback">
+              <summary>Bạn đã cài Sheet bằng bộ cũ trước hôm nay?</summary>
+              <p>Chỉ nâng cấp code một lần để Sheet cũ có thêm mục <strong>0. Nhập dữ liệu mới</strong>.</p>
+              <ol class="gmail-upgrade-steps">
+                <li>Tải code mới bằng nút dưới đây.</li>
+                <li>Trong Sheet cũ, chọn <strong>Extensions → Apps Script</strong>.</li>
+                <li>Thay toàn bộ nội dung <code>Code.gs</code> bằng file mới và bấm <strong>Save</strong>.</li>
+                <li>Quay lại Sheet, reload trang và kiểm tra menu <strong>DEKISUGI Email</strong>.</li>
+              </ol>
+              <button id="downloadGmailUpgrade" class="button secondary" type="button">Tải code nâng cấp Sheet cũ</button>
+            </details>
+          </div>
+
+          <div id="gmailReturningFlow" class="gmail-guided-flow" hidden>
+            <div class="gmail-connected-status">
+              <span aria-hidden="true">✓</span>
+              <div><strong>Đã kết nối Sheet Gmail</strong><small>Không cần chạy setup hoặc cấp quyền lại trên Sheet này.</small></div>
+            </div>
+            <p class="gmail-start-here"><strong>Mỗi đợt thu mới:</strong> làm bước 1 rồi bước 2.</p>
+
+            <div class="gmail-action-steps" aria-label="Hai bước gửi Gmail cho đợt thu mới">
+              <section id="gmailStep1" class="gmail-action-step is-current">
+                <span class="gmail-step-number">1</span>
+                <div class="gmail-step-copy">
+                  <strong>Tải dữ liệu đợt này</strong>
+                  <small>File JSON chứa người nhận, nội dung và QR mới.</small>
+                  <p id="gmailDownloadedState" class="gmail-downloaded-state" hidden></p>
+                </div>
+                <button id="exportGmailData" class="button primary" type="button">Tải dữ liệu tháng này</button>
+              </section>
+
+              <section id="gmailStep2" class="gmail-action-step is-pending">
+                <span class="gmail-step-number">2</span>
+                <div class="gmail-step-copy">
+                  <strong>Mở Sheet Gmail của tôi</strong>
+                  <small>Mở lại đúng Sheet đã thiết lập lần đầu.</small>
+                </div>
+                <button id="openGmailSheet" class="button primary" type="button">Mở Sheet Gmail của tôi</button>
+              </section>
+            </div>
+
+            <section class="gmail-next-guide" aria-labelledby="gmailNextGuideTitle">
+              <h3 id="gmailNextGuideTitle">Trong Google Sheet, làm tiếp như sau</h3>
+              <ol>
+                <li>Chọn <strong>DEKISUGI Email → 0. Nhập dữ liệu mới</strong>.</li>
+                <li>Bấm <strong>Chọn file JSON</strong> và chọn file vừa tải ở bước 1.</li>
+                <li>Chờ thông báo đã nhập xong, rồi kiểm tra số dòng <strong>READY</strong> và <strong>ERROR</strong>.</li>
+                <li>Gửi thử vào email của chính bạn.</li>
+                <li>Chỉ gửi hàng loạt sau khi nội dung, số tiền và QR của email thử đều đúng.</li>
+              </ol>
+            </section>
+
+            <section class="gmail-upgrade-help" aria-labelledby="gmailUpgradeHelpTitle">
+              <div class="gmail-upgrade-help-copy">
+                <strong id="gmailUpgradeHelpTitle">Không thấy “0. Nhập dữ liệu mới” trong Sheet?</strong>
+                <p>Sheet của bạn đang dùng code cũ. Nâng cấp một lần; không cần ngắt kết nối, cấp quyền hay chạy <code>setup</code> lại.</p>
+              </div>
+              <div class="gmail-upgrade-help-actions">
+                <button id="downloadGmailUpgradeConnected" class="button primary" type="button">Tải code nâng cấp Sheet cũ</button>
+                <button id="toggleGmailUpgradeSteps" class="button secondary" type="button" aria-expanded="false" aria-controls="gmailUpgradeSteps">Xem hướng dẫn 4 bước</button>
+              </div>
+              <ol id="gmailUpgradeSteps" class="gmail-upgrade-steps gmail-upgrade-steps-panel" hidden>
+                <li>Trong Google Sheet, chọn <strong>Extensions → Apps Script</strong>.</li>
+                <li>Mở <code>Code.gs</code>, xoá toàn bộ code cũ rồi dán nội dung file vừa tải.</li>
+                <li>Bấm <strong>Save project</strong>. Không cần chạy lại <code>setup</code>.</li>
+                <li>Quay lại Sheet và reload trang. Menu <strong>DEKISUGI Email</strong> phải có mục <strong>0. Nhập dữ liệu mới</strong>.</li>
+              </ol>
+            </section>
+
+            <details class="gmail-manual-fallback">
+              <summary>Đổi Sheet, ngắt kết nối hoặc tải lại bộ cài</summary>
+              <div class="gmail-manage-actions">
+                <button id="changeGmailSheet" class="button secondary" type="button">Đổi Sheet Gmail</button>
+                <button id="disconnectGmailSheet" class="button secondary" type="button">Ngắt kết nối</button>
+                <button id="exportGmailFree" class="button secondary" type="button">Tải lại bộ cài Gmail</button>
+              </div>
+            </details>
+          </div>
+
+          <p class="gmail-sensitive-note"><strong>Lưu ý:</strong> file tải xuống chứa email người nhận và thông tin thanh toán. Không gửi hoặc chia sẻ file này cho phụ huynh hay người không phụ trách.</p>
         </div>
 
         <div class="email-actions">
@@ -197,13 +347,139 @@
           <button id="copyQR" class="button secondary" type="button">Copy QR</button>
           <button id="downloadEml" class="button secondary" type="button">Download .eml</button>
           <span class="action-spacer"></span>
-          <button id="exportGmail" class="button secondary" type="button">Gmail Mail Merge</button>
-          <button id="exportEmailBundle" class="button primary" type="button">Export email bulk ZIP</button>
+          <button id="exportEmailBundle" class="button secondary" type="button">Export nâng cao cho provider</button>
         </div>
       </section>
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <dialog id="gmailConnectDialog" class="app-dialog gmail-connect-dialog">
+      <form id="gmailConnectForm" method="dialog">
+        <p class="dialog-eyebrow">CHỈ LÀM MỘT LẦN</p>
+        <h2>Ghi nhớ Sheet Gmail của bạn</h2>
+        <ol class="connect-sheet-steps">
+          <li>Mở Google Sheet bạn vừa thiết lập.</li>
+          <li>Copy toàn bộ link trên thanh địa chỉ.</li>
+          <li>Quay lại đây và dán link vào ô dưới.</li>
+        </ol>
+        <label class="dialog-field"><span>Link Google Sheet của bạn</span><input id="gmailSheetURL" type="url" inputmode="url" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/.../edit" /></label>
+        <p id="gmailSheetURLError" class="field-error" role="alert" hidden></p>
+        <p class="dialog-note">Website chỉ ghi nhớ link Sheet trên trình duyệt này; không lưu dữ liệu học sinh hoặc nội dung thanh toán.</p>
+        <div class="dialog-actions"><button class="button secondary" value="cancel">Để sau</button><button id="saveGmailSheet" class="button primary" type="button">Lưu Sheet của tôi</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="coffeeDialog" class="app-dialog coffee-dialog">
+      <form method="dialog">
+        <p class="dialog-eyebrow">ỦNG HỘ TÁC GIẢ</p>
+        <h2>☕ Khao Khiêm ly cà phê</h2>
+        <p class="coffee-intro">Nếu QR Tool hữu ích với bạn, hãy chọn một mức và quét VietQR để khao Khiêm một ly cà phê.</p>
+
+        <div class="coffee-amount-options" aria-label="Chọn số tiền ủng hộ">
+          <button class="button coffee-amount-button" type="button" data-coffee-amount="20000" aria-pressed="false">20.000 ₫</button>
+          <button class="button coffee-amount-button" type="button" data-coffee-amount="30000" aria-pressed="true">30.000 ₫</button>
+          <button class="button coffee-amount-button" type="button" data-coffee-amount="50000" aria-pressed="false">50.000 ₫</button>
+          <button class="button coffee-amount-button" type="button" data-coffee-amount="0" aria-pressed="false">Tùy tâm</button>
+        </div>
+
+        <div class="coffee-qr-frame">
+          <img id="coffeeQR" alt="VietQR khao Khiêm ly cà phê" />
+        </div>
+        <strong id="coffeeAmountLabel" class="coffee-amount-label" aria-live="polite">30.000 ₫</strong>
+
+        <dl class="coffee-details">
+          <div><dt>Ngân hàng</dt><dd>VPBank</dd></div>
+          <div><dt>Chủ tài khoản</dt><dd>NGUYỄN DUY KHIÊM</dd></div>
+          <div><dt>Số tài khoản</dt><dd>0974322365</dd></div>
+          <div><dt>Nội dung</dt><dd>KHAO KHIEM CAFE</dd></div>
+        </dl>
+
+        <div class="dialog-actions"><button class="button secondary" value="close">Đóng</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="gmailGuideDialog" class="app-dialog gmail-guide-dialog">
+      <form method="dialog">
+        <p class="dialog-eyebrow">GMAIL MIỄN PHÍ</p>
+        <h2>Đã tạo bộ cài Gmail dùng lâu dài</h2>
+        <p class="guide-lead">Chưa có email nào được gửi. Bạn chỉ cần cài một lần; các đợt thu sau sẽ nhập file dữ liệu mới vào chính Sheet này.</p>
+
+        <section class="guide-phase">
+          <div class="guide-phase-title"><span>1</span><div><strong>Tạo bản Google Sheets</strong><small>Thực hiện trong Google Drive</small></div></div>
+          <ol class="guide-steps">
+            <li>Upload <code>01_DANH_SACH_GUI.xlsx</code> và nhấp đúp để mở bằng Google Sheets.</li>
+            <li>Trong thanh menu, chọn <strong>File → Save as Google Sheets</strong>.</li>
+            <li>Chuyển sang bản Google Sheets mới vừa được tạo. Không tiếp tục trên tab file Excel cũ.</li>
+          </ol>
+          <p class="guide-expected"><strong>Cần thấy:</strong> tên file không còn đuôi <code>.xlsx</code>.</p>
+        </section>
+
+        <section class="guide-phase">
+          <div class="guide-phase-title"><span>2</span><div><strong>Dán và lưu code</strong><small>Thực hiện trong Apps Script</small></div></div>
+          <ol class="guide-steps">
+            <li>Từ bản Google Sheets mới, chọn <strong>Extensions → Apps Script</strong>.</li>
+            <li>Trong file <code>Code.gs</code>, nhấn <strong>⌘A</strong> trên Mac hoặc <strong>Ctrl+A</strong> trên Windows, rồi xoá code mẫu.</li>
+            <li>Mở <code>02_CODE_GUI_EMAIL.gs</code>, copy toàn bộ và paste vào <code>Code.gs</code>.</li>
+            <li>Bấm biểu tượng <strong>Save project</strong> hình đĩa mềm. Chờ <strong>Saving project…</strong> đổi thành <strong>Saved to Drive</strong>.</li>
+          </ol>
+        </section>
+
+        <section class="guide-phase guide-phase-emphasis">
+          <div class="guide-phase-title"><span>3</span><div><strong>Chạy setup và cấp quyền lần đầu</strong><small>Đây là bước chỉ làm một lần</small></div></div>
+          <p class="guide-location">Trên thanh công cụ phía trên vùng code:</p>
+          <div class="guide-toolbar" aria-label="Minh hoạ thanh công cụ Apps Script"><span>💾 Save</span><span class="guide-run">▶ Run</span><span>Debug</span><span class="guide-function">onOpen ▼</span></div>
+          <ol class="guide-steps">
+            <li>Bấm danh sách đang hiện <code class="guide-code-onopen">onOpen</code>, rồi chọn hàm <code class="guide-code-setup">setup</code>.</li>
+            <li>Bấm nút <strong>▶ Run</strong> ở bên trái nút <strong>Debug</strong>.</li>
+            <li>Khi hộp <strong>Authorization required</strong> xuất hiện, bấm <strong>Review permissions</strong>.</li>
+            <li>Chọn đúng tài khoản Gmail bạn muốn dùng để gửi email.</li>
+            <li>Nếu thấy <strong>Google hasn’t verified this app</strong>, bấm <strong>Advanced</strong> → <strong>Go to &lt;tên project&gt; (unsafe)</strong>. Chỉ tiếp tục khi địa chỉ là <code>script.google.com</code> và code vẫn đúng file DEKISUGI vừa paste.</li>
+            <li>Kiểm tra quyền liên quan đến Sheet hiện tại và gửi email, rồi bấm <strong>Continue</strong> hoặc <strong>Allow</strong>.</li>
+            <li>Quay lại tab Apps Script và chờ bảng <strong>Execution log</strong> phía dưới hiện <strong>Execution completed</strong>.</li>
+          </ol>
+          <p class="guide-expected"><strong>Cần thấy:</strong> hàm đang chọn là <code class="guide-code-setup">setup</code> và lần chạy kết thúc bằng <strong>Execution completed</strong>.</p>
+        </section>
+
+        <section class="guide-phase">
+          <div class="guide-phase-title"><span>4</span><div><strong>Kiểm tra và kết nối Sheet</strong><small>Quay lại Google Sheets rồi trở lại QR Tool</small></div></div>
+          <ol class="guide-steps">
+            <li>Quay lại tab Google Sheets và reload trang.</li>
+            <li>Kiểm tra menu <strong>DEKISUGI Email</strong> có mục <strong>0. Nhập dữ liệu mới</strong>.</li>
+            <li>Copy toàn bộ link Google Sheet trên thanh địa chỉ.</li>
+            <li>Quay lại QR Tool, bấm <strong>Tôi đã có Sheet Gmail</strong> và dán link vừa copy.</li>
+            <li>Màn hình QR Tool phải đổi sang trạng thái <strong>Đã kết nối Sheet Gmail</strong>.</li>
+            <li>Trong Sheet, bấm <strong>DEKISUGI Email → 1. Kiểm tra danh sách</strong>.</li>
+            <li>Đọc số dòng <code>READY</code> và <code>ERROR</code>. Dòng lỗi sẽ không được gửi.</li>
+          </ol>
+        </section>
+
+        <section class="guide-phase">
+          <div class="guide-phase-title"><span>5</span><div><strong>Gửi thử trước, gửi thật sau</strong><small>Không gửi hàng loạt ngay lần đầu</small></div></div>
+          <ol class="guide-steps">
+            <li>Mở sheet <code>EMAILS</code> và bấm một ô trên dòng <code>READY</code>.</li>
+            <li>Chọn <strong>DEKISUGI Email → 2. Gửi thử dòng đang chọn</strong>.</li>
+            <li>Nhập email của chính bạn, bấm <strong>OK</strong>, rồi kiểm tra nội dung, QR, số tiền và học sinh.</li>
+            <li>Chỉ khi email thử đúng, chọn <strong>DEKISUGI Email → 3. Gửi email chưa gửi</strong> và đọc kỹ số lượng trước khi bấm <strong>YES</strong>.</li>
+          </ol>
+          <p class="guide-expected"><strong>Chống gửi trùng:</strong> dòng đã gửi chuyển thành <code>SENT</code> và không tự gửi lại.</p>
+        </section>
+
+        <section class="guide-phase guide-phase-emphasis">
+          <div class="guide-phase-title"><span>✓</span><div><strong>Đợt thu tiếp theo</strong><small>Không lặp lại bước cài đặt</small></div></div>
+          <ol class="guide-steps">
+            <li>Import Excel mới vào QR Tool và hoàn tất kiểm tra QR/email.</li>
+            <li>Bấm <strong>Tải dữ liệu tháng này</strong>, rồi bấm <strong>Mở Sheet Gmail của tôi</strong>.</li>
+            <li>Trong Sheet, chọn <strong>DEKISUGI Email → 0. Nhập dữ liệu mới</strong> và chọn file JSON vừa tải.</li>
+            <li>Danh sách mới sẽ thay danh sách cũ. Gửi thử trước rồi mới gửi hàng loạt.</li>
+          </ol>
+          <p class="guide-expected"><strong>Không làm lại:</strong> không dán code, không chạy <code class="guide-code-setup">setup</code> và không cấp quyền lại.</p>
+        </section>
+
+        <p class="dialog-note"><strong>Nếu bị kẹt:</strong> mở <code>BAT_DAU_TU_DAY.html</code> trong ZIP. File này có hướng dẫn đầy đủ cho trường hợp không thấy menu, popup bị chặn hoặc tài khoản bị Google/Workspace chặn.</p>
+        <div class="dialog-actions"><button class="button primary" value="close">Đã hiểu</button></div>
+      </form>
+    </dialog>
 
     <dialog id="resetDialog" class="app-dialog">
       <form method="dialog">

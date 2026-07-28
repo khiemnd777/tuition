@@ -2,26 +2,30 @@
 
 ## Project
 
-DEKISUGI QR Generating System is a small Go app for school payment workflows. It imports payment rows, generates VietQR payloads/PNG images, previews and sends payment emails, and can queue email batches through a local cron state file.
+DEKISUGI QR Tool in `qr-tool/` is the official product. It is a static browser app for importing spreadsheet payment rows, generating VietQR PNG files, preparing email drafts, and exporting user-owned Gmail workflows without a DEKISUGI backend.
 
-## Runbook
+The former Go Finance Hub, including `main.go`, `web/`, PostgreSQL modules, subscription/tenant flows, email sender, and cron scheduler, is obsolete and planned for complete removal. Do not use or extend that legacy architecture for new work unless the user explicitly requests a legacy change.
 
-- Install/update modules: `go mod tidy`
-- Test everything: `go test ./...`
-- Run locally: `go run .`
-- Run on another port: `PORT=18081 go run .`
-- Open UI: `http://localhost:18080`
+## Official App Runbook
+
+- Install dependencies: `cd qr-tool && npm ci`
+- Test: `cd qr-tool && npm test`
+- Run locally: `cd qr-tool && npm run dev`
+- Build: `cd qr-tool && npm run build`
+- Open UI: `http://localhost:5277`
 
 ## Repo Map
 
-- `main.go`: routes, payment rows, Excel import, QR item assembly.
-- `vietqr_standard.go`: VietQR/NAPAS TLV payload and CRC.
-- `email.go`: email config, preview, templates, Resend send path.
-- `email_gmail.go`: Gmail SMTP and MIME assembly.
-- `email_cron.go`: email queue, scheduler, rolling quota.
-- `web/`: embedded vanilla HTML/CSS/JS UI.
-- `samples/finance_hub_demo/*.xlsx`: sample Excel inputs for importing additional demo data.
-- `main_test.go`: current regression suite.
+- `qr-tool/index.html`: official app structure and dialogs.
+- `qr-tool/src/main.js`: browser state, rendering, and interactions.
+- `qr-tool/src/styles.css`: official app visual system and responsive layout.
+- `qr-tool/src/coffee.js`: public coffee-support recipient and VietQR assembly.
+- `qr-tool/src/vietqr.js`: VietQR/NAPAS TLV payload and CRC.
+- `qr-tool/src/importer.js`: spreadsheet parsing and field mapping.
+- `qr-tool/src/email.js`: safe email template and EML assembly.
+- `qr-tool/src/exporter.js`: QR, Gmail, and provider exports.
+- `qr-tool/tests/`: official regression suite.
+- Go files and `web/`: obsolete Finance Hub retained only until its future removal.
 
 ## Safety
 
@@ -29,7 +33,7 @@ DEKISUGI QR Generating System is a small Go app for school payment workflows. It
 - Use preview or dry-run for email validation by default.
 - Do not commit or print real secrets from `email_config.local.json`, `resend_config.local.json`, or `email_cron.local.json`.
 - Preserve `PaymentItems` total overriding raw `Amount` unless the user asks for a contract change.
-- Preserve VietQR TLV/CRC behavior with exact tests when touching `vietqr_standard.go`.
+- Preserve VietQR TLV/CRC behavior with exact tests when touching `qr-tool/src/vietqr.js` or official QR assembly code.
 - Production UI rule: upsert/detail input workflows must use the app dialog/popup components, not inline panels.
 - Do not use native browser `window.alert`, `window.confirm`, or `window.prompt`; use the app dialog/confirm component instead.
 

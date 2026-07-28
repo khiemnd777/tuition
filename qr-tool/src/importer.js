@@ -188,6 +188,7 @@ function jsonPaymentItems(raw) {
 export function buildPaymentRows(table, mapping, defaults = {}) {
   const mappingErrors = validateMapping(mapping);
   if (mappingErrors.length > 0) throw new Error(mappingErrors.join("; "));
+  const recipientMode = defaults.mode === "per_row" ? "per_row" : "shared";
 
   return table.records.map((record, index) => {
     const parsedItems = jsonPaymentItems(valueFor(table, record, mapping, "payment_items"));
@@ -202,8 +203,9 @@ export function buildPaymentRows(table, mapping, defaults = {}) {
       year: valueFor(table, record, mapping, "year"),
       parentName: valueFor(table, record, mapping, "parent_name"),
       className: valueFor(table, record, mapping, "class_name"),
-      bankBin: valueFor(table, record, mapping, "bank_bin") || defaults.bankBin,
-      bankAccount: valueFor(table, record, mapping, "bank_account") || defaults.bankAccount,
+      bankBin: recipientMode === "per_row" ? valueFor(table, record, mapping, "bank_bin") : defaults.bankBin,
+      bankAccount: recipientMode === "per_row" ? valueFor(table, record, mapping, "bank_account") : defaults.bankAccount,
+      accountName: recipientMode === "shared" ? defaults.accountName : "",
       email: valueFor(table, record, mapping, "email"),
       amount: valueFor(table, record, mapping, "amount"),
       paymentItems: parsedItems.items.length > 0 ? parsedItems.items : columnItems,

@@ -134,6 +134,7 @@ export function cleanPaymentRow(input = {}) {
     className: String(input.className || "").trim(),
     bankBin: onlyDigits(input.bankBin),
     bankAccount: cleanAccount(input.bankAccount),
+    accountName: String(input.accountName || "").trim(),
     email: String(input.email || "").trim(),
     amount: parseAmount(input.amount),
     paymentItems: cleanPaymentItems(input.paymentItems),

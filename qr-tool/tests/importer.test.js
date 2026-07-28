@@ -98,6 +98,57 @@ describe("browser import mapping", () => {
     expect(rows[0].amount).toBe(6_980_000);
   });
 
+  it("uses the confirmed shared recipient even when Excel contains other bank accounts", () => {
+    const recipientTable = {
+      headers: ["Họ và tên", "BIN ngân hàng", "Số tài khoản"],
+      records: [["Nguyễn An", "970415", "FHIMP001"]],
+    };
+    const rows = buildPaymentRows(recipientTable, suggestMapping(recipientTable.headers), {
+      mode: "shared",
+      bankBin: "970436",
+      bankAccount: "0011001932418",
+      accountName: "TRƯỜNG DEKISUGI",
+    });
+
+    expect(rows[0]).toMatchObject({
+      bankBin: "970436",
+      bankAccount: "0011001932418",
+      accountName: "TRƯỜNG DEKISUGI",
+    });
+  });
+
+  it("only uses mapped recipient columns when per-row mode is explicitly selected", () => {
+    const recipientTable = {
+      headers: ["Họ và tên", "BIN ngân hàng", "Số tài khoản"],
+      records: [["Nguyễn An", "970415", "FHIMP001"]],
+    };
+    const rows = buildPaymentRows(recipientTable, suggestMapping(recipientTable.headers), {
+      mode: "per_row",
+      bankBin: "970436",
+      bankAccount: "0011001932418",
+    });
+
+    expect(rows[0]).toMatchObject({
+      bankBin: "970415",
+      bankAccount: "FHIMP001",
+    });
+  });
+
+  it("does not silently fall back to a shared account in per-row mode", () => {
+    const recipientTable = {
+      headers: ["Họ và tên", "BIN ngân hàng", "Số tài khoản"],
+      records: [["Nguyễn An", "", ""]],
+    };
+    const rows = buildPaymentRows(recipientTable, suggestMapping(recipientTable.headers), {
+      mode: "per_row",
+      bankBin: "970436",
+      bankAccount: "0011001932418",
+    });
+
+    expect(rows[0].bankBin).toBe("");
+    expect(rows[0].bankAccount).toBe("");
+  });
+
   it("prevents duplicate singleton targets", () => {
     expect(validateMapping({ A: "email", B: "email", C: "fee_item", D: "fee_item" })).toEqual([
       "Trường Email đang được map từ nhiều cột",

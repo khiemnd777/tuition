@@ -2,6 +2,8 @@
 
 Last reviewed: 2026-05-22
 
+> **Obsolete historical roadmap:** `qr-tool/` is now the official DEKISUGI application. Do not launch or extend the Go Finance Hub initiatives below unless the user explicitly reverses the current product direction. The legacy stack is planned for complete removal.
+
 This document records the production-oriented module analysis for the DEKISUGI school payment system. It is intended to be used as a launch point for separate implementation initiatives on different days.
 
 ## Production Direction
@@ -328,4 +330,3 @@ This order keeps the domain model stable before provider-specific payment work a
 - Email preview and dry-run behavior.
 - Gmail/Resend provider separation behind `sendRenderedEmail`.
 - Cron rolling 24-hour quota rules until replaced by production notification jobs.
-
